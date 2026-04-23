@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary_red">#FFD32F2F</color>
+    <color name="primary_red_light">#FFFFCDD2</color>
+    <color name="primary_red_dark">#FFB71C1C</color>
+
+    <!-- Secondary Colors -->
+    <color name="secondary_amber">#FFFFA000</color>
+    <color name="secondary_amber_light">#FFFFECB3</color>
+    <color name="secondary_amber_dark">#FFFF8F00</color>
+
+    <!-- Tertiary Colors -->
+    <color name="tertiary_blue">#FF2196F3</color>
+    <color name="tertiary_blue_light">#FFBBDEFB</color>
+    <color name="tertiary_blue_dark">#FF1976D2</color>
+
+    <!-- Error Colors -->
+    <color name="error_red">#FFB00020</color>
+    <color name="error_red_light">#FFFFCDD2</color>
+    <color name="error_red_dark">#FF690005</color>
+
+    <!-- Neutral Colors -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="background_white">#FFFAFAFA</color>
+    <color name="surface_white">#FFFFFFFF</color>
+    <color name="surface_variant">#FFE1E1E1</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#FF212121</color>
+    <color name="text_secondary">#FF757575</color>
+    <color name="text_disabled">#FFBDBDBD</color>
+
+    <!-- Outline Colors -->
+    <color name="outline_gray">#FF79747E</color>
+    <color name="outline_gray_light">#FFC4C4C4</color>
+
+    <!-- Status Colors -->
+    <color name="green_success">#FF388E3C</color>
+    <color name="orange_warning">#FFFF9800</color>
+    <color name="red_error">#FFD32F2F</color>
+</resources>

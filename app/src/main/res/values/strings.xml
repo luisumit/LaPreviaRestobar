@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">La Previa Restobar</string>
+    <string name="login_title">La Previa Restobar</string>
+    <string name="select_role">Selecciona tu rol</string>
+    <string name="waiter">Mesero</string>
+    <string name="chef">Cocinero</string>
+    <string name="waiter_description">Asignar mesas y tomar pedidos</string>
+    <string name="chef_description">Preparar pedidos y gestionar cocina</string>
+    <string name="tables">Mesas</string>
+    <string name="orders">Pedidos</string>
+    <string name="inventory">Inventario</string>
+    <string name="free">Libre</string>
+    <string name="occupied">Ocupada</string>
+    <string name="create_order">Crear Pedido</string>
+    <string name="send_to_kitchen">Enviar a Cocina</string>
+    <string name="total">Total</string>
+    <string name="status">Estado</string>
+    <string name="sent">Enviado</string>
+    <string name="accepted">Aceptado</string>
+    <string name="in_preparation">En Preparación</string>
+    <string name="ready">Listo</string>
+    <string name="available">Disponible</string>
+    <string name="out_of_stock">Agotado</string>
+    <string name="accept_order">Aceptar Pedido</string>
+    <string name="start_preparation">Comenzar Preparación</string>
+    <string name="mark_as_ready">Marcar como Listo</string>
+    <string name="waiting_pickup">Esperando recogida</string>
+</resources>
