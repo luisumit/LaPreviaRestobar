@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,6 +14,12 @@ android {
     namespace = "com.laprevia.restobar"
     compileSdk = 34
 
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localProperties.load(localPropertiesFile.inputStream())
+    }
+
     defaultConfig {
         applicationId = "com.laprevia.restobar"
         minSdk = 24
@@ -23,6 +31,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // API Keys from local.properties
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
     }
 
     buildTypes {
@@ -46,6 +57,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

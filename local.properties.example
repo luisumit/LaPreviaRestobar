@@ -1,0 +1,5 @@
+# Template for local.properties
+# Copy this file to local.properties and fill in the values
+
+# Firebase API Key (found in google-services.json -> api_key -> current_key)
+firebase.api.key=YOUR_API_KEY_HERE
