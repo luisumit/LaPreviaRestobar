@@ -34,6 +34,10 @@ android {
 
         // API Keys from local.properties
         buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
+        buildConfigField("String", "EMULATOR_BASE_URL", "\"http://10.0.2.2:8080/\"")
+        buildConfigField("String", "PHYSICAL_DEVICE_BASE_URL", "\"http://192.168.0.104:8080/\"")
+        buildConfigField("String", "EMULATOR_WS_URL", "\"ws://10.0.2.2:8080/ws\"")
+        buildConfigField("String", "PHYSICAL_DEVICE_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
     }
 
     buildTypes {
