@@ -37,8 +37,32 @@ android {
     }
 
     buildTypes {
-        release {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-DEBUG"
+            isDebuggable = true
             isMinifyEnabled = false
+            buildConfigField("String", "ENVIRONMENT", "\"DEBUG\"")
+            buildConfigField("String", "FIREBASE_API_KEY",
+                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
+        }
+
+        create("staging") {
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-STAGING"
+            isDebuggable = true
+            isMinifyEnabled = false
+            buildConfigField("String", "ENVIRONMENT", "\"STAGING\"")
+            buildConfigField("String", "FIREBASE_API_KEY",
+                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
+        }
+
+        release {
+            isDebuggable = false
+            isMinifyEnabled = false
+            buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
+            buildConfigField("String", "FIREBASE_API_KEY",
+                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
