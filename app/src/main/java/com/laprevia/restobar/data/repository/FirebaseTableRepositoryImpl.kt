@@ -1,4 +1,3 @@
-// data/repository/FirebaseTableRepositoryImpl.kt
 package com.laprevia.restobar.data.repository
 
 import com.google.firebase.database.DataSnapshot
@@ -14,9 +13,11 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.laprevia.restobar.di.TablesReference
 
 @Singleton
 class FirebaseTableRepositoryImpl @Inject constructor(
+    @TablesReference
     private val tablesRef: DatabaseReference
 ) : FirebaseTableRepository {
 
@@ -40,12 +41,35 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         awaitClose { tablesRef.removeEventListener(eventListener) }
     }
 
+    // ✅ NUEVO MÉTODO: getPendingTables
+    override fun getPendingTables(): Flow<List<Table>> = callbackFlow {
+        val eventListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val tables = snapshot.children.mapNotNull { it.toTable() }
+                    .filter { it.syncStatus == "PENDING" }
+                println("⏳ FirebaseTables: ${tables.size} mesas pendientes")
+                trySend(tables)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                println("❌ FirebaseTables: Error en getPendingTables: ${error.message}")
+                close(error.toException())
+            }
+        }
+
+        tablesRef.orderByChild("syncStatus").equalTo("PENDING")
+            .addValueEventListener(eventListener)
+
+        awaitClose { tablesRef.removeEventListener(eventListener) }
+    }
+
     override suspend fun updateTableStatus(tableId: Int, status: TableStatus) {
         try {
             println("🔄 FirebaseTables: Actualizando estado mesa $tableId a $status")
 
             val updates = mapOf(
-                "status" to status.name
+                "status" to status.name,
+                "updatedAt" to System.currentTimeMillis()
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
@@ -62,7 +86,8 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
             val updates = mapOf(
                 "status" to TableStatus.OCUPADA.name,
-                "currentOrderId" to orderId
+                "currentOrderId" to orderId,
+                "updatedAt" to System.currentTimeMillis()
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
@@ -79,7 +104,8 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
             val updates = mapOf(
                 "status" to TableStatus.LIBRE.name,
-                "currentOrderId" to null
+                "currentOrderId" to null,
+                "updatedAt" to System.currentTimeMillis()
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
@@ -121,13 +147,34 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         }
     }
 
+    // ==================== MÉTODOS ADICIONALES REQUERIDOS ====================
+
+    override suspend fun syncPendingTables() {
+        try {
+            println("🔄 FirebaseTables: Sincronizando mesas pendientes...")
+            val snapshot = tablesRef.orderByChild("syncStatus").equalTo("PENDING").get().await()
+            val pendingTables = snapshot.children.mapNotNull { it.toTable() }
+
+            if (pendingTables.isNotEmpty()) {
+                println("📤 FirebaseTables: ${pendingTables.size} mesas pendientes encontradas")
+                pendingTables.forEach { table ->
+                    println("   - Mesa ${table.number}: ${table.status}")
+                }
+            } else {
+                println("✅ FirebaseTables: No hay mesas pendientes")
+            }
+        } catch (e: Exception) {
+            println("❌ FirebaseTables: Error en syncPendingTables: ${e.message}")
+            throw e
+        }
+    }
+
     // ==================== MÉTODOS DE INICIALIZACIÓN ====================
 
     override suspend fun initializeDefaultTables() {
         try {
             println("🔄 FirebaseTables: Inicializando mesas por defecto...")
 
-            // Verificar si ya existen mesas
             val snapshot = tablesRef.get().await()
             if (!snapshot.exists() || snapshot.children.count() == 0) {
                 val defaultTables = listOf(
@@ -222,24 +269,31 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
     // ==================== MÉTODOS UTILITARIOS ====================
 
-    /**
-     * Convierte un DataSnapshot de Firebase a un objeto Table
-     */
     private fun DataSnapshot.toTable(): Table? {
         return try {
-            val id = key?.toIntOrNull() ?: return null
+            val idStr = key ?: return null
+            val id = idStr.toIntOrNull() ?: return null
             val number = child("number").getValue(Int::class.java) ?: 0
             val statusStr = child("status").getValue(String::class.java) ?: "LIBRE"
-            val status = TableStatus.valueOf(statusStr)
+            val status = try {
+                TableStatus.valueOf(statusStr)
+            } catch (e: IllegalArgumentException) {
+                TableStatus.LIBRE
+            }
             val currentOrderId = child("currentOrderId").getValue(String::class.java)
             val capacity = child("capacity").getValue(Int::class.java) ?: 4
+            val version = child("version").getValue(Long::class.java) ?: 0
+            val syncStatus = child("syncStatus").getValue(String::class.java) ?: "SYNCED"
+            val updatedAt = child("updatedAt").getValue(Long::class.java) ?: System.currentTimeMillis()
 
             Table(
                 id = id,
                 number = number,
                 status = status,
                 currentOrderId = currentOrderId,
-                capacity = capacity
+                capacity = capacity,
+                version = version,
+                syncStatus = syncStatus
             )
         } catch (e: Exception) {
             println("❌ FirebaseTables: Error convirtiendo DataSnapshot: ${e.message}")
@@ -247,24 +301,21 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Convierte un objeto Table a un Map para Firebase
-     */
     private fun Table.toFirebaseMap(): Map<String, Any?> {
         return mapOf(
             "id" to id,
             "number" to number,
             "status" to status.name,
             "currentOrderId" to currentOrderId,
-            "capacity" to capacity
+            "capacity" to capacity,
+            "version" to version,
+            "syncStatus" to syncStatus,
+            "updatedAt" to System.currentTimeMillis()
         )
     }
 
-    // ==================== MÉTODOS ADICIONALES UTILES ====================
+    // ==================== MÉTODOS ADICIONALES ÚTILES ====================
 
-    /**
-     * Obtiene mesas por estado
-     */
     suspend fun getTablesByStatus(status: TableStatus): List<Table> {
         return try {
             println("🔍 FirebaseTables: Buscando mesas con estado: $status")
@@ -278,29 +329,21 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Obtiene mesas disponibles (libres)
-     */
     suspend fun getAvailableTables(): List<Table> {
         return getTablesByStatus(TableStatus.LIBRE)
     }
 
-    /**
-     * Obtiene mesas ocupadas
-     */
     suspend fun getOccupiedTables(): List<Table> {
         return getTablesByStatus(TableStatus.OCUPADA)
     }
 
-    /**
-     * Reserva una mesa
-     */
     suspend fun reserveTable(tableId: Int) {
         try {
             println("📅 FirebaseTables: Reservando mesa $tableId")
 
             val updates = mapOf(
-                "status" to TableStatus.RESERVADA.name
+                "status" to TableStatus.RESERVADA.name,
+                "updatedAt" to System.currentTimeMillis()
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
@@ -311,9 +354,6 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Obtiene estadísticas de mesas
-     */
     suspend fun getTableStats(): Map<String, Any> {
         return try {
             val snapshot = tablesRef.get().await()
@@ -338,9 +378,6 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Verifica si una mesa existe
-     */
     suspend fun tableExists(tableId: Int): Boolean {
         return try {
             val snapshot = tablesRef.child(tableId.toString()).get().await()
@@ -351,9 +388,6 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Obtiene la mesa por número (no ID)
-     */
     suspend fun getTableByNumber(tableNumber: Int): Table? {
         return try {
             println("🔍 FirebaseTables: Buscando mesa por número: $tableNumber")

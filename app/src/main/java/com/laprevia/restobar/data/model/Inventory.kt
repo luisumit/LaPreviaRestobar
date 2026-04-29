@@ -6,5 +6,7 @@ data class Inventory(
     val currentStock: Double,
     val unitOfMeasure: String,
     val minimumStock: Double = 0.0,
-    val category: String? = null
+    val category: String? = null,
+    val version: Long = 0  // ✅ AGREGAR ESTO
+
 )
