@@ -1,61 +1,261 @@
-// AdminViewModel.kt - VERSIÓN COMPLETA Y FUNCIONAL
 package com.laprevia.restobar.presentation.viewmodel
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.laprevia.restobar.data.local.db.AppDatabase
+import com.laprevia.restobar.data.local.sync.SyncManager
+import com.laprevia.restobar.data.mapper.toDomain
+import com.laprevia.restobar.data.mapper.toEntity
 import com.laprevia.restobar.data.model.Product
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.util.UUID
 
 data class AdminUiState(
     val products: List<Product> = emptyList(),
     val categories: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
+    val success: String? = null,
+    val warning: String? = null,
     val selectedProduct: Product? = null,
     val showProductForm: Boolean = false,
-    val showDeleteDialog: Boolean = false
+    val showDeleteDialog: Boolean = false,
+    val isOffline: Boolean = false,
+    val pendingSyncCount: Int = 0
 )
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(
-    private val firebaseProductRepository: FirebaseProductRepository
+    private val firebaseProductRepository: FirebaseProductRepository,
+    private val db: AppDatabase,
+    private val syncManager: SyncManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
-    init {
-        println("🔧 AdminViewModel inicializado - Conectado a Firebase")
-        loadProducts()
+    // ✅ Estado de internet en tiempo real
+    private val _isInternetAvailable = MutableStateFlow(true)
+    val isInternetAvailable: StateFlow<Boolean> = _isInternetAvailable.asStateFlow()
+
+    private fun checkInternet(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    private fun loadProducts() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+    // ✅ Monitoreo de red en tiempo real
+    private fun startNetworkMonitoring() {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-            try {
-                firebaseProductRepository.getProductsRealTime().collect { products ->
-                    println("✅ Productos cargados desde Firebase: ${products.size}")
+        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                println("🌐 INTERNET DISPONIBLE")
+                _isInternetAvailable.value = true
+                viewModelScope.launch {
                     _uiState.value = _uiState.value.copy(
-                        products = products,
-                        categories = products.mapNotNull { it.category }.distinct(),
-                        isLoading = false,
-                        error = if (products.isEmpty()) "No hay productos registrados" else null
+                        isOffline = false,
+                        warning = "🟢 Internet disponible - Sincronizando..."
+                    )
+                    loadProductsFromFirebase()
+                    syncPendingProducts()
+                    kotlinx.coroutines.delay(2000)
+                    _uiState.value = _uiState.value.copy(warning = null)
+                    if (_uiState.value.pendingSyncCount == 0) {
+                        showMessage("✅ ¡Sincronización completada!", isSuccess = true)
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                println("📱 SIN INTERNET")
+                _isInternetAvailable.value = false
+                viewModelScope.launch {
+                    _uiState.value = _uiState.value.copy(
+                        isOffline = true,
+                        warning = "📱 SIN INTERNET - Los cambios se guardarán localmente",
+                        error = null,
+                        success = null
                     )
                 }
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                if (_isInternetAvailable.value != hasInternet) {
+                    _isInternetAvailable.value = hasInternet
+                    if (hasInternet) {
+                        viewModelScope.launch {
+                            loadProductsFromFirebase()
+                            syncPendingProducts()
+                        }
+                    }
+                }
+            }
+        }
+
+        val networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+
+        // ✅ Valor inicial
+        _isInternetAvailable.value = checkInternet()
+    }
+
+    init {
+        println("🔧 AdminViewModel INICIADO - Offline-First con Room + Firebase")
+
+        // ✅ Iniciar monitoreo de red
+        startNetworkMonitoring()
+
+        viewModelScope.launch {
+            loadProductsFromRoom()
+
+            if (checkInternet()) {
+                loadProductsFromFirebase()
+                showMessage("🟢 Conectado a internet - Los datos se sincronizan automáticamente", isSuccess = true)
+            } else {
+                showMessage("📱 SIN INTERNET - Los cambios se guardarán localmente", isWarning = true)
+            }
+            checkPendingSync()
+        }
+    }
+
+    private fun showMessage(message: String, isError: Boolean = false, isSuccess: Boolean = false, isWarning: Boolean = false) {
+        _uiState.value = _uiState.value.copy(
+            error = if (isError) message else null,
+            success = if (isSuccess) message else null,
+            warning = if (isWarning) message else null
+        )
+
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(3000)
+            clearError()
+            clearSuccess()
+            clearWarning()
+        }
+    }
+
+    private suspend fun loadProductsFromRoom() {
+        try {
+            val roomProducts = db.productDao().getAll()
+            val uniqueProducts = roomProducts
+                .map { it.toDomain() }
+                .distinctBy { it.id }
+                .sortedBy { it.name }
+
+            _uiState.value = _uiState.value.copy(
+                products = uniqueProducts,
+                categories = uniqueProducts.mapNotNull { it.category }.distinct().sorted(),
+                isLoading = false,
+                isOffline = !_isInternetAvailable.value
+            )
+
+            println("📱 Admin: ${uniqueProducts.size} productos únicos cargados desde Room")
+        } catch (e: Exception) {
+            println("❌ Admin: Error cargando desde Room: ${e.message}")
+        }
+    }
+
+    private fun loadProductsFromFirebase() {
+        viewModelScope.launch {
+            try {
+                println("🔥 Admin: Cargando productos desde Firebase...")
+                _uiState.value = _uiState.value.copy(isLoading = true)
+
+                firebaseProductRepository.getProductsRealTime().collect { firebaseProducts ->
+                    println("✅ Productos desde Firebase: ${firebaseProducts.size}")
+
+                    firebaseProducts.forEach { product ->
+                        val existing = db.productDao().getById(product.id)
+                        if (existing == null) {
+                            db.productDao().insert(product.toEntity().copy(syncStatus = "SYNCED"))
+                        }
+                    }
+
+                    val allRoomProducts = db.productDao().getAll().map { it.toDomain() }
+                    val pendingProducts = db.productDao().getPending().map { it.toDomain() }
+
+                    val pendingIds = pendingProducts.map { it.id }.toSet()
+                    val syncedProducts = allRoomProducts.filter { it.id !in pendingIds }
+                    val uniqueProducts = (syncedProducts + pendingProducts).distinctBy { it.id }.sortedBy { it.name }
+
+                    _uiState.value = _uiState.value.copy(
+                        products = uniqueProducts,
+                        categories = uniqueProducts.mapNotNull { it.category }.distinct().sorted(),
+                        isLoading = false,
+                        isOffline = !_isInternetAvailable.value,
+                        pendingSyncCount = pendingProducts.size
+                    )
+
+                    println("📊 Admin: ${uniqueProducts.size} productos totales (${pendingProducts.size} pendientes)")
+                }
             } catch (e: Exception) {
-                println("❌ Error cargando productos desde Firebase: ${e.message}")
+                println("❌ Admin: Error cargando desde Firebase: ${e.message}")
                 _uiState.value = _uiState.value.copy(
-                    error = "Error al cargar productos: ${e.message}",
                     isLoading = false,
-                    products = emptyList()
+                    isOffline = true
                 )
+                showMessage("Error de conexión: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    private fun checkPendingSync() {
+        viewModelScope.launch {
+            try {
+                val pendingCount = db.productDao().getPending().size
+                _uiState.value = _uiState.value.copy(pendingSyncCount = pendingCount)
+
+                if (pendingCount > 0 && _isInternetAvailable.value) {
+                    syncPendingProducts()
+                } else if (pendingCount > 0 && !_isInternetAvailable.value) {
+                    showMessage("📱 ${pendingCount} producto(s) pendiente(s) de sincronizar", isWarning = true)
+                }
+            } catch (e: Exception) {
+                println("❌ Admin: Error verificando pendientes: ${e.message}")
+            }
+        }
+    }
+
+    private fun syncPendingProducts() {
+        viewModelScope.launch {
+            try {
+                println("🔄 Admin: Sincronizando productos pendientes...")
+                showMessage("Sincronizando productos pendientes...", isWarning = true)
+
+                syncManager.syncProducts()
+
+                val pendingCount = db.productDao().getPending().size
+                _uiState.value = _uiState.value.copy(pendingSyncCount = pendingCount)
+
+                if (pendingCount == 0) {
+                    showMessage("✅ ¡Sincronización completada! Todos los productos están en la nube", isSuccess = true)
+                } else {
+                    showMessage("⚠️ Quedan $pendingCount producto(s) pendiente(s)", isWarning = true)
+                }
+
+                loadProductsFromRoom()
+                if (_isInternetAvailable.value) {
+                    loadProductsFromFirebase()
+                }
+            } catch (e: Exception) {
+                println("❌ Admin: Error sincronizando: ${e.message}")
+                showMessage("Error al sincronizar: ${e.message}", isError = true)
             }
         }
     }
@@ -63,7 +263,10 @@ class AdminViewModel @Inject constructor(
     fun showProductForm(product: Product? = null) {
         _uiState.value = _uiState.value.copy(
             showProductForm = true,
-            selectedProduct = product
+            selectedProduct = product,
+            error = null,
+            success = null,
+            warning = null
         )
     }
 
@@ -72,48 +275,6 @@ class AdminViewModel @Inject constructor(
             showProductForm = false,
             selectedProduct = null
         )
-    }
-
-    fun createProduct(product: Product) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            try {
-                println("📝 Creando producto en Firebase: ${product.name}")
-                firebaseProductRepository.createProduct(product)
-                println("✅ Producto creado exitosamente: ${product.name}")
-
-                hideProductForm()
-                // No necesitamos recargar porque el listener en tiempo real actualizará automáticamente
-
-            } catch (e: Exception) {
-                println("❌ Error creando producto en Firebase: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    error = "Error al crear producto: ${e.message}",
-                    isLoading = false
-                )
-            }
-        }
-    }
-
-    fun updateProduct(product: Product) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            try {
-                println("📝 Actualizando producto en Firebase: ${product.name}")
-                firebaseProductRepository.updateProduct(product)
-                println("✅ Producto actualizado exitosamente: ${product.name}")
-
-                hideProductForm()
-                // No necesitamos recargar porque el listener en tiempo real actualizará automáticamente
-
-            } catch (e: Exception) {
-                println("❌ Error actualizando producto en Firebase: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    error = "Error al actualizar producto: ${e.message}",
-                    isLoading = false
-                )
-            }
-        }
     }
 
     fun showDeleteDialog(product: Product) {
@@ -130,35 +291,175 @@ class AdminViewModel @Inject constructor(
         )
     }
 
-    fun deleteProduct() {
-        val product = _uiState.value.selectedProduct
-        if (product != null) {
-            viewModelScope.launch {
-                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                try {
-                    println("🗑️ Eliminando producto de Firebase: ${product.name}")
-                    firebaseProductRepository.deleteProduct(product.id)
-                    println("✅ Producto eliminado exitosamente: ${product.name}")
+    fun createProduct(product: Product) {
+        viewModelScope.launch {
+            try {
+                println("📝 Admin: Creando producto - ${product.name}")
+                _uiState.value = _uiState.value.copy(isLoading = true)
 
-                    hideDeleteDialog()
-                    // No necesitamos recargar porque el listener en tiempo real actualizará automáticamente
-
-                } catch (e: Exception) {
-                    println("❌ Error eliminando producto de Firebase: ${e.message}")
-                    _uiState.value = _uiState.value.copy(
-                        error = "Error al eliminar producto: ${e.message}",
-                        isLoading = false
-                    )
+                val finalProduct = if (product.id.isEmpty()) {
+                    product.copy(id = UUID.randomUUID().toString())
+                } else {
+                    product
                 }
+
+                val existing = db.productDao().getById(finalProduct.id)
+                if (existing != null) {
+                    showMessage("❌ Ya existe un producto con ese ID", isError = true)
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    return@launch
+                }
+
+                db.productDao().insert(finalProduct.toEntity().copy(syncStatus = "PENDING"))
+                println("💾 Producto guardado en Room - ${finalProduct.name}")
+
+                if (_isInternetAvailable.value) {
+                    try {
+                        firebaseProductRepository.createProduct(finalProduct)
+                        db.productDao().updateStatus(finalProduct.id, "SYNCED")
+                        showMessage("✅ Producto '${finalProduct.name}' creado y sincronizado", isSuccess = true)
+                    } catch (e: Exception) {
+                        showMessage("📱 Producto guardado LOCALMENTE. Se sincronizará después", isWarning = true)
+                    }
+                } else {
+                    showMessage("📱 SIN INTERNET - Producto guardado LOCALMENTE", isWarning = true)
+                }
+
+                refreshProducts()
+                hideProductForm()
+
+            } catch (e: Exception) {
+                println("❌ Admin: Error creando producto: ${e.message}")
+                showMessage("Error al crear producto: ${e.message}", isError = true)
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
 
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+    fun updateProduct(product: Product) {
+        viewModelScope.launch {
+            try {
+                println("📝 Admin: Actualizando producto - ${product.name}")
+                _uiState.value = _uiState.value.copy(isLoading = true)
+
+                val updatedEntity = product.toEntity().copy(
+                    syncStatus = "PENDING",
+                    version = System.currentTimeMillis(),
+                    lastModified = System.currentTimeMillis()
+                )
+                db.productDao().insert(updatedEntity)
+                println("💾 Producto actualizado en Room - ${product.name}")
+
+                if (_isInternetAvailable.value) {
+                    try {
+                        firebaseProductRepository.updateProduct(product)
+                        db.productDao().updateStatus(product.id, "SYNCED")
+                        showMessage("✅ Producto '${product.name}' actualizado y sincronizado", isSuccess = true)
+                    } catch (e: Exception) {
+                        showMessage("📱 Producto actualizado LOCALMENTE. Se sincronizará después", isWarning = true)
+                    }
+                } else {
+                    showMessage("📱 SIN INTERNET - Producto actualizado LOCALMENTE", isWarning = true)
+                }
+
+                refreshProducts()
+                hideProductForm()
+
+            } catch (e: Exception) {
+                println("❌ Admin: Error actualizando producto: ${e.message}")
+                showMessage("Error al actualizar producto: ${e.message}", isError = true)
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+
+    fun deleteProduct() {
+        val product = _uiState.value.selectedProduct
+        if (product == null) {
+            showMessage("No se seleccionó ningún producto para eliminar", isError = true)
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                println("🗑️ Admin: Eliminando producto - ${product.name}")
+                _uiState.value = _uiState.value.copy(isLoading = true)
+
+                db.productDao().deleteProduct(product.id)
+                println("💾 Producto eliminado de Room - ${product.name}")
+
+                if (_isInternetAvailable.value) {
+                    try {
+                        firebaseProductRepository.deleteProduct(product.id)
+                        showMessage("✅ Producto '${product.name}' eliminado de la nube", isSuccess = true)
+                    } catch (e: Exception) {
+                        showMessage("📱 Producto eliminado LOCALMENTE. Se eliminará de la nube después", isWarning = true)
+                    }
+                } else {
+                    showMessage("📱 SIN INTERNET - Producto eliminado LOCALMENTE", isWarning = true)
+                }
+
+                refreshProducts()
+                hideDeleteDialog()
+
+            } catch (e: Exception) {
+                println("❌ Admin: Error eliminando producto: ${e.message}")
+                showMessage("Error al eliminar producto: ${e.message}", isError = true)
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+
+    fun manualSync() {
+        viewModelScope.launch {
+            try {
+                println("🔄 Admin: Sincronización manual...")
+                _uiState.value = _uiState.value.copy(isLoading = true)
+
+                if (_isInternetAvailable.value) {
+                    syncManager.syncProducts()
+                    syncManager.downloadProducts()
+                    refreshProducts()
+
+                    val pendingCount = db.productDao().getPending().size
+                    if (pendingCount == 0) {
+                        showMessage("✅ ¡Sincronización completada!", isSuccess = true)
+                    } else {
+                        showMessage("⚠️ Sincronización parcial. Quedan $pendingCount producto(s) pendiente(s)", isWarning = true)
+                    }
+                } else {
+                    showMessage("❌ Sin conexión a internet. Los cambios se guardarán localmente", isError = true)
+                }
+
+            } catch (e: Exception) {
+                println("❌ Admin: Error en sincronización: ${e.message}")
+                showMessage("Error en sincronización: ${e.message}", isError = true)
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
     }
 
     fun refreshProducts() {
-        loadProducts()
+        viewModelScope.launch {
+            loadProductsFromRoom()
+            if (_isInternetAvailable.value) {
+                loadProductsFromFirebase()
+            }
+            checkPendingSync()
+        }
     }
+
+    fun clearError() { _uiState.value = _uiState.value.copy(error = null) }
+    fun clearSuccess() { _uiState.value = _uiState.value.copy(success = null) }
+    fun clearWarning() { _uiState.value = _uiState.value.copy(warning = null) }
+
+    val hasPendingSync: Boolean get() = _uiState.value.pendingSyncCount > 0
+    val connectionStatusText: String get() =
+        if (!_isInternetAvailable.value) "🔴 SIN INTERNET - Modo offline"
+        else if (hasPendingSync) "⏳ ${_uiState.value.pendingSyncCount} pendiente(s)"
+        else "🟢 Conectado - Todo sincronizado"
 }

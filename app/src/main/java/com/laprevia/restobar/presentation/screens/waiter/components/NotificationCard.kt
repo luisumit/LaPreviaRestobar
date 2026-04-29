@@ -28,6 +28,7 @@ fun NotificationCard(
         WaiterViewModel.NotificationType.ORDER_IN_PREPARATION -> Color(0xFFFF9800).copy(alpha = 0.1f)
         WaiterViewModel.NotificationType.ORDER_SENT -> Color(0xFF9C27B0).copy(alpha = 0.1f)
         WaiterViewModel.NotificationType.ORDER_CANCELLED -> Color(0xFFF44336).copy(alpha = 0.1f)
+        WaiterViewModel.NotificationType.ORDER_DELIVERED -> Color(0xFF9C27B0).copy(alpha = 0.1f)  // ✅ NUEVO
     }
 
     val icon = when (notification.type) {
@@ -36,6 +37,7 @@ fun NotificationCard(
         WaiterViewModel.NotificationType.ORDER_IN_PREPARATION -> Icons.Default.LocalBar
         WaiterViewModel.NotificationType.ORDER_SENT -> Icons.Default.Schedule
         WaiterViewModel.NotificationType.ORDER_CANCELLED -> Icons.Default.Close
+        WaiterViewModel.NotificationType.ORDER_DELIVERED -> Icons.Default.CheckCircle  // ✅ NUEVO
     }
 
     Card(
