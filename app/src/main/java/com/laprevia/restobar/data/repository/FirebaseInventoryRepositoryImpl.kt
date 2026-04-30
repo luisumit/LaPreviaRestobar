@@ -1,4 +1,3 @@
-// data/repository/FirebaseInventoryRepositoryImpl.kt
 package com.laprevia.restobar.data.repository
 
 import com.google.firebase.database.DataSnapshot
@@ -13,9 +12,11 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.laprevia.restobar.di.InventoryReference
 
 @Singleton
 class FirebaseInventoryRepositoryImpl @Inject constructor(
+    @InventoryReference
     private val inventoryRef: DatabaseReference
 ) : FirebaseInventoryRepository {
 
@@ -29,7 +30,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
                 val inventory = snapshot.children.mapNotNull { it.toInventory() }
                 println("✅ FirebaseInventory: ${inventory.size} items cargados")
 
-                // 🔍 DEBUG DETALLADO
                 println("📋 DETALLE COMPLETO DEL INVENTARIO:")
                 if (inventory.isEmpty()) {
                     println("   ⚠️ NO HAY DATOS en la colección 'inventory'")
@@ -94,12 +94,73 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    // ✅ NUEVO MÉTODO: Actualizar múltiples campos de un producto
+    // ✅ MÉTODO: addInventoryItem
+    override suspend fun addInventoryItem(item: Inventory) {
+        try {
+            println("📝 FirebaseInventory: Agregando item al inventario - ${item.productName}")
+
+            val itemData = mapOf(
+                "productId" to item.productId,
+                "productName" to item.productName,
+                "currentStock" to item.currentStock,
+                "unitOfMeasure" to item.unitOfMeasure,
+                "minimumStock" to item.minimumStock,
+                "category" to (item.category ?: ""),
+                "createdAt" to System.currentTimeMillis()
+            )
+
+            inventoryRef.child(item.productId).setValue(itemData).await()
+            println("✅ FirebaseInventory: Item agregado exitosamente - ${item.productName}")
+
+        } catch (e: Exception) {
+            println("❌ FirebaseInventory: Error agregando item: ${e.message}")
+            throw e
+        }
+    }
+
+    // ✅ MÉTODO: deleteInventoryItem
+    override suspend fun deleteInventoryItem(productId: String) {
+        try {
+            println("🗑️ FirebaseInventory: Eliminando item del inventario: $productId")
+
+            val snapshot = inventoryRef.child(productId).get().await()
+            if (snapshot.exists()) {
+                inventoryRef.child(productId).removeValue().await()
+                println("✅ FirebaseInventory: Item $productId eliminado exitosamente")
+            } else {
+                println("⚠️ FirebaseInventory: Item $productId no existe")
+            }
+        } catch (e: Exception) {
+            println("❌ FirebaseInventory: Error eliminando item $productId: ${e.message}")
+            throw e
+        }
+    }
+
+    // ✅ NUEVO MÉTODO: getInventoryItemById (EL QUE FALTABA)
+    override suspend fun getInventoryItemById(productId: String): Inventory? {
+        return try {
+            println("🔍 FirebaseInventory: Buscando item por ID: $productId")
+            val snapshot = inventoryRef.child(productId).get().await()
+            val inventory = snapshot.toInventory()
+
+            if (inventory != null) {
+                println("✅ FirebaseInventory: Item encontrado - ${inventory.productName}")
+            } else {
+                println("❌ FirebaseInventory: Item no encontrado - $productId")
+            }
+
+            inventory
+        } catch (e: Exception) {
+            println("❌ FirebaseInventory: Error obteniendo item $productId: ${e.message}")
+            null
+        }
+    }
+
+    // ✅ MÉTODO: updateInventoryFields
     override suspend fun updateInventoryFields(productId: String, updates: Map<String, Any>) {
         try {
             println("🔄 FirebaseInventory: Actualizando campos de $productId con $updates")
 
-            // Si el producto no existe, crearlo con todos los campos
             val snapshot = inventoryRef.child(productId).get().await()
             if (!snapshot.exists()) {
                 println("➕ FirebaseInventory: Creando nuevo producto $productId")
@@ -108,7 +169,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
                 fullData["productId"] = productId
                 inventoryRef.child(productId).setValue(fullData).await()
             } else {
-                // Si existe, actualizar solo los campos proporcionados
                 inventoryRef.child(productId).updateChildren(updates).await()
             }
 
@@ -119,23 +179,9 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    // ✅ NUEVO MÉTODO: Eliminar un producto del inventario
+    // ✅ MÉTODO: deleteProduct (alias)
     override suspend fun deleteProduct(productId: String) {
-        try {
-            println("🗑️ FirebaseInventory: Eliminando producto: $productId")
-
-            // Verificar si el producto existe antes de eliminar
-            val snapshot = inventoryRef.child(productId).get().await()
-            if (snapshot.exists()) {
-                inventoryRef.child(productId).removeValue().await()
-                println("✅ FirebaseInventory: Producto $productId eliminado exitosamente")
-            } else {
-                println("⚠️ FirebaseInventory: Producto $productId no existe, no se puede eliminar")
-            }
-        } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error eliminando producto $productId: ${e.message}")
-            throw e
-        }
+        deleteInventoryItem(productId)
     }
 
     override fun getInventoryByCategory(category: String): Flow<List<Inventory>> = callbackFlow {
@@ -226,7 +272,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    // ✅ MÉTODO REQUERIDO POR LA INTERFACE
     override suspend fun getCurrentStock(productId: String): Double {
         return try {
             println("🔍 FirebaseInventory: Buscando stock para producto: $productId")
@@ -242,9 +287,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
 
     // ==================== MÉTODOS UTILITARIOS ====================
 
-    /**
-     * Convierte un DataSnapshot de Firebase a un objeto Inventory
-     */
     private fun DataSnapshot.toInventory(): Inventory? {
         return try {
             val productId = key ?: return null
@@ -254,7 +296,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             val minimumStock = child("minimumStock").getValue(Double::class.java) ?: 0.0
             val category = child("category").getValue(String::class.java)
 
-            // 🔍 DEBUG de la conversión
             if (productName.isBlank()) {
                 println("⚠️ FirebaseInventory: Producto con ID '$productId' tiene nombre vacío")
             }
@@ -273,9 +314,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Convierte un objeto Inventory a un Map para Firebase
-     */
     private fun Inventory.toFirebaseMap(): Map<String, Any?> {
         return mapOf(
             "productId" to productId,
@@ -289,9 +327,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
 
     // ==================== MÉTODOS ADICIONALES UTILES ====================
 
-    /**
-     * Incrementa o decrementa el stock de un producto
-     */
     suspend fun adjustStock(productId: String, quantity: Double) {
         try {
             val currentStock = getCurrentStock(productId)
@@ -310,9 +345,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Verifica si un producto tiene stock suficiente
-     */
     suspend fun hasSufficientStock(productId: String, requiredQuantity: Double): Boolean {
         return try {
             val currentStock = getCurrentStock(productId)
@@ -323,9 +355,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Obtiene estadísticas del inventario
-     */
     suspend fun getInventoryStats(): Map<String, Any> {
         return try {
             val snapshot = inventoryRef.get().await()
@@ -348,9 +377,6 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Método para limpiar todo el inventario (solo desarrollo)
-     */
     suspend fun clearAllInventory() {
         try {
             println("🗑️ FirebaseInventory: LIMPIANDO TODO EL INVENTARIO...")

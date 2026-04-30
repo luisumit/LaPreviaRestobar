@@ -12,7 +12,9 @@ data class Product(
     val imageUrl: String? = null,
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val version: Long = 0  // ✅ AGREGAR ESTO
+
 ) {
     // Constructor sin argumentos para Firebase
     constructor() : this(

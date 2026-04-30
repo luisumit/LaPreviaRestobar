@@ -1,4 +1,3 @@
-// MainActivity.kt
 package com.laprevia.restobar
 
 import android.os.Bundle
@@ -12,10 +11,12 @@ import androidx.lifecycle.lifecycleScope
 import com.laprevia.restobar.presentation.navigation.AppNavigation
 import com.laprevia.restobar.presentation.theme.LaPreviaRestoBarTheme
 import com.laprevia.restobar.domain.service.FirebaseInitializerService
-import com.laprevia.restobar.domain.service.InventorySyncService // ✅ NUEVO
+import com.laprevia.restobar.domain.service.InventorySyncService
+import com.laprevia.restobar.data.local.sync.SyncManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -25,28 +26,32 @@ class MainActivity : ComponentActivity() {
     lateinit var firebaseInitializerService: FirebaseInitializerService
 
     @Inject
-    lateinit var inventorySyncService: InventorySyncService // ✅ NUEVO
+    lateinit var inventorySyncService: InventorySyncService
+
+    @Inject
+    lateinit var syncManager: SyncManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         lifecycleScope.launch {
             try {
-                println("🚀 MainActivity: Iniciando aplicación con Firebase...")
+                Timber.i("🚀 MainActivity: Iniciando aplicación con Firebase...")
                 firebaseInitializerService.initializeAllData()
 
-                // ✅ NUEVO: Iniciar sincronización de inventario
-                println("🔄 MainActivity: Iniciando sincronización de inventario...")
+                Timber.i("🔄 MainActivity: Iniciando sincronización de inventario...")
                 inventorySyncService.startInventorySync()
 
-                // Esperar un poco y verificar el estado
+                Timber.i("🔄 MainActivity: Sincronizando datos offline...")
+                syncManager.syncFull()
+
                 delay(2000)
                 firebaseInitializerService.checkFirebaseStatus()
 
-                println("✅ MainActivity: Firebase y sincronización inicializados correctamente")
+                Timber.i("✅ MainActivity: Todo inicializado correctamente")
+
             } catch (e: Exception) {
-                println("💥 MainActivity: Error - ${e.message}")
-                e.printStackTrace()
+                Timber.e(e, "💥 MainActivity: Error")
             }
         }
 
@@ -62,4 +67,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-

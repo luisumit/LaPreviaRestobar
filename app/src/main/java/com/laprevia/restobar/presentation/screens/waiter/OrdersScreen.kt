@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
@@ -17,12 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.presentation.screens.waiter.components.OrderCard
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun OrdersScreen(
@@ -32,17 +35,27 @@ fun OrdersScreen(
     val orders by viewModel.orders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isFirebaseConnected by viewModel.isFirebaseConnected.collectAsState()
+    val isInternetAvailable by viewModel.isInternetAvailable.collectAsState()
+    val connectionMessage by viewModel.connectionMessage.collectAsState()
     val connectionStatus by viewModel.connectionStatus.collectAsState()
+
+    val currentConnectionMessage = connectionMessage
+
+    LaunchedEffect(currentConnectionMessage) {
+        if (currentConnectionMessage != null) {
+            delay(3000)
+            viewModel.clearConnectionMessage()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.refreshData()
     }
 
-    // 🔥 NUEVO: Sincronizar con Firebase automáticamente
-    LaunchedEffect(isFirebaseConnected) {
-        if (!isFirebaseConnected) {
-            viewModel.syncWithFirebase()
-        }
+    val connectionStatusText = when {
+        !isInternetAvailable -> "🔴 SIN INTERNET - Modo offline"
+        isFirebaseConnected -> "🟢 Conectado a cocina"
+        else -> "🟡 Reconectando..."
     }
 
     Column(
@@ -50,55 +63,97 @@ fun OrdersScreen(
             .fillMaxSize()
             .background(Color(0xFF0f3460))
     ) {
-        // 🔥 NUEVO: Banner de conexión mejorado
         FirebaseConnectionBanner(
             isConnected = isFirebaseConnected,
-            connectionStatus = connectionStatus,
+            isInternetAvailable = isInternetAvailable,
+            connectionStatus = connectionStatusText,
             isLoading = isLoading,
             onSyncClick = { viewModel.syncWithFirebase() }
         )
 
-        // Header con estadísticas
+        if (currentConnectionMessage != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (currentConnectionMessage.contains("SIN INTERNET"))
+                        Color(0xFFFF9800).copy(alpha = 0.9f)
+                    else
+                        Color(0xFF4CAF50).copy(alpha = 0.9f)
+                )
+            ) {
+                Text(
+                    text = currentConnectionMessage,
+                    color = Color.White,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
         OrdersSummary(
             totalOrders = orders.size,
             pendingOrders = orders.count { it.status == OrderStatus.ENVIADO },
             inProgressOrders = orders.count { it.status == OrderStatus.EN_PREPARACION },
             readyOrders = orders.count { it.status == OrderStatus.LISTO },
-            isFirebaseConnected = isFirebaseConnected, // 🔥 NUEVO
+            isFirebaseConnected = isFirebaseConnected,
+            isInternetAvailable = isInternetAvailable,
             modifier = Modifier.padding(16.dp)
         )
 
         if (isLoading && orders.isEmpty()) {
-            LoadingState()
+            LoadingState(isInternetAvailable = isInternetAvailable)
         } else if (orders.isEmpty()) {
-            EmptyOrdersState(isFirebaseConnected = isFirebaseConnected)
+            EmptyOrdersState(
+                isFirebaseConnected = isFirebaseConnected,
+                isInternetAvailable = isInternetAvailable,
+                onRetry = { viewModel.syncWithFirebase() }
+            )
         } else {
+            if (!isInternetAvailable) {
+                Text(
+                    text = "📱 Modo offline - Mostrando órdenes guardadas localmente",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFFF9800),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
             OrdersListContent(
                 orders = orders,
-                viewModel = viewModel // 🔥 NUEVO: Pasar el viewModel
+                viewModel = viewModel
             )
         }
     }
 }
 
-// 🔥 NUEVO: Banner de conexión con Firebase
 @Composable
 fun FirebaseConnectionBanner(
     isConnected: Boolean,
+    isInternetAvailable: Boolean,
     connectionStatus: String,
     isLoading: Boolean,
     onSyncClick: () -> Unit
 ) {
     if (isLoading) return
 
+    val backgroundColor = when {
+        !isInternetAvailable -> Color(0xFFF44336).copy(alpha = 0.15f)
+        !isConnected -> Color(0xFFFF9800).copy(alpha = 0.15f)
+        else -> Color(0xFF4CAF50).copy(alpha = 0.15f)
+    }
+
+    val textColor = when {
+        !isInternetAvailable -> Color(0xFFF44336)
+        !isConnected -> Color(0xFFFF9800)
+        else -> Color(0xFF4CAF50)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isConnected) Color(0xFF4CAF50).copy(alpha = 0.1f)
-            else Color(0xFFF44336).copy(alpha = 0.1f)
-        )
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Row(
             modifier = Modifier
@@ -112,34 +167,39 @@ fun FirebaseConnectionBanner(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = if (isConnected) Icons.Default.Wifi else Icons.Default.WifiOff,
+                    imageVector = when {
+                        !isInternetAvailable -> Icons.Default.WifiOff
+                        !isConnected -> Icons.Default.Wifi
+                        else -> Icons.Default.Wifi
+                    },
                     contentDescription = "Estado de conexión",
-                    tint = if (isConnected) Color(0xFF4CAF50) else Color(0xFFF44336)
+                    tint = textColor
                 )
                 Column {
                     Text(
                         text = connectionStatus,
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isConnected) Color(0xFF4CAF50) else Color(0xFFF44336),
+                        color = textColor,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = if (isConnected) "Comunicación en tiempo real con cocina"
-                        else "Los cambios pueden no sincronizarse",
+                        text = when {
+                            !isInternetAvailable -> "Los cambios se guardarán localmente"
+                            !isConnected -> "Reconectando con la cocina..."
+                            else -> "Comunicación en tiempo real con cocina"
+                        },
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isConnected) Color(0xFF4CAF50) else Color(0xFFF44336),
+                        color = textColor,
                     )
                 }
             }
 
-            if (!isConnected) {
+            if (!isConnected && isInternetAvailable) {
                 TextButton(
                     onClick = onSyncClick,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = Color(0xFFF44336)
-                    )
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF9800))
                 ) {
-                    Text("Reintentar")
+                    Text("Reconectar")
                 }
             }
         }
@@ -152,7 +212,8 @@ fun OrdersSummary(
     pendingOrders: Int,
     inProgressOrders: Int,
     readyOrders: Int,
-    isFirebaseConnected: Boolean, // 🔥 NUEVO
+    isFirebaseConnected: Boolean,
+    isInternetAvailable: Boolean,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -178,11 +239,18 @@ fun OrdersSummary(
                     color = Color.White
                 )
 
-                // 🔥 NUEVO: Indicador de sincronización
                 Text(
-                    text = if (isFirebaseConnected) "🟢 En vivo" else "🔴 Local",
+                    text = when {
+                        !isInternetAvailable -> "🔴 Modo offline"
+                        isFirebaseConnected -> "🟢 En vivo"
+                        else -> "🟡 Conectando..."
+                    },
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isFirebaseConnected) Color(0xFF4CAF50) else Color(0xFFF44336)
+                    color = when {
+                        !isInternetAvailable -> Color(0xFFF44336)
+                        isFirebaseConnected -> Color(0xFF4CAF50)
+                        else -> Color(0xFFFF9800)
+                    }
                 )
             }
 
@@ -241,12 +309,12 @@ fun OrdersStatItem(
     }
 }
 
+// ✅ ACTUALIZADO: OrdersListContent con los nuevos estados
 @Composable
 fun OrdersListContent(
     orders: List<com.laprevia.restobar.data.model.Order>,
-    viewModel: WaiterViewModel // 🔥 NUEVO: Recibir el viewModel
+    viewModel: WaiterViewModel
 ) {
-    // Agrupar órdenes por estado para mostrar secciones
     val ordersByStatus = orders.groupBy { it.status }
 
     LazyColumn(
@@ -254,86 +322,99 @@ fun OrdersListContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(8.dp)
     ) {
-        // 🔥 NUEVO: Órdenes LISTAS (ALTA PRIORIDAD - aparecen primero)
+        // 🎉 SECCIÓN 1: Órdenes LISTAS (comida lista para llevar)
         ordersByStatus[OrderStatus.LISTO]?.let { readyOrders ->
             if (readyOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "🎉 Listas para Servir",
+                        title = "🎉 LISTAS PARA SERVIR",
                         count = readyOrders.size,
-                        color = Color(0xFF4CAF50),
-                        description = "Órdenes listas para entregar a los clientes"
+                        color = Color(0xFF2196F3),
+                        description = "Comida lista - Presiona ENTREGAR para llevar al cliente"
                     )
                 }
                 items(readyOrders.sortedBy { it.createdAt }) { order ->
                     OrderCard(
                         order = order,
-                        // 🔥 CORREGIDO: Ahora sí llama al método
-                        onMarkAsServed = {
-                            println("🖱️ OrdersScreen: Marcando orden ${order.id} como servida")
-                            viewModel.markOrderAsServed(order.id)
+                        onMarkAsDelivered = {
+                            println("🍽️ Entregando comida orden: ${order.id}")
+                            viewModel.markOrderAsDelivered(order.id)
                         }
                     )
                 }
             }
         }
 
-        // 🔥 NUEVO: Órdenes EN PREPARACIÓN
+        // 🍽️ SECCIÓN 2: Órdenes ENTREGADAS (cliente comiendo)
+        ordersByStatus[OrderStatus.ENTREGADO]?.let { deliveredOrders ->
+            if (deliveredOrders.isNotEmpty()) {
+                item {
+                    OrdersSectionHeader(
+                        title = "🍽️ COMIDA ENTREGADA",
+                        count = deliveredOrders.size,
+                        color = Color(0xFFFF9800),
+                        description = "Cliente comiendo - Presiona LIBERAR cuando se vayan"
+                    )
+                }
+                items(deliveredOrders.sortedBy { it.createdAt }) { order ->
+                    OrderCard(
+                        order = order,
+                        onMarkAsServed = {
+                            println("🧹 Liberando mesa orden: ${order.id}")
+                            viewModel.markTableAsFree(order.id)
+                        }
+                    )
+                }
+            }
+        }
+
+        // 👨‍🍳 SECCIÓN 3: Órdenes EN PREPARACIÓN
         ordersByStatus[OrderStatus.EN_PREPARACION]?.let { inProgressOrders ->
             if (inProgressOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "👨‍🍳 En Preparación",
+                        title = "👨‍🍳 EN PREPARACIÓN",
                         count = inProgressOrders.size,
-                        color = Color(0xFFFF9800),
-                        description = "La cocina está preparando estas órdenes"
+                        color = Color(0xFFFF5722),
+                        description = "La cocina está preparando"
                     )
                 }
                 items(inProgressOrders.sortedBy { it.createdAt }) { order ->
-                    OrderCard(
-                        order = order,
-                        onMarkAsServed = {} // Para órdenes no listas, función vacía
-                    )
+                    OrderCard(order = order)
                 }
             }
         }
 
-        // 🔥 NUEVO: Órdenes ACEPTADAS
+        // ✅ SECCIÓN 4: Órdenes ACEPTADAS
         ordersByStatus[OrderStatus.ACEPTADO]?.let { acceptedOrders ->
             if (acceptedOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "✅ Aceptadas por Cocina",
+                        title = "✅ ACEPTADAS",
                         count = acceptedOrders.size,
                         color = Color(0xFF9C27B0),
-                        description = "Órdenes aceptadas, pendientes de preparación"
+                        description = "Cocina aceptó, próximamente en preparación"
                     )
                 }
                 items(acceptedOrders.sortedBy { it.createdAt }) { order ->
-                    OrderCard(
-                        order = order,
-                        onMarkAsServed = {} // Para órdenes no listas, función vacía
-                    )
+                    OrderCard(order = order)
                 }
             }
         }
 
-        // 🔥 NUEVO: Órdenes ENVIADAS
+        // 📤 SECCIÓN 5: Órdenes ENVIADAS
         ordersByStatus[OrderStatus.ENVIADO]?.let { sentOrders ->
             if (sentOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "📤 Enviadas a Cocina",
+                        title = "📤 ENVIADAS A COCINA",
                         count = sentOrders.size,
                         color = Color(0xFF2196F3),
                         description = "Esperando confirmación de la cocina"
                     )
                 }
                 items(sentOrders.sortedBy { it.createdAt }) { order ->
-                    OrderCard(
-                        order = order,
-                        onMarkAsServed = {} // Para órdenes no listas, función vacía
-                    )
+                    OrderCard(order = order)
                 }
             }
         }
@@ -345,7 +426,7 @@ fun OrdersSectionHeader(
     title: String,
     count: Int,
     color: Color,
-    description: String = "" // 🔥 NUEVO: Descripción opcional
+    description: String = ""
 ) {
     Card(
         modifier = Modifier
@@ -383,7 +464,6 @@ fun OrdersSectionHeader(
                 }
             }
 
-            // 🔥 NUEVO: Descripción de la sección
             if (description.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -397,7 +477,7 @@ fun OrdersSectionHeader(
 }
 
 @Composable
-fun LoadingState() {
+fun LoadingState(isInternetAvailable: Boolean) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -408,7 +488,7 @@ fun LoadingState() {
         ) {
             CircularProgressIndicator(color = Color.White)
             Text(
-                "Conectando con cocina...",
+                text = if (!isInternetAvailable) "Sin conexión - Cargando datos locales..." else "Conectando con cocina...",
                 color = Color.White
             )
         }
@@ -416,40 +496,56 @@ fun LoadingState() {
 }
 
 @Composable
-fun EmptyOrdersState(isFirebaseConnected: Boolean) {
+fun EmptyOrdersState(
+    isFirebaseConnected: Boolean,
+    isInternetAvailable: Boolean,
+    onRetry: () -> Unit
+) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Restaurant,
+                imageVector = when {
+                    !isInternetAvailable -> Icons.Default.WifiOff
+                    else -> Icons.Default.Restaurant
+                },
                 contentDescription = "Sin órdenes",
                 tint = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier.size(64.dp)
             )
             Text(
-                text = if (isFirebaseConnected) {
-                    "No hay órdenes activas"
-                } else {
-                    "Modo local activado"
+                text = when {
+                    !isInternetAvailable -> "Sin conexión a internet"
+                    isFirebaseConnected -> "No hay órdenes activas"
+                    else -> "Conectando con el servidor"
                 },
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White.copy(alpha = 0.6f)
             )
             Text(
-                text = if (isFirebaseConnected) {
-                    "Las órdenes creadas aparecerán aquí automáticamente"
-                } else {
-                    "Las órdenes se sincronizarán cuando se restablezca la conexión"
+                text = when {
+                    !isInternetAvailable -> "Las órdenes se sincronizarán cuando vuelva internet"
+                    isFirebaseConnected -> "Las órdenes creadas aparecerán aquí automáticamente"
+                    else -> "Esperando conexión con el servidor"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.4f),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
+            if (!isInternetAvailable) {
+                Button(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                ) {
+                    Text("Reintentar Conexión")
+                }
+            }
         }
     }
 }
