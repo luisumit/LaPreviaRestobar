@@ -5,6 +5,7 @@ import com.laprevia.restobar.data.mapper.*
 import com.laprevia.restobar.domain.repository.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,50 +18,48 @@ class SyncManager @Inject constructor(
     private val firebaseProducts: FirebaseProductRepository
 ) {
 
-    // ================= SUBIR DATOS A FIREBASE =================
-
     suspend fun syncOrders() = withContext(Dispatchers.IO) {
         try {
             val pending = db.orderDao().getPending()
-            println("🔄 Sync Orders: ${pending.size} pendientes")
+            Timber.d("🔄 Sync Orders: %d pendientes", pending.size)
 
             pending.forEach { entity ->
                 try {
                     firebaseOrders.createOrder(entity.toDomain())
                     db.orderDao().updateStatus(entity.id, "SYNCED")
-                    println("✅ Order sync OK: ${entity.id}")
+                    Timber.d("✅ Order sync OK: %s", entity.id)
                 } catch (e: Exception) {
-                    println("❌ Order sync FAIL: ${entity.id} -> ${e.message}")
+                    Timber.e(e, "❌ Order sync FAIL: %s", entity.id)
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error en syncOrders: ${e.message}")
+            Timber.e(e, "❌ Error en syncOrders")
         }
     }
 
     suspend fun syncTables() = withContext(Dispatchers.IO) {
         try {
             val pending = db.tableDao().getPending()
-            println("🔄 Sync Tables: ${pending.size} pendientes")
+            Timber.d("🔄 Sync Tables: %d pendientes", pending.size)
 
             pending.forEach { entity ->
                 try {
                     firebaseTables.updateTable(entity.toDomain())
                     db.tableDao().updateStatus(entity.id, "SYNCED")
-                    println("✅ Table sync OK: ${entity.id}")
+                    Timber.d("✅ Table sync OK: %s", entity.id)
                 } catch (e: Exception) {
-                    println("❌ Table sync FAIL: ${entity.id} -> ${e.message}")
+                    Timber.e(e, "❌ Table sync FAIL: %s", entity.id)
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error en syncTables: ${e.message}")
+            Timber.e(e, "❌ Error en syncTables")
         }
     }
 
     suspend fun syncInventory() = withContext(Dispatchers.IO) {
         try {
             val pending = db.inventoryDao().getPending()
-            println("🔄 Sync Inventory: ${pending.size} pendientes")
+            Timber.d("🔄 Sync Inventory: %d pendientes", pending.size)
 
             pending.forEach { entity ->
                 try {
@@ -74,129 +73,102 @@ class SyncManager @Inject constructor(
                         )
                     )
                     db.inventoryDao().updateStatus(entity.productId, "SYNCED")
-                    println("✅ Inventory sync OK: ${entity.productId}")
+                    Timber.d("✅ Inventory sync OK: %s", entity.productId)
                 } catch (e: Exception) {
-                    println("❌ Inventory sync FAIL: ${entity.productId} -> ${e.message}")
+                    Timber.e(e, "❌ Inventory sync FAIL: %s", entity.productId)
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error en syncInventory: ${e.message}")
+            Timber.e(e, "❌ Error en syncInventory")
         }
     }
 
     suspend fun syncProducts() = withContext(Dispatchers.IO) {
         try {
             val pending = db.productDao().getPending()
-            println("🔄 Sync Products: ${pending.size} pendientes")
+            Timber.d("🔄 Sync Products: %d pendientes", pending.size)
 
             pending.forEach { entity ->
                 try {
                     firebaseProducts.updateProduct(entity.toDomain())
                     db.productDao().updateStatus(entity.id, "SYNCED")
-                    println("✅ Product sync OK: ${entity.id}")
+                    Timber.d("✅ Product sync OK: %s", entity.id)
                 } catch (e: Exception) {
-                    println("❌ Product sync FAIL: ${entity.id} -> ${e.message}")
+                    Timber.e(e, "❌ Product sync FAIL: %s", entity.id)
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error en syncProducts: ${e.message}")
+            Timber.e(e, "❌ Error en syncProducts")
         }
     }
 
-    // ================= DESCARGAR DATOS DE FIREBASE =================
-
     suspend fun downloadOrders() = withContext(Dispatchers.IO) {
         try {
-            println("📥 Downloading orders from Firebase...")
+            Timber.d("📥 Downloading orders from Firebase...")
             val firebaseOrdersList = firebaseOrders.getOrders().first()
 
             firebaseOrdersList.forEach { remoteOrder ->
                 val localOrder = db.orderDao().getById(remoteOrder.id)
-
-                if (localOrder == null) {
+                if (localOrder == null || remoteOrder.updatedAt > localOrder.updatedAt) {
                     db.orderDao().insert(remoteOrder.toEntity().copy(syncStatus = "SYNCED"))
-                    println("✅ New order saved: ${remoteOrder.id}")
-                } else if (remoteOrder.createdAt > localOrder.createdAt) {
-                    // Usar createdAt en lugar de updatedAt
-                    db.orderDao().insert(remoteOrder.toEntity().copy(syncStatus = "SYNCED"))
-                    println("🔄 Order updated: ${remoteOrder.id}")
+                    Timber.d("✅ Order updated: %s", remoteOrder.id)
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error downloading orders: ${e.message}")
+            Timber.e(e, "❌ Error downloading orders")
         }
     }
 
     suspend fun downloadTables() = withContext(Dispatchers.IO) {
         try {
-            println("📥 Downloading tables from Firebase...")
+            Timber.d("📥 Downloading tables from Firebase...")
             val firebaseTablesList = firebaseTables.getTables().first()
 
             firebaseTablesList.forEach { remoteTable ->
-                val localTable = db.tableDao().getById(remoteTable.id)
-
-                if (localTable == null) {
-                    db.tableDao().insert(remoteTable.toEntity().copy(syncStatus = "SYNCED"))
-                    println("✅ New table saved: ${remoteTable.number}")
-                } else {
-                    // Siempre actualizar si es diferente
-                    db.tableDao().insert(remoteTable.toEntity().copy(syncStatus = "SYNCED"))
-                    println("🔄 Table updated: ${remoteTable.number}")
-                }
+                db.tableDao().insert(remoteTable.toEntity().copy(syncStatus = "SYNCED"))
+                Timber.d("🔄 Table updated: %d", remoteTable.number)
             }
         } catch (e: Exception) {
-            println("❌ Error downloading tables: ${e.message}")
+            Timber.e(e, "❌ Error downloading tables")
         }
     }
 
     suspend fun downloadInventory() = withContext(Dispatchers.IO) {
         try {
-            println("📥 Downloading inventory from Firebase...")
+            Timber.d("📥 Downloading inventory from Firebase...")
             val firebaseInventoryList = firebaseInventory.getInventory().first()
 
             firebaseInventoryList.forEach { remoteItem ->
                 val localItem = db.inventoryDao().getById(remoteItem.productId)
-
-                if (localItem == null) {
+                if (localItem == null || remoteItem.currentStock != localItem.currentStock) {
                     db.inventoryDao().insert(remoteItem.toEntity().copy(syncStatus = "SYNCED"))
-                    println("✅ New inventory item saved: ${remoteItem.productName}")
-                } else if (remoteItem.currentStock != localItem.currentStock) {
-                    db.inventoryDao().insert(remoteItem.toEntity().copy(syncStatus = "SYNCED"))
-                    println("🔄 Inventory updated: ${remoteItem.productName}")
+                    Timber.d("🔄 Inventory updated: %s", remoteItem.productName)
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error downloading inventory: ${e.message}")
+            Timber.e(e, "❌ Error downloading inventory")
         }
     }
 
     suspend fun downloadProducts() = withContext(Dispatchers.IO) {
         try {
-            println("📥 Downloading products from Firebase...")
+            Timber.d("📥 Downloading products from Firebase...")
             val firebaseProductsList = firebaseProducts.getAllProducts().first()
 
             firebaseProductsList.forEach { remoteProduct ->
                 val localProduct = db.productDao().getById(remoteProduct.id)
-
-                if (localProduct == null) {
+                if (localProduct == null || remoteProduct.updatedAt > localProduct.updatedAt) {
                     db.productDao().insert(remoteProduct.toEntity().copy(syncStatus = "SYNCED"))
-                    println("✅ New product saved: ${remoteProduct.name}")
-                } else if (remoteProduct.updatedAt > localProduct.updatedAt) {
-                    // updatedAt existe en Product
-                    db.productDao().insert(remoteProduct.toEntity().copy(syncStatus = "SYNCED"))
-                    println("🔄 Product updated: ${remoteProduct.name}")
+                    Timber.d("🔄 Product updated: %s", remoteProduct.name)
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error downloading products: ${e.message}")
+            Timber.e(e, "❌ Error downloading products")
         }
     }
 
-    // ================= SYNC COMPLETO =================
-
     suspend fun uploadAll() = withContext(Dispatchers.IO) {
-        println("🚀 START UPLOAD TO FIREBASE")
-
+        Timber.i("🚀 START UPLOAD TO FIREBASE")
         try {
             withTimeout(30000) {
                 syncOrders()
@@ -204,17 +176,14 @@ class SyncManager @Inject constructor(
                 syncInventory()
                 syncProducts()
             }
-            println("✅ UPLOAD COMPLETED")
-        } catch (e: TimeoutCancellationException) {
-            println("⚠️ Upload timeout")
+            Timber.i("✅ UPLOAD COMPLETED")
         } catch (e: Exception) {
-            println("❌ Upload error: ${e.message}")
+            Timber.e(e, "❌ Upload error")
         }
     }
 
     suspend fun downloadAll() = withContext(Dispatchers.IO) {
-        println("🚀 START DOWNLOAD FROM FIREBASE")
-
+        Timber.i("🚀 START DOWNLOAD FROM FIREBASE")
         try {
             withTimeout(30000) {
                 downloadOrders()
@@ -222,62 +191,33 @@ class SyncManager @Inject constructor(
                 downloadInventory()
                 downloadProducts()
             }
-            println("✅ DOWNLOAD COMPLETED")
-        } catch (e: TimeoutCancellationException) {
-            println("⚠️ Download timeout")
+            Timber.i("✅ DOWNLOAD COMPLETED")
         } catch (e: Exception) {
-            println("❌ Download error: ${e.message}")
+            Timber.e(e, "❌ Download error")
         }
     }
 
     suspend fun syncFull() = coroutineScope {
-        println("🔄 FULL SYNC STARTED")
-
+        Timber.i("🔄 FULL SYNC STARTED")
         try {
             withTimeout(60000) {
                 uploadAll()
                 downloadAll()
             }
-            println("✅ FULL SYNC COMPLETED")
-        } catch (e: TimeoutCancellationException) {
-            println("⚠️ Full sync timeout")
+            Timber.i("✅ FULL SYNC COMPLETED")
         } catch (e: Exception) {
-            println("❌ Full sync error: ${e.message}")
+            Timber.e(e, "❌ Full sync error")
         }
     }
 
     suspend fun syncLight() = withContext(Dispatchers.IO) {
-        println("🔄 LIGHT SYNC")
+        Timber.d("🔄 LIGHT SYNC")
         try {
             withTimeout(15000) {
                 syncOrders()
             }
         } catch (e: Exception) {
-            println("⚠️ Light sync error: ${e.message}")
-        }
-    }
-
-    suspend fun resolveConflicts() = withContext(Dispatchers.IO) {
-        println("⚖️ Resolving conflicts...")
-        try {
-            val localOrders = db.orderDao().getAll()
-            val remoteOrders = firebaseOrders.getOrders().first()
-
-            remoteOrders.forEach { remote ->
-                val local = localOrders.find { it.id == remote.id }
-                if (local != null && local.createdAt != remote.createdAt) {
-                    if (remote.createdAt > local.createdAt) {
-                        println("📥 Remote wins for order ${remote.id}")
-                        db.orderDao().insert(remote.toEntity().copy(syncStatus = "SYNCED"))
-                    } else if (local.createdAt > remote.createdAt) {
-                        println("📤 Local wins for order ${remote.id}")
-                        firebaseOrders.updateOrder(local.toDomain())
-                    }
-                }
-            }
-            println("✅ Conflict resolution completed")
-        } catch (e: Exception) {
-            println("❌ Error resolving conflicts: ${e.message}")
+            Timber.e(e, "⚠️ Light sync error")
         }
     }
 }
