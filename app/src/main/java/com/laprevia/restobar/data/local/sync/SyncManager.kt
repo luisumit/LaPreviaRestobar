@@ -33,7 +33,7 @@ class SyncManager @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "❌ Error en syncOrders")
+            Timber.e(e, "❌ Fallo en syncOrders")
         }
     }
 
