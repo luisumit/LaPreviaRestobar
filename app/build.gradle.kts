@@ -34,19 +34,45 @@ android {
 
         // API Keys from local.properties
         buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
+        buildConfigField("String", "EMULATOR_BASE_URL", "\"http://10.0.2.2:8080/\"")
+        buildConfigField("String", "PHYSICAL_DEVICE_BASE_URL", "\"http://192.168.0.104:8080/\"")
+        buildConfigField("String", "EMULATOR_WS_URL", "\"ws://10.0.2.2:8080/ws\"")
+        buildConfigField("String", "PHYSICAL_DEVICE_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
     }
 
     buildTypes {
+        debug {
+            versionNameSuffix = "-DEBUG"
+            isDebuggable = true
+            isMinifyEnabled = false
+            buildConfigField("String", "ENVIRONMENT", "\"DEBUG\"")
+            buildConfigField("String", "FIREBASE_API_KEY",
+                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
+        }
+
+        create("staging") {
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-STAGING"
+            isDebuggable = true
+            isMinifyEnabled = false
+            buildConfigField("String", "ENVIRONMENT", "\"STAGING\"")
+            buildConfigField("String", "FIREBASE_API_KEY",
+                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
+        }
+
         release {
+            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
+            buildConfigField("String", "FIREBASE_API_KEY",
+                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -70,12 +96,9 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // Fix for 16KB page alignment error in Android 15
             useLegacyPackaging = true
         }
     }
-}
-
 kapt {
     correctErrorTypes = true
 }
@@ -149,4 +172,5 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
 }
