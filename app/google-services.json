@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "383569219396",
+    "firebase_url": "https://laprevia-restobar-default-rtdb.firebaseio.com",
     "project_id": "laprevia-restobar",
     "storage_bucket": "laprevia-restobar.firebasestorage.app"
   },
@@ -10,6 +11,25 @@
         "mobilesdk_app_id": "1:383569219396:android:58c48b61e8b7005f799111",
         "android_client_info": {
           "package_name": "com.laprevia.restobar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_nXUvuPfTeEmUYk6n_FhucVfuYhAntx0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:383569219396:android:9c3ccc6fce16c2b8799111",
+        "android_client_info": {
+          "package_name": "com.laprevia.restobar.staging"
         }
       },
       "oauth_client": [],
