@@ -171,4 +171,16 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-perf")
     implementation("com.google.firebase:firebase-crashlytics-ndk")
+    // ✅ WorkManager para sync en segundo plano
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // ✅ WorkManager con Hilt (para inyección de dependencias)
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    kapt("androidx.hilt:hilt-compiler:1.1.0")
+
+    // ✅ Si usas Kotlin Coroutines con WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+
+
 }

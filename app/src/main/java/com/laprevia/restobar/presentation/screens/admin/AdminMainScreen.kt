@@ -1,4 +1,4 @@
-// AdminMainScreen.kt - VERSIÓN CORREGIDA
+// AdminMainScreen.kt - VERSIÓN CON MENSAJES DE ESTADO OFFLINE
 package com.laprevia.restobar.presentation.screens.admin
 
 import androidx.compose.foundation.background
@@ -8,12 +8,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Inventory
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,17 +22,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laprevia.restobar.presentation.viewmodel.AdminViewModel
-import com.laprevia.restobar.presentation.viewmodel.LoginViewModel // ✅ IMPORTAR LoginViewModel
+import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminMainScreen(
     viewModel: AdminViewModel = hiltViewModel(),
-    loginViewModel: LoginViewModel = hiltViewModel(), // ✅ AGREGAR LoginViewModel
+    loginViewModel: LoginViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
+
+    // Auto-clear para mensajes después de 3 segundos
+    LaunchedEffect(uiState.success, uiState.warning, uiState.error) {
+        if (uiState.success != null || uiState.warning != null || uiState.error != null) {
+            delay(3000)
+            if (uiState.success != null) viewModel.clearSuccess()
+            if (uiState.warning != null) viewModel.clearWarning()
+            if (uiState.error != null) viewModel.clearError()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -49,47 +57,56 @@ fun AdminMainScreen(
                 color = Color(0xFF1a1a2e),
                 contentColor = Color.White
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Título principal
-                    Column {
-                        Text(
-                            "LA PREVIA RESTOBAR",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            "Panel Administrativo",
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.labelSmall
-                        )
+                Column {
+                    // Top bar principal
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "LA PREVIA RESTOBAR",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                "Panel Administrativo",
+                                color = Color.White.copy(alpha = 0.8f),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                println("🔄 AdminScreen: Cerrando sesión...")
+                                loginViewModel.signOut()
+                                onLogout()
+                            },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFe94560))
+                        ) {
+                            Icon(
+                                Icons.Default.Logout,
+                                contentDescription = "Cerrar sesión",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
-                    // ✅ BOTÓN CORREGIDO - AHORA SÍ CIERRA SESIÓN
-                    IconButton(
-                        onClick = {
-                            println("🔄 AdminScreen: Cerrando sesión...")
-                            loginViewModel.signOut() // ✅ LLAMAR AL VIEWMODEL CORRECTO
-                            onLogout() // ✅ LLAMAR LA NAVEGACIÓN
-                        },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFe94560))
-                    ) {
-                        Icon(
-                            Icons.Default.Logout,
-                            contentDescription = "Cerrar sesión",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    // ✅ BANNER DE ESTADO DE CONEXIÓN
+                    ConnectionStatusBanner(
+                        isOffline = uiState.isOffline,
+                        pendingSyncCount = uiState.pendingSyncCount,
+                        connectionStatusText = viewModel.connectionStatusText,
+                        onManualSync = { viewModel.manualSync() }
+                    )
                 }
             }
         },
@@ -118,6 +135,16 @@ fun AdminMainScreen(
                     )
                 )
         ) {
+            // ✅ MENSAJES TEMPORALES (error, warning, success)
+            MessageBanner(
+                error = uiState.error,
+                warning = uiState.warning,
+                success = uiState.success,
+                onClearError = { viewModel.clearError() },
+                onClearWarning = { viewModel.clearWarning() },
+                onClearSuccess = { viewModel.clearSuccess() }
+            )
+
             // Header de bienvenida
             Card(
                 modifier = Modifier
@@ -166,15 +193,17 @@ fun AdminMainScreen(
                             style = MaterialTheme.typography.titleLarge
                         )
                         Text(
-                            "Gestión completa del sistema",
-                            color = Color.White.copy(alpha = 0.7f),
-                            style = MaterialTheme.typography.bodyMedium
+                            viewModel.connectionStatusText,
+                            color = if (uiState.isOffline) Color(0xFFF44336)
+                            else if (uiState.pendingSyncCount > 0) Color(0xFFFF9800)
+                            else Color(0xFF4CAF50),
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
             }
 
-            // Estadísticas rápidas con diseño mejorado - CORREGIDAS
+            // Estadísticas rápidas
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,7 +225,6 @@ fun AdminMainScreen(
                 )
             }
 
-            // Segunda fila de estadísticas
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -290,27 +318,10 @@ fun AdminMainScreen(
                     }
                 }
             }
-
-            // ✅ BOTÓN EXTRA DE DEBUG (opcional - puedes quitarlo después)
-            Button(
-                onClick = {
-                    println("🔴 CERRANDO SESIÓN FORZADA")
-                    loginViewModel.signOut()
-                    onLogout()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Red
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text("CERRAR SESIÓN (DEBUG)")
-            }
         }
     }
 
-    // Diálogos (sin cambios en la funcionalidad)
+    // Diálogos
     if (uiState.showProductForm) {
         ProductFormDialog(
             product = uiState.selectedProduct,
@@ -346,6 +357,149 @@ fun AdminMainScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun ConnectionStatusBanner(
+    isOffline: Boolean,
+    pendingSyncCount: Int,
+    connectionStatusText: String,
+    onManualSync: () -> Unit
+) {
+    val backgroundColor = when {
+        isOffline -> Color(0xFFF44336).copy(alpha = 0.9f)
+        pendingSyncCount > 0 -> Color(0xFFFF9800).copy(alpha = 0.9f)
+        else -> Color(0xFF4CAF50).copy(alpha = 0.9f)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = when {
+                        isOffline -> Icons.Default.WifiOff
+                        pendingSyncCount > 0 -> Icons.Default.Sync
+                        else -> Icons.Default.Wifi
+                    },
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = connectionStatusText,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (pendingSyncCount > 0) {
+                TextButton(
+                    onClick = onManualSync,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("Sincronizar", fontSize = MaterialTheme.typography.labelSmall.fontSize)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MessageBanner(
+    error: String?,
+    warning: String?,
+    success: String?,
+    onClearError: () -> Unit,
+    onClearWarning: () -> Unit,
+    onClearSuccess: () -> Unit
+) {
+    // Mensaje de ERROR (rojo)
+    if (error != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.95f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Error, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(error, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = onClearError, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+
+    // Mensaje de ADVERTENCIA (naranja)
+    if (warning != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.95f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(warning, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = onClearWarning, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+
+    // Mensaje de ÉXITO (verde)
+    if (success != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.95f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(success, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = onClearSuccess, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
     }
 }
 

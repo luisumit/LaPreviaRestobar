@@ -56,7 +56,6 @@ fun OrderCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
 
-                    // Información del mesero y timestamp
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -87,7 +86,6 @@ fun OrderCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
 
-                // Botón para expandir/contraer
                 IconButton(
                     onClick = { expanded = !expanded },
                     modifier = Modifier.size(24.dp)
@@ -124,13 +122,12 @@ fun OrderCard(
                 }
             }
 
-            // ✅✅✅ CORREGIDO: Items del pedido SIN scroll anidado
+            // Items del pedido
             if (expanded) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp)
-                    // ❌❌❌ SE ELIMINÓ: .verticalScroll(rememberScrollState())
                 ) {
                     if (order.items.isNotEmpty()) {
                         Text(
@@ -144,7 +141,6 @@ fun OrderCard(
                             OrderItemRow(item = item)
                         }
 
-                        // Total
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -174,7 +170,6 @@ fun OrderCard(
                 }
             }
 
-            // Botones de acción con opciones mejoradas - CORREGIDO
             Spacer(modifier = Modifier.height(12.dp))
             OrderActionButtons(
                 status = order.status,
@@ -206,14 +201,12 @@ fun OrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                // ✅ CORREGIDO: Manejo seguro de campos nulos/vacíos
                 Text(
                     text = "${item.quantity}x ${item.productName ?: "Producto"}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
 
-                // ✅ CORREGIDO: Manejo seguro de descripción
                 if (!item.productDescription.isNullOrBlank()) {
                     Text(
                         text = item.productDescription,
@@ -223,7 +216,6 @@ fun OrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
                     )
                 }
 
-                // ✅ CORREGIDO: Manejo seguro de categoría
                 Row(
                     modifier = Modifier.padding(top = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -236,7 +228,6 @@ fun OrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
                         )
                     }
 
-                    // Mostrar si requiere control de inventario
                     if (item.trackInventory) {
                         Text(
                             text = "📦 Control Stock",
@@ -245,7 +236,6 @@ fun OrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
                         )
                     }
 
-                    // Mostrar precio unitario
                     Text(
                         text = "S/. ${"%.2f".format(item.unitPrice)} c/u",
                         style = MaterialTheme.typography.labelSmall,
@@ -263,8 +253,6 @@ fun OrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary
                 )
-
-                // ✅ CORREGIDO: Manejo seguro de productId
                 Text(
                     text = "ID: ${(item.productId ?: "N/A").take(8)}...",
                     style = MaterialTheme.typography.labelSmall,
@@ -286,7 +274,6 @@ fun OrderActionButtons(
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // ✅ CORREGIDO: Priorizar quickActions si existen
         if (quickActions.isNotEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -305,7 +292,6 @@ fun OrderActionButtons(
                 }
             }
         } else {
-            // ✅ CORREGIDO: Acciones por defecto mejoradas
             when (status) {
                 OrderStatus.ENVIADO -> {
                     Button(
@@ -352,7 +338,6 @@ fun OrderActionButtons(
                                 .padding(vertical = 8.dp)
                         )
 
-                        // Opción para marcar como completado
                         if (showCompletionOption && onMarkAsCompleted != null) {
                             OutlinedButton(
                                 onClick = onMarkAsCompleted,
@@ -366,8 +351,29 @@ fun OrderActionButtons(
                         }
                     }
                 }
+                OrderStatus.ENTREGADO -> {
+                    Text(
+                        text = "🍽️ COMIDA ENTREGADA - Esperando liberar mesa",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF9C27B0),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    )
+                }
+                OrderStatus.COMPLETED -> {
+                    Text(
+                        text = "✅ PEDIDO COMPLETADO",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF9E9E9E),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    )
+                }
                 else -> {
-                    // No mostrar botones para otros estados
                     Text(
                         text = "Estado: ${status.name}",
                         style = MaterialTheme.typography.bodySmall,
@@ -380,7 +386,6 @@ fun OrderActionButtons(
     }
 }
 
-// Función utilitaria para mostrar tiempo relativo
 private fun getTimeAgo(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp

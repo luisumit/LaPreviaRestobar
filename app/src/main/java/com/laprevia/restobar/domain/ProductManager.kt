@@ -1,4 +1,3 @@
-// domain/ProductManager.kt
 package com.laprevia.restobar.domain
 
 import com.laprevia.restobar.data.model.Product
@@ -15,15 +14,17 @@ class ProductManager @Inject constructor(
     val sellableProducts: Flow<List<Product>>
         get() = productRepository.getSellableProducts()
 
+    // ✅ CORREGIDO: usar createProduct en lugar de addProduct
     suspend fun addProduct(product: Product) {
-        productRepository.addProduct(product)
+        productRepository.createProduct(product)
     }
 
     suspend fun updateProduct(product: Product) {
         productRepository.updateProduct(product)
     }
 
+    // ✅ CORREGIDO: usar deleteProduct en lugar de removeProduct
     suspend fun removeProduct(productId: String) {
-        productRepository.removeProduct(productId)
+        productRepository.deleteProduct(productId)
     }
 }

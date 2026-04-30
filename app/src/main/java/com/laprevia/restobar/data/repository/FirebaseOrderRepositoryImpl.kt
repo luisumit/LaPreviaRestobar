@@ -13,9 +13,11 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.laprevia.restobar.di.OrdersReference
 
 @Singleton
 class FirebaseOrderRepositoryImpl @Inject constructor(
+    @OrdersReference
     private val ordersRef: DatabaseReference
 ) : FirebaseOrderRepository {
 
@@ -74,9 +76,30 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override fun getOrdersWithItems(): Flow<List<Order>> = getOrders()
 
+    // ✅ NUEVO MÉTODO: getPendingOrders
+    override fun getPendingOrders(): Flow<List<Order>> = callbackFlow {
+        val eventListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val orders = snapshot.children.mapNotNull { it.toOrder() }
+                    .filter { it.status == OrderStatus.PENDING }
+                println("⏳ FirebaseOrders: ${orders.size} órdenes pendientes")
+                trySend(orders)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                println("❌ FirebaseOrders: Error en getPendingOrders: ${error.message}")
+                close(error.toException())
+            }
+        }
+
+        ordersRef.orderByChild("status").equalTo("PENDING")
+            .addValueEventListener(eventListener)
+
+        awaitClose { ordersRef.removeEventListener(eventListener) }
+    }
+
     override suspend fun createOrder(order: Order) {
         try {
-            // ✅ CORREGIDO: Usar el ID que ya viene en la orden
             val orderMap = order.toFirebaseMap()
             ordersRef.child(order.id).setValue(orderMap).await()
         } catch (e: Exception) {
@@ -105,7 +128,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
         }
     }
 
-    // ✅ AGREGADO: Método faltante de OrderRepository
     override suspend fun getOrdersByTable(tableId: Int): List<Order> {
         return try {
             val snapshot = ordersRef.orderByChild("tableId")
@@ -153,8 +175,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
         awaitClose { ordersRef.removeEventListener(eventListener) }
     }
 
-    // Métodos específicos para comunicación en tiempo real
-
     override fun listenToNewOrders(): Flow<Order> = callbackFlow {
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -170,7 +190,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             }
         }
 
-        // ✅ CORREGIDO: Usar startAt con Double en lugar de Long
         ordersRef.orderByChild("createdAt")
             .startAt(System.currentTimeMillis().toDouble())
             .addValueEventListener(eventListener)
@@ -199,7 +218,28 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override fun getOrdersRealTime(): Flow<List<Order>> = getOrders()
 
-    // 🔧🔧🔧 EXTENSION FUNCTIONS ACTUALIZADAS 🔧🔧🔧
+    override suspend fun syncPendingOrders() {
+        try {
+            println("🔄 FirebaseOrders: Sincronizando órdenes pendientes...")
+
+            val snapshot = ordersRef.orderByChild("status").equalTo("PENDING").get().await()
+            val pendingOrders = snapshot.children.mapNotNull { it.toOrder() }
+
+            if (pendingOrders.isNotEmpty()) {
+                println("📤 FirebaseOrders: ${pendingOrders.size} órdenes pendientes encontradas")
+                pendingOrders.forEach { order ->
+                    println("   - Orden ${order.id}: Mesa ${order.tableNumber}, Estado: ${order.status}")
+                }
+            } else {
+                println("✅ FirebaseOrders: No hay órdenes pendientes")
+            }
+        } catch (e: Exception) {
+            println("❌ FirebaseOrders: Error en syncPendingOrders: ${e.message}")
+            throw e
+        }
+    }
+
+    // ==================== EXTENSION FUNCTIONS ====================
 
     private fun DataSnapshot.toOrder(): Order? {
         return try {
@@ -207,22 +247,23 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             val tableId = child("tableId").getValue(Int::class.java) ?: 0
             val tableNumber = child("tableNumber").getValue(Int::class.java) ?: 0
             val statusStr = child("status").getValue(String::class.java) ?: "PENDING"
-            val status = OrderStatus.valueOf(statusStr)
-            val waiterId = child("waiterId").getValue(String::class.java) ?: ""
-            val waiterName = child("waiterName").getValue(String::class.java) ?: ""
+            val status = try {
+                OrderStatus.valueOf(statusStr)
+            } catch (e: IllegalArgumentException) {
+                OrderStatus.PENDING
+            }
+            val waiterId = child("waiterId").getValue(String::class.java)
+            val waiterName = child("waiterName").getValue(String::class.java)
             val createdAt = child("createdAt").getValue(Long::class.java) ?: System.currentTimeMillis()
             val updatedAt = child("updatedAt").getValue(Long::class.java) ?: System.currentTimeMillis()
-            val notes = child("notes").getValue(String::class.java) ?: ""
+            val notes = child("notes").getValue(String::class.java)
             val total = child("total").getValue(Double::class.java) ?: 0.0
 
-            // ✅✅✅ CORREGIDO: Leer los items de Firebase
             val items = mutableListOf<com.laprevia.restobar.data.model.OrderItem>()
             val itemsSnapshot = child("items")
 
             if (itemsSnapshot.exists()) {
-                println("📦 Firebase: Leyendo ${itemsSnapshot.children.count()} items para orden $id")
-
-                itemsSnapshot.children.forEachIndexed { index, itemSnapshot ->
+                itemsSnapshot.children.forEach { itemSnapshot ->
                     try {
                         val productId = itemSnapshot.child("productId").getValue(String::class.java) ?: ""
                         val productName = itemSnapshot.child("productName").getValue(String::class.java) ?: "Producto"
@@ -245,21 +286,17 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
                         )
 
                         items.add(orderItem)
-                        println("   - Item $index: $quantity x $productName - S/.$subtotal")
-
                     } catch (e: Exception) {
-                        println("❌ Error leyendo item $index: ${e.message}")
+                        println("❌ Error leyendo item: ${e.message}")
                     }
                 }
-            } else {
-                println("⚠️ Firebase: Orden $id no tiene campo 'items'")
             }
 
             Order(
                 id = id,
                 tableId = tableId,
                 tableNumber = tableNumber,
-                items = items, // ✅✅✅ AHORA SÍ con los items leídos
+                items = items,
                 status = status,
                 createdAt = createdAt,
                 updatedAt = updatedAt,
@@ -275,7 +312,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
     }
 
     private fun Order.toFirebaseMap(): Map<String, Any> {
-        // ✅✅✅ CORREGIDO: Convertir items a formato Firebase
         val itemsList = items.map { item ->
             mapOf<String, Any>(
                 "productId" to item.productId,
@@ -289,16 +325,11 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             )
         }
 
-        println("🔥 Firebase: Guardando orden con ${items.size} items")
-        items.forEachIndexed { index, item ->
-            println("   - Item $index: ${item.quantity}x ${item.productName}")
-        }
-
         return mapOf<String, Any>(
             "id" to id,
             "tableId" to tableId,
             "tableNumber" to tableNumber,
-            "items" to itemsList, // ✅✅✅ AHORA SÍ guardando los items
+            "items" to itemsList,
             "status" to status.name,
             "waiterId" to (waiterId ?: ""),
             "waiterName" to (waiterName ?: ""),

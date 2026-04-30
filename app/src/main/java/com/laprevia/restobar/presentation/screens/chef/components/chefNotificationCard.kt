@@ -2,11 +2,7 @@ package com.laprevia.restobar.presentation.screens.chef.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocalBar
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,6 +24,7 @@ fun ChefNotificationCard(
         ChefViewModel.ChefNotificationType.ORDER_IN_PREPARATION -> Color(0xFFFF9800).copy(alpha = 0.1f)
         ChefViewModel.ChefNotificationType.ORDER_READY -> Color(0xFF4CAF50).copy(alpha = 0.1f)
         ChefViewModel.ChefNotificationType.ORDER_CANCELLED -> Color(0xFFF44336).copy(alpha = 0.1f)
+        ChefViewModel.ChefNotificationType.INVENTORY_UPDATED -> Color(0xFF9C27B0).copy(alpha = 0.1f)  // ✅ NUEVO
     }
 
     val icon = when (notification.type) {
@@ -36,6 +33,7 @@ fun ChefNotificationCard(
         ChefViewModel.ChefNotificationType.ORDER_IN_PREPARATION -> Icons.Default.LocalBar
         ChefViewModel.ChefNotificationType.ORDER_READY -> Icons.Default.CheckCircle
         ChefViewModel.ChefNotificationType.ORDER_CANCELLED -> Icons.Default.Close
+        ChefViewModel.ChefNotificationType.INVENTORY_UPDATED -> Icons.Default.Inventory  // ✅ NUEVO
     }
 
     Card(
