@@ -8,7 +8,6 @@ plugins {
     id("com.google.gms.google-services")
     id("com.google.firebase.firebase-perf")
     id("com.google.firebase.crashlytics")
-    id("io.gitlab.arturbosch.detekt") version "1.23.6"
 }
 
 android {
@@ -33,7 +32,7 @@ android {
             useSupportLibrary = true
         }
 
-        // API Keys from local.properties
+        // API Keys and URLs (Restored from main to resolve conflict)
         buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
         buildConfigField("String", "EMULATOR_BASE_URL", "\"http://10.0.2.2:8080/\"")
         buildConfigField("String", "PHYSICAL_DEVICE_BASE_URL", "\"http://192.168.0.104:8080/\"")
@@ -42,38 +41,9 @@ android {
     }
 
     buildTypes {
-        debug {
-            versionNameSuffix = "-DEBUG"
-            isDebuggable = true
-            isMinifyEnabled = false
-            buildConfigField("String", "ENVIRONMENT", "\"DEBUG\"")
-            buildConfigField(
-                "String", "FIREBASE_API_KEY",
-                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
-            )
-        }
-
-        create("staging") {
-            applicationIdSuffix = ".staging"
-            versionNameSuffix = "-STAGING"
-            isDebuggable = true
-            isMinifyEnabled = false
-            buildConfigField("String", "ENVIRONMENT", "\"STAGING\"")
-            buildConfigField(
-                "String", "FIREBASE_API_KEY",
-                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
-            )
-        }
-
         release {
-            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
-            buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
-            buildConfigField(
-                "String", "FIREBASE_API_KEY",
-                "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
-            )
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -114,25 +84,21 @@ kapt {
     correctErrorTypes = true
 }
 
-detekt {
-    toolVersion = "1.23.6"
-    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
-    buildUponDefaultConfig = true
-}
-
 dependencies {
-    // Core Android (Safer versions)
+    // Core Android (Updated to safer/newer versions)
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
 
-    // Compose
+    // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
     // Lifecycle
@@ -160,7 +126,7 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
 
-    // Firebase (With App Check for database security)
+    // Firebase (Added App Check for database security)
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
@@ -170,7 +136,7 @@ dependencies {
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
     implementation("com.google.firebase:firebase-appcheck-debug")
 
-    // Utilities
+    // Utilidades
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("com.google.android.material:material:1.12.0")
