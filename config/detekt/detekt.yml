@@ -1,0 +1,22 @@
+build:
+  maxIssues: 700
+
+complexity:
+  LongMethod:
+    threshold: 60
+  LongParameterList:
+    functionThreshold: 6
+  TooManyFunctions:
+    thresholdInFiles: 20
+
+style:
+  MagicNumber:
+    active: false
+  WildcardImport:
+    active: true
+
+comments:
+  active: false
+
+naming:
+  active: true
