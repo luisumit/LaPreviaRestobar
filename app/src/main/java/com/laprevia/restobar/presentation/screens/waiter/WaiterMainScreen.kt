@@ -5,11 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,19 +25,19 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.NotificationPanel
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaiterMainScreen(
     navController: NavController,
     viewModel: WaiterViewModel = hiltViewModel(),
-    onLogout: () -> Unit = {} // ✅ PARÁMETRO AGREGADO
+    onLogout: () -> Unit = {}
 ) {
-    // Estados
     var selectedTab by remember { mutableStateOf(0) }
     var showNotifications by remember { mutableStateOf(false) }
 
-    // Collect states - SOLO Firebase
+    // Estados actualizados
     val notifications by viewModel.notifications.collectAsState()
     val orders by viewModel.orders.collectAsState()
     val tables by viewModel.tables.collectAsState()
@@ -46,15 +45,35 @@ fun WaiterMainScreen(
     val currentOrderItems by viewModel.currentOrderItems.collectAsState()
     val connectionStatus by viewModel.connectionStatus.collectAsState()
     val isFirebaseConnected by viewModel.isFirebaseConnected.collectAsState()
+    val isInternetAvailable by viewModel.isInternetAvailable.collectAsState()
+    val connectionMessage by viewModel.connectionMessage.collectAsState()
+    val successMessage by viewModel.successMessage.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
+    // Auto-clear mensajes después de 3 segundos
+    LaunchedEffect(successMessage, errorMessage, connectionMessage) {
+        if (successMessage != null || errorMessage != null || connectionMessage != null) {
+            delay(3000)
+            if (successMessage != null) viewModel.clearSuccessMessage()
+            if (errorMessage != null) viewModel.clearError()
+            if (connectionMessage != null) viewModel.clearConnectionMessage()
+        }
+    }
 
     val backgroundColor = Color(0xFF0f3460)
     val surfaceColor = Color(0xFF1a1a2e)
     val accentColor = Color(0xFFe94560)
 
-    // Calcular estadísticas
     val readyOrdersCount = orders.count { it.status == com.laprevia.restobar.data.model.OrderStatus.LISTO }
     val occupiedTablesCount = tables.count { it.status == com.laprevia.restobar.data.model.TableStatus.OCUPADA }
     val totalItemsInCart = currentOrderItems.sumOf { it.quantity }
+
+    // Texto de estado de conexión mejorado
+    val connectionStatusText = when {
+        !isInternetAvailable -> "🔴 SIN INTERNET - Modo offline"
+        isFirebaseConnected -> "🟢 Conectado a cocina"
+        else -> "🟡 Conectando..."
+    }
 
     LaunchedEffect(Unit) {
         viewModel.refreshData()
@@ -110,7 +129,6 @@ fun WaiterMainScreen(
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Botón de notificaciones con badge personalizado
                             Box {
                                 IconButton(
                                     onClick = { showNotifications = !showNotifications },
@@ -127,7 +145,6 @@ fun WaiterMainScreen(
                                     )
                                 }
 
-                                // Badge personalizado para notificaciones
                                 if (notifications.isNotEmpty()) {
                                     Box(
                                         modifier = Modifier
@@ -149,9 +166,8 @@ fun WaiterMainScreen(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            // ✅ BOTÓN DE LOGOUT ACTUALIZADO - USA EL PARÁMETRO
                             IconButton(
-                                onClick = onLogout, // ✅ AHORA USA EL PARÁMETRO
+                                onClick = onLogout,
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
@@ -166,6 +182,14 @@ fun WaiterMainScreen(
                             }
                         }
                     }
+
+                    // Banner de estado de conexión
+                    ConnectionStatusBannerWaiter(
+                        isInternetAvailable = isInternetAvailable,
+                        isFirebaseConnected = isFirebaseConnected,
+                        connectionStatusText = connectionStatusText,
+                        onManualSync = { viewModel.syncWithFirebase() }
+                    )
 
                     Row(
                         modifier = Modifier
@@ -182,29 +206,22 @@ fun WaiterMainScreen(
                             letterSpacing = 3.sp
                         )
 
-                        // Indicador de conexión Firebase
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = connectionStatus,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isFirebaseConnected) Color(0xFF4CAF50) else Color(0xFFF44336),
-                                fontSize = 10.sp
-                            )
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Contador de órdenes listas
                             if (readyOrdersCount > 0) {
-                                Badge(
-                                    containerColor = Color(0xFFe94560)
-                                ) {
+                                Badge(containerColor = Color(0xFFe94560)) {
                                     Text(
                                         text = "$readyOrdersCount listas",
                                         color = Color.White,
                                         fontSize = 9.sp
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
+                            Text(
+                                text = "${tables.size} mesas | $occupiedTablesCount ocup.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
                         }
                     }
                 }
@@ -222,10 +239,18 @@ fun WaiterMainScreen(
                     )
                 )
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Panel de bienvenida ACTUALIZADO
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Mensajes temporales
+                MessageBannerWaiter(
+                    error = errorMessage,
+                    warning = connectionMessage,
+                    success = successMessage,
+                    onClearError = { viewModel.clearError() },
+                    onClearWarning = { viewModel.clearConnectionMessage() },
+                    onClearSuccess = { viewModel.clearSuccessMessage() }
+                )
+
+                // Panel de bienvenida
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -275,41 +300,39 @@ fun WaiterMainScreen(
                                 fontSize = 12.sp
                             )
 
-                            // ESTADÍSTICAS MEJORADAS - MÁS LIMPIO
                             Row(
                                 modifier = Modifier.padding(top = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // Estado de conexión
                                 Text(
-                                    text = if (isFirebaseConnected) "🟢 Conectado" else "🔴 Sin conexión",
-                                    color = if (isFirebaseConnected) Color(0xFF4CAF50) else Color(0xFFF44336),
+                                    text = connectionStatusText,
+                                    color = when {
+                                        !isInternetAvailable -> Color(0xFFF44336)
+                                        isFirebaseConnected -> Color(0xFF4CAF50)
+                                        else -> Color(0xFFFF9800)
+                                    },
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium
                                 )
 
-                                // Separador
                                 Text(
                                     text = "•",
                                     color = Color.White.copy(alpha = 0.5f),
                                     fontSize = 10.sp
                                 )
 
-                                // Mesas
                                 Text(
                                     text = "${tables.size} mesas",
                                     color = Color.White.copy(alpha = 0.8f),
                                     fontSize = 10.sp
                                 )
 
-                                // Separador
                                 Text(
                                     text = "•",
                                     color = Color.White.copy(alpha = 0.5f),
                                     fontSize = 10.sp
                                 )
 
-                                // Mesas ocupadas
                                 Text(
                                     text = "$occupiedTablesCount ocup.",
                                     color = if (occupiedTablesCount > 0) Color(0xFFFFA000) else Color.White.copy(alpha = 0.8f),
@@ -318,7 +341,6 @@ fun WaiterMainScreen(
                                 )
                             }
 
-                            // Línea adicional para órdenes listas (solo si hay)
                             if (readyOrdersCount > 0) {
                                 Text(
                                     text = "$readyOrdersCount órdenes listas para servir",
@@ -332,7 +354,7 @@ fun WaiterMainScreen(
                     }
                 }
 
-                // Panel de notificaciones (condicional)
+                // Panel de notificaciones
                 if (showNotifications && notifications.isNotEmpty()) {
                     NotificationPanel(
                         notifications = notifications,
@@ -351,7 +373,6 @@ fun WaiterMainScreen(
 
                 // Tabs principales
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Indicador de items en carrito
                     if (totalItemsInCart > 0) {
                         Card(
                             modifier = Modifier
@@ -384,20 +405,13 @@ fun WaiterMainScreen(
                         contentColor = Color.White,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
-                        // ✅ TABS CORREGIDOS - SIN PARÁMETRO color
                         Tab(
                             selected = selectedTab == 0,
                             onClick = {
                                 selectedTab = 0
                                 showNotifications = false
                             },
-                            text = {
-                                Text(
-                                    text = "MESAS",
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 14.sp
-                                )
-                            }
+                            text = { Text("MESAS", fontWeight = FontWeight.Medium, fontSize = 14.sp) }
                         )
                         Tab(
                             selected = selectedTab == 1,
@@ -405,13 +419,7 @@ fun WaiterMainScreen(
                                 selectedTab = 1
                                 showNotifications = false
                             },
-                            text = {
-                                Text(
-                                    text = "PRODUCTOS",
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 14.sp
-                                )
-                            }
+                            text = { Text("PRODUCTOS", fontWeight = FontWeight.Medium, fontSize = 14.sp) }
                         )
                         Tab(
                             selected = selectedTab == 2,
@@ -419,13 +427,7 @@ fun WaiterMainScreen(
                                 selectedTab = 2
                                 showNotifications = false
                             },
-                            text = {
-                                Text(
-                                    text = "ÓRDENES",
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 14.sp
-                                )
-                            }
+                            text = { Text("ÓRDENES", fontWeight = FontWeight.Medium, fontSize = 14.sp) }
                         )
                     }
 
@@ -435,20 +437,149 @@ fun WaiterMainScreen(
                             .weight(1f)
                     ) {
                         when (selectedTab) {
-                            0 -> TablesScreen(
-                                navController = navController,
-                                viewModel = viewModel
-                            )
-                            1 -> ProductsScreen(
-                                navController = navController,
-                                viewModel = viewModel
-                            )
-                            2 -> OrdersScreen(
-                                navController = navController,
-                                viewModel = viewModel
-                            )
+                            0 -> TablesScreen(navController = navController, viewModel = viewModel)
+                            1 -> ProductsScreen(navController = navController, viewModel = viewModel)
+                            2 -> OrdersScreen(navController = navController, viewModel = viewModel)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ConnectionStatusBannerWaiter(
+    isInternetAvailable: Boolean,
+    isFirebaseConnected: Boolean,
+    connectionStatusText: String,
+    onManualSync: () -> Unit
+) {
+    val backgroundColor = when {
+        !isInternetAvailable -> Color(0xFFF44336).copy(alpha = 0.9f)
+        !isFirebaseConnected -> Color(0xFFFF9800).copy(alpha = 0.9f)
+        else -> Color(0xFF4CAF50).copy(alpha = 0.9f)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = when {
+                        !isInternetAvailable -> Icons.Default.WifiOff
+                        !isFirebaseConnected -> Icons.Default.Sync
+                        else -> Icons.Default.Wifi
+                    },
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = connectionStatusText,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (!isFirebaseConnected && isInternetAvailable) {
+                TextButton(
+                    onClick = onManualSync,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("Reconectar", fontSize = MaterialTheme.typography.labelSmall.fontSize)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MessageBannerWaiter(
+    error: String?,
+    warning: String?,
+    success: String?,
+    onClearError: () -> Unit,
+    onClearWarning: () -> Unit,
+    onClearSuccess: () -> Unit
+) {
+    if (error != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.95f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Error, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(error, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = onClearError, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+
+    if (warning != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.95f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(warning, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = onClearWarning, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+
+    if (success != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.95f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(success, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = onClearSuccess, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
                 }
             }
         }

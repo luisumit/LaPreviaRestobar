@@ -1,7 +1,6 @@
 # IDE and Project
 *.iml
 .gradle
-/local.properties
 .idea/
 .DS_Store
 /build
@@ -9,8 +8,26 @@
 .externalNativeBuild
 .cxx
 
+# Local configuration
+local.properties
+local.properties.example
+
 # Firebase
 app/google-services.json
 
 # Keys and Secrets
-local.properties
+serviceAccountKey.json
+backend/serviceAccountKey.json
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+
+# Android Specific
+*.apk
+*.aar
+*.jks
+*.keystore

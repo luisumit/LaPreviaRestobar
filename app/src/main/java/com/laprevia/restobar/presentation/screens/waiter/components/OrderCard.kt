@@ -1,4 +1,4 @@
-// OrderCard.kt - VERSIÓN CORREGIDA
+// OrderCard.kt - VERSIÓN ACTUALIZADA CON ENTREGADO
 package com.laprevia.restobar.presentation.screens.waiter.components
 
 import androidx.compose.foundation.layout.*
@@ -19,13 +19,15 @@ import com.laprevia.restobar.data.model.OrderStatus
 @Composable
 fun OrderCard(
     order: Order,
-    onMarkAsServed: () -> Unit, // 🔥 CORREGIDO: Hacerlo obligatorio, no opcional
-    onStatusUpdate: (String) -> Unit = {} // Este puede mantenerse opcional
+    onMarkAsDelivered: () -> Unit = {},  // ✅ NUEVO: Para entregar comida (LISTO → ENTREGADO)
+    onMarkAsServed: () -> Unit = {},     // ✅ NUEVO: Para liberar mesa (ENTREGADO → COMPLETED)
+    onStatusUpdate: (String) -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -55,8 +57,6 @@ fun OrderCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
-
-                    // Información del tiempo con más detalle
                     Text(
                         text = "🕒 ${getDetailedTimeAgo(order.createdAt)}",
                         style = MaterialTheme.typography.labelSmall,
@@ -75,7 +75,7 @@ fun OrderCard(
                 }
             }
 
-            // Barra de progreso mejorada
+            // Barra de progreso
             OrderProgressBar(status = order.status)
 
             // Estado y tiempo
@@ -91,8 +91,6 @@ fun OrderCard(
                         color = getStatusColor(order.status),
                         fontWeight = FontWeight.Medium
                     )
-
-                    // Tiempo en estado actual
                     Text(
                         text = "En este estado: ${getTimeInCurrentState(order)}",
                         style = MaterialTheme.typography.labelSmall,
@@ -100,7 +98,6 @@ fun OrderCard(
                     )
                 }
 
-                // Botón para expandir/contraer
                 IconButton(
                     onClick = { expanded = !expanded },
                     modifier = Modifier.size(24.dp)
@@ -155,7 +152,6 @@ fun OrderCard(
                         WaiterOrderItemRow(item = item)
                     }
 
-                    // Resumen de items
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -176,14 +172,10 @@ fun OrderCard(
                 }
             }
 
-            // Acciones específicas para órdenes listas
-            if (order.status == OrderStatus.LISTO) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                ) {
-                    // Mensaje destacado
+            // ✅ BOTONES SEGÚN EL ESTADO DE LA ORDEN
+            when (order.status) {
+                OrderStatus.LISTO -> {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -210,14 +202,32 @@ fun OrderCard(
                             )
                         }
                     }
-
-                    // Botón para marcar como servido
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = {
-                            println("🖱️ OrderCard: Botón 'Marcar como entregado' presionado")
-                            println("🖱️ Orden: ${order.id}, Mesa: ${order.tableNumber}")
-                            onMarkAsServed() // 🔥 AHORA ESTÁ IMPLEMENTADO
+                            println("🍽️ OrderCard: Entregando comida - Orden ${order.id}")
+                            onMarkAsDelivered()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2196F3)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Entregar comida",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("🍽️ ENTREGAR COMIDA")
+                    }
+                }
+                OrderStatus.ENTREGADO -> {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            println("🧹 OrderCard: Liberando mesa - Orden ${order.id}")
+                            onMarkAsServed()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
@@ -226,12 +236,15 @@ fun OrderCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Marcar como servido",
+                            contentDescription = "Liberar mesa",
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Marcar como Entregado")
+                        Text("🧹 LIBERAR MESA")
                     }
+                }
+                else -> {
+                    // Otros estados no tienen botones
                 }
             }
 
@@ -249,14 +262,15 @@ fun OrderCard(
     }
 }
 
-// Barra de progreso mejorada
 @Composable
 fun OrderProgressBar(status: OrderStatus) {
     val progress = when (status) {
-        OrderStatus.ENVIADO -> 0.25f
-        OrderStatus.ACEPTADO -> 0.5f
-        OrderStatus.EN_PREPARACION -> 0.75f
-        OrderStatus.LISTO -> 1.0f
+        OrderStatus.ENVIADO -> 0.2f
+        OrderStatus.ACEPTADO -> 0.4f
+        OrderStatus.EN_PREPARACION -> 0.6f
+        OrderStatus.LISTO -> 0.8f
+        OrderStatus.ENTREGADO -> 0.9f
+        OrderStatus.COMPLETED -> 1.0f
         else -> 0f
     }
 
@@ -272,16 +286,16 @@ fun OrderProgressBar(status: OrderStatus) {
             trackColor = color.copy(alpha = 0.3f)
         )
 
-        // Indicadores de etapas
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             listOf(
-                "Enviado" to (progress >= 0.25f),
-                "Aceptado" to (progress >= 0.5f),
-                "Preparando" to (progress >= 0.75f),
-                "Listo" to (progress >= 1.0f)
+                "Enviado" to (progress >= 0.2f),
+                "Aceptado" to (progress >= 0.4f),
+                "Preparando" to (progress >= 0.6f),
+                "Listo" to (progress >= 0.8f),
+                "Entregado" to (progress >= 0.9f)
             ).forEach { (stage, completed) ->
                 Text(
                     text = stage,
@@ -313,14 +327,12 @@ fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                // ✅ ACTUALIZADO: Usar productName en lugar de product.name
                 Text(
                     text = "${item.quantity}x ${item.productName}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
 
-                // Información adicional del producto
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -337,7 +349,6 @@ fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
                     )
                 }
 
-                // ✅ ACTUALIZADO: Usar productDescription en lugar de product.description
                 if (item.productDescription.isNotBlank()) {
                     Text(
                         text = item.productDescription,
@@ -347,7 +358,6 @@ fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
                     )
                 }
 
-                // ✅ NUEVO: Mostrar categoría del producto
                 if (item.productCategory.isNotBlank()) {
                     Text(
                         text = "Categoría: ${item.productCategory}",
@@ -378,7 +388,6 @@ fun OrderStatusChip(status: OrderStatus) {
     }
 }
 
-// Función para calcular tiempo en estado actual
 private fun getTimeInCurrentState(order: Order): String {
     val now = System.currentTimeMillis()
     val diff = now - order.updatedAt
@@ -391,7 +400,6 @@ private fun getTimeInCurrentState(order: Order): String {
     }
 }
 
-// Función de tiempo más detallada
 private fun getDetailedTimeAgo(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
@@ -413,6 +421,9 @@ private fun getStatusColors(status: OrderStatus): Pair<Color, Color> {
         OrderStatus.ACEPTADO -> Color(0xFFFF9800) to Color.White
         OrderStatus.EN_PREPARACION -> Color(0xFFFF5722) to Color.White
         OrderStatus.LISTO -> Color(0xFF4CAF50) to Color.White
+        OrderStatus.ENTREGADO -> Color(0xFF9C27B0) to Color.White
+        OrderStatus.COMPLETED -> Color(0xFF9E9E9E) to Color.White
+        OrderStatus.CANCELLED -> Color(0xFFF44336) to Color.White
         else -> Color.Gray to Color.White
     }
 }
@@ -423,6 +434,9 @@ private fun getStatusColor(status: OrderStatus): Color {
         OrderStatus.ACEPTADO -> Color(0xFFFF9800)
         OrderStatus.EN_PREPARACION -> Color(0xFFFF5722)
         OrderStatus.LISTO -> Color(0xFF4CAF50)
+        OrderStatus.ENTREGADO -> Color(0xFF9C27B0)
+        OrderStatus.COMPLETED -> Color(0xFF9E9E9E)
+        OrderStatus.CANCELLED -> Color(0xFFF44336)
         else -> Color.Gray
     }
 }
@@ -433,6 +447,9 @@ private fun getStatusShortText(status: OrderStatus): String {
         OrderStatus.ACEPTADO -> "ACEPTADO"
         OrderStatus.EN_PREPARACION -> "PREPARACIÓN"
         OrderStatus.LISTO -> "LISTO"
+        OrderStatus.ENTREGADO -> "ENTREGADO"
+        OrderStatus.COMPLETED -> "COMPLETADO"
+        OrderStatus.CANCELLED -> "CANCELADO"
         else -> "DESCONOCIDO"
     }
 }
@@ -443,6 +460,9 @@ private fun getStatusText(status: OrderStatus): String {
         OrderStatus.ACEPTADO -> "Aceptado por cocina"
         OrderStatus.EN_PREPARACION -> "En preparación"
         OrderStatus.LISTO -> "Listo para servir"
+        OrderStatus.ENTREGADO -> "Comida entregada"
+        OrderStatus.COMPLETED -> "Completado"
+        OrderStatus.CANCELLED -> "Cancelado"
         else -> "Estado desconocido"
     }
 }

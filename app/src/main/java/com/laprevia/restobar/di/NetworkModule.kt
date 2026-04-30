@@ -1,6 +1,7 @@
 // di/NetworkModule.kt - VERSIÓN CORREGIDA CON LOS QUALIFIERS EXISTENTES
 package com.laprevia.restobar.di
 
+import com.laprevia.restobar.BuildConfig
 import android.content.Context
 import com.laprevia.restobar.data.remote.api.ApiService
 import com.laprevia.restobar.data.remote.websocket.RealTimeWebSocketClient
@@ -21,12 +22,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // 🔥 URLs para emulador y dispositivo físico
-    private const val EMULATOR_BASE_URL = "http://10.0.2.2:8080/"
-    private const val PHYSICAL_DEVICE_BASE_URL = "http://192.168.0.104:8080/"
-
-    private const val EMULATOR_WS_URL = "ws://10.0.2.2:8080/ws"
-    private const val PHYSICAL_DEVICE_WS_URL = "ws://192.168.0.104:8080/ws"
+    // ✅ REEMPLAZA POR ESTO
+    private val EMULATOR_BASE_URL = BuildConfig.EMULATOR_BASE_URL
+    private val PHYSICAL_DEVICE_BASE_URL = BuildConfig.PHYSICAL_DEVICE_BASE_URL
+    private val EMULATOR_WS_URL = BuildConfig.EMULATOR_WS_URL
+    private val PHYSICAL_DEVICE_WS_URL = BuildConfig.PHYSICAL_DEVICE_WS_URL
 
     @Provides
     @Singleton
