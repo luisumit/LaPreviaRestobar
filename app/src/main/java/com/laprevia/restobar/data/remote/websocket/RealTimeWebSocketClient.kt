@@ -189,4 +189,18 @@ class RealTimeWebSocketClient @Inject constructor(
     }
 
     fun isConnected(): Boolean = _webSocketEvents.value == WebSocketEvent.Connected
+
+    fun isConnecting(): Boolean = _webSocketEvents.value == WebSocketEvent.Connecting
+
+    fun getCurrentUrl(): String = if (currentUrlIndex < fallbackUrls.size) fallbackUrls[currentUrlIndex] else "Desconocida"
+
+    fun getConnectionStatus(): String {
+        return when (_webSocketEvents.value) {
+            is WebSocketEvent.Connected -> "CONECTADO"
+            is WebSocketEvent.Connecting -> "CONECTANDO"
+            is WebSocketEvent.Disconnected -> "DESCONECTADO"
+            is WebSocketEvent.Error -> "ERROR"
+            else -> "DESCONOCIDO"
+        }
+    }
 }

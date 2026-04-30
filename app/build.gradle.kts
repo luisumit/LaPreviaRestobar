@@ -31,9 +31,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
-        // API Keys from local.properties (Still vulnerable to extraction, consider App Check)
-        buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
     }
 
     buildTypes {
@@ -130,6 +127,7 @@ dependencies {
     implementation("com.google.firebase:firebase-perf-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ndk")
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-appcheck-debug")
 
     // Utilidades
     implementation("androidx.datastore:datastore-preferences:1.1.1")

@@ -11,6 +11,7 @@ import com.laprevia.restobar.domain.worker.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
+import com.laprevia.restobar.BuildConfig
 
 @HiltAndroidApp
 class LaPreviaApp : Application(), Configuration.Provider {
