@@ -36,8 +36,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context,
                     AppDatabase::class.java,
                     "restobar_db"
-                ).fallbackToDestructiveMigration()  // ✅ CAMBIO 2: Agregar esta línea
-                    .build()
+                )
+                // .fallbackToDestructiveMigration() // ⚠️ ADVERTENCIA SEGURIDAD: Comentado para evitar pérdida de datos en producción. 
+                // Implementar Migration manual para cambios de esquema.
+                .build()
 
                 INSTANCE = instance
                 instance
