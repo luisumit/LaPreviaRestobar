@@ -5,7 +5,6 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
-import com.laprevia.restobar.data.repository.*
 import com.laprevia.restobar.domain.repository.*
 import com.laprevia.restobar.domain.service.FirebaseInitializerService
 import com.laprevia.restobar.domain.service.InventorySyncService
@@ -19,20 +18,27 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
 
-    // ✅ AGREGAR: Firebase Auth
+    // ================= FIREBASE AUTH =================
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth {
         return Firebase.auth
     }
 
+    // ================= FIREBASE DATABASE =================
     @Provides
     @Singleton
     fun provideFirebaseDatabase(): FirebaseDatabase {
         return FirebaseDatabase.getInstance().apply {
-            setPersistenceEnabled(true)
+            try {
+                setPersistenceEnabled(true)
+            } catch (e: Exception) {
+                // ya estaba configurado
+            }
         }
     }
+
+    // ================= REFERENCES =================
 
     @Provides
     @Singleton
@@ -62,37 +68,7 @@ object FirebaseModule {
         return database.getReference("inventory")
     }
 
-    @Provides
-    @Singleton
-    fun provideFirebaseOrderRepository(
-        @OrdersReference ordersRef: DatabaseReference
-    ): FirebaseOrderRepository {
-        return FirebaseOrderRepositoryImpl(ordersRef)
-    }
-
-    @Provides
-    @Singleton
-    fun provideFirebaseTableRepository(
-        @TablesReference tablesRef: DatabaseReference
-    ): FirebaseTableRepository {
-        return FirebaseTableRepositoryImpl(tablesRef)
-    }
-
-    @Provides
-    @Singleton
-    fun provideFirebaseProductRepository(
-        @ProductsReference productsRef: DatabaseReference
-    ): FirebaseProductRepository {
-        return FirebaseProductRepositoryImpl(productsRef)
-    }
-
-    @Provides
-    @Singleton
-    fun provideFirebaseInventoryRepository(
-        @InventoryReference inventoryRef: DatabaseReference
-    ): FirebaseInventoryRepository {
-        return FirebaseInventoryRepositoryImpl(inventoryRef)
-    }
+    // ================= SERVICES =================
 
     @Provides
     @Singleton

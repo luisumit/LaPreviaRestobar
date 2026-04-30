@@ -12,13 +12,15 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.laprevia.restobar.di.ProductsReference
 
 @Singleton
 class FirebaseProductRepositoryImpl @Inject constructor(
+    @ProductsReference
     private val productsRef: DatabaseReference
 ) : FirebaseProductRepository {
 
-    // ==================== MÉTODO getProductById ACTUALIZADO ====================
+    // ==================== MÉTODO getProductById ====================
 
     override suspend fun getProductById(id: String): Product {
         return try {
@@ -35,12 +37,10 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 product
             } else {
                 println("❌ FirebaseProducts: Producto no encontrado - ID: $id")
-                // Crear producto vacío como fallback
                 createDefaultProduct(id)
             }
         } catch (e: Exception) {
             println("❌ FirebaseProducts: Error obteniendo producto $id - ${e.message}")
-            // Crear producto vacío como fallback
             createDefaultProduct(id)
         }
     }
@@ -49,13 +49,21 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         return Product(
             id = productId,
             name = "Producto no disponible",
+            description = "",
             category = "General",
-            isActive = false
-            // ❌ ELIMINADO: isSellable = false (no existe en tu Product)
+            salePrice = null,
+            costPrice = null,
+            trackInventory = false,
+            stock = 0.0,
+            minStock = 0.0,
+            imageUrl = null,
+            isActive = false,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
         )
     }
 
-    // ==================== MÉTODO toProduct CORREGIDO ====================
+    // ==================== MÉTODO toProduct ====================
 
     private fun DataSnapshot.toProduct(): Product {
         return try {
@@ -78,12 +86,20 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             )
         } catch (e: Exception) {
             println("❌ FirebaseProducts: Error convirtiendo DataSnapshot: ${e.message}")
-            // SIEMPRE retornar un Product válido
             Product(
                 id = "error_${System.currentTimeMillis()}",
                 name = "Error al cargar",
+                description = "",
                 category = "General",
-                isActive = false
+                salePrice = null,
+                costPrice = null,
+                trackInventory = false,
+                stock = 0.0,
+                minStock = 0.0,
+                imageUrl = null,
+                isActive = false,
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
             )
         }
     }
@@ -128,9 +144,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
     override fun getSellableProducts(): Flow<List<Product>> = callbackFlow {
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                // ❌ ELIMINADO: .filter { it.isSellable && it.isActive } (isSellable no existe)
                 val products = snapshot.children.map { it.toProduct() }
-                    .filter { it.isActive } // Solo filtrar por activo
+                    .filter { it.isActive }
                 println("💰 FirebaseProducts: ${products.size} productos activos")
                 trySend(products)
             }
@@ -197,6 +212,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         }
     }
 
+    // ✅ MÉTODO AGREGADO - updateProduct
     override suspend fun updateProduct(product: Product) {
         try {
             println("🔄 FirebaseProducts: Actualizando producto: ${product.name}")
@@ -235,9 +251,6 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun addProduct(product: Product) = createProduct(product)
-
-    override suspend fun removeProduct(productId: String) = deleteProduct(productId)
 
     // ==================== MÉTODOS ESPECÍFICOS DE FIREBASE ====================
 
@@ -286,7 +299,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         try {
             println("📊 FirebaseProducts: Actualizando stock de $productId a $newQuantity")
             val updates = mapOf(
-                "stock" to newQuantity, // ✅ Cambiado de "initialQuantity" a "stock"
+                "stock" to newQuantity,
                 "updatedAt" to System.currentTimeMillis()
             )
             productsRef.child(productId).updateChildren(updates).await()
@@ -356,7 +369,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         }
     }
 
-    // ==================== MÉTODO toFirebaseMap CORREGIDO ====================
+    // ==================== MÉTODO toFirebaseMap ====================
 
     private fun toFirebaseMap(product: Product): Map<String, Any?> = mapOf(
         "id" to product.id,
