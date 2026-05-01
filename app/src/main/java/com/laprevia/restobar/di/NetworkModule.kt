@@ -22,7 +22,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // ✅ REEMPLAZA POR ESTO
     private val EMULATOR_BASE_URL = BuildConfig.EMULATOR_BASE_URL
     private val PHYSICAL_DEVICE_BASE_URL = BuildConfig.PHYSICAL_DEVICE_BASE_URL
     private val EMULATOR_WS_URL = BuildConfig.EMULATOR_WS_URL
