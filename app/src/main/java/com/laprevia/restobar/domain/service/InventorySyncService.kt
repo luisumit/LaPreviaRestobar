@@ -33,7 +33,7 @@ class InventorySyncService @Inject constructor(
             }
             cleanupOrphanedInventory(productsWithInventory)
         } catch (e: Exception) {
-            Timber.e(e, "❌ Error en sincronización")
+            Timber.e(e, "❌ Error crítico en sincronización de inventario")
         }
     }
 
