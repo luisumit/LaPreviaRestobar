@@ -1,22 +1,93 @@
 build:
-  maxIssues: 700
+  maxIssues: 80   # ajustado a proyecto mediano con deuda técnica
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+
+output-reports:
+  active: true
 
 complexity:
+  active: true
+
   LongMethod:
-    threshold: 60
+    active: true
+    threshold: 40   # más realista para tu código actual
+
   LongParameterList:
+    active: true
     functionThreshold: 6
+    constructorThreshold: 7
+
   TooManyFunctions:
-    thresholdInFiles: 20
+    active: true
+    thresholdInFiles: 25
+
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 15
+
+  LargeClass:
+    active: true
+    threshold: 600
 
 style:
+  active: true
+
   MagicNumber:
-    active: false
+    active: false   # lo dejamos desactivado por ahora (muy invasivo)
+
   WildcardImport:
     active: true
 
-comments:
-  active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+
+  ReturnCount:
+    active: true
+    max: 3
+
+  ForbiddenComment:
+    active: true
+    values: ['TODO:', 'FIXME:']
 
 naming:
   active: true
+
+  FunctionNaming:
+    active: true
+    functionPattern: '[a-z][a-zA-Z0-9]*'
+
+  VariableNaming:
+    active: true
+    variablePattern: '[a-z][a-zA-Z0-9]*'
+
+  ClassNaming:
+    active: true
+    classPattern: '[A-Z][a-zA-Z0-9]*'
+
+comments:
+  active: false   # mantenemos relajado para no saturar
+
+performance:
+  active: true
+
+  SpreadOperator:
+    active: true
+
+potential-bugs:
+  active: true
+
+  UnsafeCallOnNullableType:
+    active: true
+
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
