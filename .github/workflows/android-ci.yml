@@ -20,14 +20,29 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Crear archivo google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "Warning: GOOGLE_SERVICES_JSON secret is missing"
+          else
+            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          fi
+
+      - name: Crear archivo local.properties
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          echo "firebase.api.key=$FIREBASE_API_KEY" > local.properties
 
       - name: Dar permisos al ejecutable Gradle
         run: chmod +x ./gradlew
+
+      - name: Ejecutar Análisis Estático (Lint)
+        run: ./gradlew lintDebug
 
       - name: Compilar APK de depuración
         run: ./gradlew assembleDebug
