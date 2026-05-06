@@ -41,14 +41,32 @@ jobs:
       - name: Dar permisos al ejecutable Gradle
         run: chmod +x ./gradlew
 
+      # DETEKT (ANÁLISIS ESTÁTICO)
+      - name: Ejecutar análisis estático con Detekt
+        run: ./gradlew detekt || echo "Detekt task failed or not found, continuing..."
+
+      # LINT (ANÁLISIS ESTÁTICO ANDROID)
       - name: Ejecutar Análisis Estático (Lint)
         run: ./gradlew lintDebug
 
+      # BUILD
       - name: Compilar APK de depuración
         run: ./gradlew assembleDebug
 
+      # SUBIR APK
       - name: Subir APK generado
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # SUBIR REPORTE DE DETEKT Y LINT
+      - name: Subir reportes de análisis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: |
+            app/build/reports/detekt/
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
