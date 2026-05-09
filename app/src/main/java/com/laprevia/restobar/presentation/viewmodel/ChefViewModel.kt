@@ -15,6 +15,7 @@ import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
+import com.laprevia.restobar.domain.repository.FirebaseProductRepository  // ✅ AGREGAR IMPORT
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -25,6 +26,7 @@ import javax.inject.Inject
 class ChefViewModel @Inject constructor(
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseInventoryRepository: FirebaseInventoryRepository,
+    private val firebaseProductRepository: FirebaseProductRepository,  // ✅ AGREGADO
     private val db: AppDatabase,
     private val syncManager: SyncManager,
     @ApplicationContext private val context: Context
@@ -194,6 +196,28 @@ class ChefViewModel @Inject constructor(
                 println("❌ Chef: Error en listenToOrderChanges: ${e.message}")
             }
         }
+
+        // ✅ NUEVO: Escuchar específicamente cambios de ENTREGADO (para que el chef vea cuando el mesero entrega)
+        viewModelScope.launch {
+            try {
+                firebaseOrderRepository.listenToOrderChanges().collect { updatedOrder ->
+                    if (updatedOrder.status == OrderStatus.ENTREGADO) {
+                        println("🍽️ Chef: El MESERO entregó la comida - Mesa ${updatedOrder.tableNumber}")
+                        db.orderDao().insert(updatedOrder.toEntity().copy(syncStatus = "SYNCED"))
+                        refreshOrdersFromRoom()
+                        addNotification(ChefNotification(
+                            type = ChefNotificationType.ORDER_DELIVERED,
+                            title = "🍽️ Comida Entregada - Mesa ${updatedOrder.tableNumber}",
+                            message = "El mesero entregó la comida al cliente",
+                            orderId = updatedOrder.id,
+                            tableNumber = updatedOrder.tableNumber
+                        ))
+                    }
+                }
+            } catch (e: Exception) {
+                println("❌ Chef: Error escuchando ENTREGADO: ${e.message}")
+            }
+        }
     }
 
     // ✅ AGREGADO: Nuevo método para manejar órdenes de Firebase
@@ -228,28 +252,37 @@ class ChefViewModel @Inject constructor(
 
     private suspend fun refreshOrdersFromRoom() {
         val roomOrders = db.orderDao().getAll()
-        // ✅ AGREGADO: distinctBy para eliminar duplicados
+        // ✅ Incluir ENTREGADO (el cliente está comiendo) pero excluir COMPLETED y CANCELLED
         val activeOrders = roomOrders.filter {
-            it.status != "COMPLETED" && it.status != "CANCELLED" && it.tableId != 0
-        }.distinctBy { it.id }  // ✅ CLAVE: eliminar duplicados por ID
+            it.status != "COMPLETED" &&
+                    it.status != "CANCELLED" &&
+                    it.tableId != 0
+        }.distinctBy { it.id }  // ✅ eliminar duplicados por ID
 
-        _orders.value = activeOrders.map { entity ->
-            Order(
-                id          = entity.id,
-                tableId     = entity.tableId,
-                tableNumber = entity.tableNumber,
-                items = entity.toDomain().items,
-
-                status      = OrderStatus.valueOf(entity.status),
-                createdAt   = entity.createdAt,
-                updatedAt   = entity.updatedAt,
-                total       = entity.total,
-                waiterId    = entity.waiterId ?: "",
-                waiterName  = entity.waiterName ?: "",
-                notes       = entity.notes
-            )
+        _orders.value = activeOrders.mapNotNull { entity ->
+            try {
+                Order(
+                    id          = entity.id,
+                    tableId     = entity.tableId,
+                    tableNumber = entity.tableNumber,
+                    items = entity.toDomain().items,
+                    status      = OrderStatus.valueOf(entity.status), // ENTREGADO ahora es válido
+                    createdAt   = entity.createdAt,
+                    updatedAt   = entity.updatedAt,
+                    total       = entity.total,
+                    waiterId    = entity.waiterId ?: "",
+                    waiterName  = entity.waiterName ?: "",
+                    notes       = entity.notes
+                )
+            } catch (e: Exception) {
+                println("❌ Chef: Error parseando orden ${entity.id}: ${e.message}")
+                null
+            }
         }
         println("🗄️ Chef: Room → UI actualizado: ${_orders.value.size} órdenes activas")
+        _orders.value.forEach { order ->
+            println("   - Mesa ${order.tableNumber}: ${order.status}")
+        }
     }
 
     private fun syncWithFirebase() {
@@ -363,9 +396,11 @@ class ChefViewModel @Inject constructor(
         order.items.forEach { item ->
             if (item.trackInventory) {
                 try {
-                    val currentStock = firebaseInventoryRepository.getCurrentStock(item.productId)
+                    // ✅ USAR FirebaseProductRepository para obtener stock actual
+                    val currentStock = firebaseProductRepository.getProductStock(item.productId)
                     val newStock = currentStock - item.quantity
                     if (newStock >= 0) {
+                        firebaseProductRepository.updateProductStock(item.productId, newStock)
                         firebaseInventoryRepository.updateStock(item.productId, newStock)
                         println("📦 Inventario: ${item.productName}: $currentStock → $newStock")
                         addNotification(ChefNotification(
@@ -379,7 +414,9 @@ class ChefViewModel @Inject constructor(
                         println("⚠️ Stock insuficiente para ${item.productName}")
                         _errorMessage.value = "Stock insuficiente: ${item.productName}"
                     }
-                } catch (e: Exception) { println("❌ Error actualizando inventario: ${e.message}") }
+                } catch (e: Exception) {
+                    println("❌ Error actualizando inventario: ${e.message}")
+                }
             }
         }
     }
@@ -445,6 +482,13 @@ class ChefViewModel @Inject constructor(
                 orderId = current.id,
                 tableNumber = current.tableNumber
             )
+            OrderStatus.ENTREGADO -> ChefNotification(
+                type = ChefNotificationType.ORDER_DELIVERED,
+                title = "🍽️ Comida Entregada - Mesa ${current.tableNumber}",
+                message = "El mesero entregó la comida al cliente",
+                orderId = current.id,
+                tableNumber = current.tableNumber
+            )
             else -> null
         }
         notification?.let { addNotification(it) }
@@ -478,6 +522,7 @@ class ChefViewModel @Inject constructor(
     val acceptedOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.ACEPTADO }
     val inProgressOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.EN_PREPARACION }
     val readyOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.LISTO }
+    val deliveredOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.ENTREGADO }
     val totalActiveOrders: Int get() = _orders.value.size
 
     val connectionStatus: String get() =
@@ -490,6 +535,7 @@ class ChefViewModel @Inject constructor(
         OrderStatus.ACEPTADO -> "✅ Aceptado"
         OrderStatus.EN_PREPARACION -> "👨‍🍳 En preparación"
         OrderStatus.LISTO -> "🎉 Listo para servir"
+        OrderStatus.ENTREGADO -> "🍽️ Comida entregada"
         OrderStatus.COMPLETED -> "✅ Completado"
         OrderStatus.CANCELLED -> "❌ Cancelado"
         else -> status.name
@@ -509,6 +555,6 @@ class ChefViewModel @Inject constructor(
     )
 
     enum class ChefNotificationType {
-        NEW_ORDER, ORDER_ACCEPTED, ORDER_IN_PREPARATION, ORDER_READY, ORDER_CANCELLED, INVENTORY_UPDATED
+        NEW_ORDER, ORDER_ACCEPTED, ORDER_IN_PREPARATION, ORDER_READY, ORDER_DELIVERED, ORDER_CANCELLED, INVENTORY_UPDATED
     }
 }

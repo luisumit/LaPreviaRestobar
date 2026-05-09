@@ -212,7 +212,6 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         }
     }
 
-    // ✅ MÉTODO AGREGADO - updateProduct
     override suspend fun updateProduct(product: Product) {
         try {
             println("🔄 FirebaseProducts: Actualizando producto: ${product.name}")
@@ -250,7 +249,6 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             throw e
         }
     }
-
 
     // ==================== MÉTODOS ESPECÍFICOS DE FIREBASE ====================
 
@@ -295,17 +293,32 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         awaitClose { productsRef.removeEventListener(eventListener) }
     }
 
-    override suspend fun updateProductStock(productId: String, newQuantity: Double) {
+    // ✅ MÉTODO CORREGIDO - Obtener stock (con override porque está en ProductRepository)
+    override suspend fun getProductStock(productId: String): Double {
+        return try {
+            println("📊 FirebaseProducts: Obteniendo stock del producto: $productId")
+            val snapshot = productsRef.child(productId).child("stock").get().await()
+            val stock = snapshot.getValue(Double::class.java) ?: 0.0
+            println("✅ FirebaseProducts: Stock actual de $productId: $stock")
+            stock
+        } catch (e: Exception) {
+            println("❌ FirebaseProducts: Error obteniendo stock de $productId: ${e.message}")
+            0.0
+        }
+    }
+
+    // ✅ MÉTODO CORREGIDO - Actualizar stock (con override y UN SOLO método)
+    override suspend fun updateProductStock(productId: String, newStock: Double) {
         try {
-            println("📊 FirebaseProducts: Actualizando stock de $productId a $newQuantity")
+            println("📊 FirebaseProducts: Actualizando stock de $productId a $newStock")
             val updates = mapOf(
-                "stock" to newQuantity,
+                "stock" to newStock,
                 "updatedAt" to System.currentTimeMillis()
             )
             productsRef.child(productId).updateChildren(updates).await()
-            println("✅ FirebaseProducts: Stock actualizado exitosamente")
+            println("✅ FirebaseProducts: Stock actualizado exitosamente: $productId → $newStock")
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error actualizando stock: ${e.message}")
+            println("❌ FirebaseProducts: Error actualizando stock de $productId: ${e.message}")
             throw e
         }
     }

@@ -37,7 +37,11 @@ fun TableDetailsScreen(
     val isInternetAvailable by viewModel.isInternetAvailable.collectAsState()
     val isFirebaseConnected by viewModel.isFirebaseConnected.collectAsState()
 
-    val table = tables.find { it.id == tableId?.toIntOrNull() }
+    // ✅ VALIDACIÓN AÑADIDA: Asegurar que el ID de mesa sea válido (1-8)
+    val tableIdInt = tableId?.toIntOrNull()
+    val isValidTableId = tableIdInt != null && tableIdInt in 1..8
+    val table = if (isValidTableId) tables.find { it.id == tableIdInt } else null
+
     var showConfirmDialog by remember { mutableStateOf(false) }
 
     // Variable local para evitar smart cast issues
@@ -52,8 +56,12 @@ fun TableDetailsScreen(
     }
 
     LaunchedEffect(tableId) {
-        tableId?.toIntOrNull()?.let { id ->
-            viewModel.setCurrentTable(id)
+        // ✅ VALIDACIÓN AÑADIDA
+        if (isValidTableId && tableIdInt != null) {
+            viewModel.setCurrentTable(tableIdInt)
+        } else {
+            println("❌ TableDetailsScreen: ID de mesa inválido: $tableId")
+            viewModel.clearCurrentOrder()
         }
     }
 
@@ -66,12 +74,33 @@ fun TableDetailsScreen(
         }
     }
 
+    // ✅ VALIDACIÓN AÑADIDA: Mensaje más informativo cuando la mesa no existe
     if (table == null) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("Mesa no encontrada")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "⚠️ Mesa no encontrada",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White
+                )
+                Text(
+                    text = "ID de mesa: $tableId (válido del 1 al 8)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+                Button(
+                    onClick = { navController.popBackStack() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                ) {
+                    Text("Volver")
+                }
+            }
         }
         return
     }
@@ -211,12 +240,17 @@ fun TableDetailsScreen(
             tableNumber = table.number,
             isOffline = !isInternetAvailable,
             onConfirm = {
-                // ✅ IMPORTANTE: Usar table.id (no table.number)
-                println("📤 Enviando pedido - tableId: ${table.id}, tableNumber: ${table.number}")
-                viewModel.createOrder(
-                    tableId = table.id,      // ✅ Esto debe ser 1,2,3,4,5,6,7,8
-                    tableNumber = table.number
-                )
+                // ✅ VALIDACIÓN ADICIONAL AÑADIDA antes de crear la orden
+                if (table.id !in 1..8) {
+                    println("❌ ERROR: Intento de crear orden con tableId inválido: ${table.id}")
+                    // No crear la orden si el ID es inválido
+                } else {
+                    println("📤 Enviando pedido - tableId: ${table.id}, tableNumber: ${table.number}")
+                    viewModel.createOrder(
+                        tableId = table.id,      // ✅ Esto debe ser 1,2,3,4,5,6,7,8
+                        tableNumber = table.number
+                    )
+                }
                 showConfirmDialog = false
             },
             onDismiss = { showConfirmDialog = false }
