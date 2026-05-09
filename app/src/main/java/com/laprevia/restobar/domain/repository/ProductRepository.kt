@@ -30,5 +30,10 @@ interface ProductRepository {
 
     // ==================== INVENTARIO ====================
     fun getProductsWithInventory(): Flow<List<Product>>
-    suspend fun updateProductStock(productId: String, newQuantity: Double)
+
+    // ✅ CORREGIDO: Cambiar newQuantity a newStock para consistencia
+    suspend fun updateProductStock(productId: String, newStock: Double)
+
+    // ✅ NUEVO MÉTODO: Obtener stock de un producto
+    suspend fun getProductStock(productId: String): Double
 }

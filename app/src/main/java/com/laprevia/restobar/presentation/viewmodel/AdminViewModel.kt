@@ -45,7 +45,6 @@ class AdminViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AdminUiState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
-    // ✅ Estado de internet en tiempo real
     private val _isInternetAvailable = MutableStateFlow(true)
     val isInternetAvailable: StateFlow<Boolean> = _isInternetAvailable.asStateFlow()
 
@@ -56,7 +55,6 @@ class AdminViewModel @Inject constructor(
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    // ✅ Monitoreo de red en tiempo real
     private fun startNetworkMonitoring() {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
@@ -112,14 +110,12 @@ class AdminViewModel @Inject constructor(
 
         connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
 
-        // ✅ Valor inicial
         _isInternetAvailable.value = checkInternet()
     }
 
     init {
         println("🔧 AdminViewModel INICIADO - Offline-First con Room + Firebase")
 
-        // ✅ Iniciar monitoreo de red
         startNetworkMonitoring()
 
         viewModelScope.launch {
@@ -132,6 +128,34 @@ class AdminViewModel @Inject constructor(
                 showMessage("📱 SIN INTERNET - Los cambios se guardarán localmente", isWarning = true)
             }
             checkPendingSync()
+
+            // ✅ NUEVO: Escuchar cambios en tiempo real de Firebase
+            listenToProductChanges()
+        }
+    }
+
+    // ✅ NUEVO MÉTODO: Escuchar cambios en tiempo real
+    private fun listenToProductChanges() {
+        viewModelScope.launch {
+            try {
+                firebaseProductRepository.listenToProductChanges().collect { updatedProduct ->
+                    println("🔄 Admin: Cambio detectado en producto: ${updatedProduct.name}")
+                    println("   - Nuevo stock: ${updatedProduct.stock}")
+
+                    // Actualizar en Room
+                    val existing = db.productDao().getById(updatedProduct.id)
+                    if (existing != null && existing.stock != updatedProduct.stock) {
+                        db.productDao().insert(updatedProduct.toEntity().copy(syncStatus = "SYNCED"))
+                        println("✅ Admin: Stock actualizado en Room: ${updatedProduct.name} → ${updatedProduct.stock}")
+
+                        // Refrescar UI
+                        loadProductsFromRoom()
+                        showMessage("📦 Stock actualizado: ${updatedProduct.name} = ${updatedProduct.stock}", isWarning = true)
+                    }
+                }
+            } catch (e: Exception) {
+                println("❌ Admin: Error en listenToProductChanges: ${e.message}")
+            }
         }
     }
 
@@ -165,7 +189,12 @@ class AdminViewModel @Inject constructor(
                 isOffline = !_isInternetAvailable.value
             )
 
-            println("📱 Admin: ${uniqueProducts.size} productos únicos cargados desde Room")
+            println("📱 Admin: ${uniqueProducts.size} productos cargados desde Room")
+            uniqueProducts.forEach { product ->
+                if (product.trackInventory) {
+                    println("   - ${product.name}: stock=${product.stock}")
+                }
+            }
         } catch (e: Exception) {
             println("❌ Admin: Error cargando desde Room: ${e.message}")
         }
@@ -179,10 +208,13 @@ class AdminViewModel @Inject constructor(
 
                 firebaseProductRepository.getProductsRealTime().collect { firebaseProducts ->
                     println("✅ Productos desde Firebase: ${firebaseProducts.size}")
+                    firebaseProducts.forEach { product ->
+                        println("   - ${product.name}: stock=${product.stock}")
+                    }
 
                     firebaseProducts.forEach { product ->
                         val existing = db.productDao().getById(product.id)
-                        if (existing == null) {
+                        if (existing == null || existing.stock != product.stock) {
                             db.productDao().insert(product.toEntity().copy(syncStatus = "SYNCED"))
                         }
                     }

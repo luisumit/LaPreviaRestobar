@@ -114,11 +114,7 @@ kapt {
     correctErrorTypes = true
 }
 
-detekt {
-    toolVersion = "1.23.6"
-    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
-    buildUponDefaultConfig = true
-}
+
 
 dependencies {
     // Core Android (Safer versions)
@@ -189,4 +185,9 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+detekt {
+    toolVersion = "1.23.6"
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
 }
