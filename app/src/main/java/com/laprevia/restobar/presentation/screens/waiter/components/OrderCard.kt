@@ -205,7 +205,7 @@ fun OrderCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = {
-                            println("🍽️ OrderCard: Entregando comida - Orden ${order.id}")
+                            timber.log.Timber.d("🍽️ OrderCard: Entregando comida - Orden ${order.id}")
                             onMarkAsDelivered()
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -226,7 +226,7 @@ fun OrderCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = {
-                            println("🧹 OrderCard: Liberando mesa - Orden ${order.id}")
+                            timber.log.Timber.d("🧹 OrderCard: Liberando mesa - Orden ${order.id}")
                             onMarkAsServed()
                         },
                         modifier = Modifier.fillMaxWidth(),

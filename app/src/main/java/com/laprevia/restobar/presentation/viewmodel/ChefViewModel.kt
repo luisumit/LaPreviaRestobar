@@ -72,7 +72,7 @@ class ChefViewModel @Inject constructor(
 
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                println("🌐 Chef: INTERNET DISPONIBLE")
+                timber.log.Timber.d("🌐 Chef: INTERNET DISPONIBLE")
                 _isInternetAvailable.value = true
                 viewModelScope.launch {
                     _connectionMessage.value = "🟢 Internet disponible - Sincronizando..."
@@ -84,7 +84,7 @@ class ChefViewModel @Inject constructor(
             }
 
             override fun onLost(network: Network) {
-                println("📱 Chef: SIN INTERNET")
+                timber.log.Timber.d("📱 Chef: SIN INTERNET")
                 _isInternetAvailable.value = false
                 _isFirebaseConnected.value = false
                 viewModelScope.launch {
@@ -119,7 +119,7 @@ class ChefViewModel @Inject constructor(
     }
 
     init {
-        println("👨‍🍳 ChefViewModel INICIADO - Offline-First con Room + Firebase")
+        timber.log.Timber.d("👨‍🍳 ChefViewModel INICIADO - Offline-First con Room + Firebase")
         startNetworkMonitoring()
 
         viewModelScope.launch {
@@ -144,12 +144,12 @@ class ChefViewModel @Inject constructor(
             val uniqueOrders = activeOrders.distinctBy { it.id }
             _orders.value = uniqueOrders.map { it.toDomain() }
             _isLoading.value = false
-            println("📱 Chef: ${_orders.value.size} órdenes cargadas desde Room (offline)")
+            timber.log.Timber.d("📱 Chef: ${_orders.value.size} órdenes cargadas desde Room (offline)")
             _orders.value.forEach { order ->
-                println("   - Mesa ${order.tableNumber}: ${order.status} - ${order.items.size} items")
+                timber.log.Timber.d("   - Mesa ${order.tableNumber}: ${order.status} - ${order.items.size} items")
             }
         } catch (e: Exception) {
-            println("❌ Chef: Error cargando desde Room: ${e.message}")
+            timber.log.Timber.d("❌ Chef: Error cargando desde Room: ${e.message}")
             _isLoading.value = false
         }
     }
@@ -160,9 +160,9 @@ class ChefViewModel @Inject constructor(
         // ✅ AGREGADO: Escuchar TODAS las órdenes al iniciar
         viewModelScope.launch {
             try {
-                println("🔥 Chef: Cargando TODAS las órdenes existentes de Firebase...")
+                timber.log.Timber.d("🔥 Chef: Cargando TODAS las órdenes existentes de Firebase...")
                 firebaseOrderRepository.getOrders().collect { allOrders ->
-                    println("📦 Chef: Recibidas ${allOrders.size} órdenes de Firebase")
+                    timber.log.Timber.d("📦 Chef: Recibidas ${allOrders.size} órdenes de Firebase")
                     allOrders.forEach { order ->
                         if (order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED) {
                             handleOrderFromFirebase(order)
@@ -170,30 +170,30 @@ class ChefViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                println("❌ Chef: Error en getOrders: ${e.message}")
+                timber.log.Timber.d("❌ Chef: Error en getOrders: ${e.message}")
             }
         }
 
         viewModelScope.launch {
             try {
-                println("🔥 Chef: Configurando Firebase Real-time Updates...")
+                timber.log.Timber.d("🔥 Chef: Configurando Firebase Real-time Updates...")
                 firebaseOrderRepository.listenToNewOrders().collect { newOrder ->
-                    println("🎯 Chef: ¡NUEVA ORDEN DEL MESERO! - Mesa ${newOrder.tableNumber}")
+                    timber.log.Timber.d("🎯 Chef: ¡NUEVA ORDEN DEL MESERO! - Mesa ${newOrder.tableNumber}")
                     handleNewOrderFromFirebase(newOrder)
                 }
             } catch (e: Exception) {
-                println("❌ Chef: Error en listenToNewOrders: ${e.message}")
+                timber.log.Timber.d("❌ Chef: Error en listenToNewOrders: ${e.message}")
             }
         }
 
         viewModelScope.launch {
             try {
                 firebaseOrderRepository.listenToOrderChanges().collect { updatedOrder ->
-                    println("🔄 Chef: Orden actualizada desde Firebase - ${updatedOrder.id}")
+                    timber.log.Timber.d("🔄 Chef: Orden actualizada desde Firebase - ${updatedOrder.id}")
                     handleUpdatedOrderFromFirebase(updatedOrder)
                 }
             } catch (e: Exception) {
-                println("❌ Chef: Error en listenToOrderChanges: ${e.message}")
+                timber.log.Timber.d("❌ Chef: Error en listenToOrderChanges: ${e.message}")
             }
         }
 
@@ -202,7 +202,7 @@ class ChefViewModel @Inject constructor(
             try {
                 firebaseOrderRepository.listenToOrderChanges().collect { updatedOrder ->
                     if (updatedOrder.status == OrderStatus.ENTREGADO) {
-                        println("🍽️ Chef: El MESERO entregó la comida - Mesa ${updatedOrder.tableNumber}")
+                        timber.log.Timber.d("🍽️ Chef: El MESERO entregó la comida - Mesa ${updatedOrder.tableNumber}")
                         db.orderDao().insert(updatedOrder.toEntity().copy(syncStatus = "SYNCED"))
                         refreshOrdersFromRoom()
                         addNotification(ChefNotification(
@@ -215,20 +215,20 @@ class ChefViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                println("❌ Chef: Error escuchando ENTREGADO: ${e.message}")
+                timber.log.Timber.d("❌ Chef: Error escuchando ENTREGADO: ${e.message}")
             }
         }
     }
 
     // ✅ AGREGADO: Nuevo método para manejar órdenes de Firebase
     private suspend fun handleOrderFromFirebase(order: Order) {
-        println("📦 Chef: Procesando orden existente - Mesa ${order.tableNumber}")
+        timber.log.Timber.d("📦 Chef: Procesando orden existente - Mesa ${order.tableNumber}")
         db.orderDao().insert(order.toEntity().copy(syncStatus = "SYNCED"))
         refreshOrdersFromRoom()
     }
 
     private suspend fun handleNewOrderFromFirebase(newOrder: Order) {
-        println("🎯 Chef: Procesando orden de Firebase - Mesa ${newOrder.tableNumber}")
+        timber.log.Timber.d("🎯 Chef: Procesando orden de Firebase - Mesa ${newOrder.tableNumber}")
         db.orderDao().insert(newOrder.toEntity().copy(syncStatus = "SYNCED"))
         refreshOrdersFromRoom()
         if (newOrder.status == OrderStatus.ENVIADO) {
@@ -237,12 +237,12 @@ class ChefViewModel @Inject constructor(
     }
 
     private suspend fun handleUpdatedOrderFromFirebase(updatedOrder: Order) {
-        println("🔄 Chef: Procesando actualización - Mesa ${updatedOrder.tableNumber}")
+        timber.log.Timber.d("🔄 Chef: Procesando actualización - Mesa ${updatedOrder.tableNumber}")
         val previousOrder = _orders.value.find { it.id == updatedOrder.id }
         db.orderDao().insert(updatedOrder.toEntity().copy(syncStatus = "SYNCED"))
         refreshOrdersFromRoom()
         if (previousOrder != null && previousOrder.status != updatedOrder.status) {
-            println("🔔 Chef: Estado cambiado: ${previousOrder.status} -> ${updatedOrder.status}")
+            timber.log.Timber.d("🔔 Chef: Estado cambiado: ${previousOrder.status} -> ${updatedOrder.status}")
             showStatusChangeNotification(previousOrder, updatedOrder)
         }
         if (_selectedOrder.value?.id == updatedOrder.id) {
@@ -275,28 +275,28 @@ class ChefViewModel @Inject constructor(
                     notes       = entity.notes
                 )
             } catch (e: Exception) {
-                println("❌ Chef: Error parseando orden ${entity.id}: ${e.message}")
+                timber.log.Timber.d("❌ Chef: Error parseando orden ${entity.id}: ${e.message}")
                 null
             }
         }
-        println("🗄️ Chef: Room → UI actualizado: ${_orders.value.size} órdenes activas")
+        timber.log.Timber.d("🗄️ Chef: Room → UI actualizado: ${_orders.value.size} órdenes activas")
         _orders.value.forEach { order ->
-            println("   - Mesa ${order.tableNumber}: ${order.status}")
+            timber.log.Timber.d("   - Mesa ${order.tableNumber}: ${order.status}")
         }
     }
 
     private fun syncWithFirebase() {
         viewModelScope.launch {
             try {
-                println("🔄 Chef: Sincronizando con Firebase...")
+                timber.log.Timber.d("🔄 Chef: Sincronizando con Firebase...")
                 _isFirebaseConnected.value = false
                 syncManager.syncOrders()
                 syncManager.downloadOrders()
                 refreshOrdersFromRoom()
                 _isFirebaseConnected.value = true
-                println("✅ Chef: Sincronización completada - ${_orders.value.size} órdenes activas")
+                timber.log.Timber.d("✅ Chef: Sincronización completada - ${_orders.value.size} órdenes activas")
             } catch (e: Exception) {
-                println("❌ Chef: Error en sync: ${e.message}")
+                timber.log.Timber.d("❌ Chef: Error en sync: ${e.message}")
                 _isFirebaseConnected.value = false
                 _errorMessage.value = "Error de conexión: ${e.message}"
             }
@@ -329,13 +329,13 @@ class ChefViewModel @Inject constructor(
     fun updateOrderStatus(orderId: String, status: OrderStatus) {
         viewModelScope.launch {
             try {
-                println("🔄 Chef: Actualizando orden $orderId a $status")
+                timber.log.Timber.d("🔄 Chef: Actualizando orden $orderId a $status")
                 val validChefStates = listOf(
                     OrderStatus.ACEPTADO, OrderStatus.EN_PREPARACION,
                     OrderStatus.LISTO, OrderStatus.COMPLETED, OrderStatus.CANCELLED
                 )
                 if (status !in validChefStates) {
-                    println("⚠️ Chef: Estado $status no permitido")
+                    timber.log.Timber.d("⚠️ Chef: Estado $status no permitido")
                     return@launch
                 }
 
@@ -347,22 +347,22 @@ class ChefViewModel @Inject constructor(
                         syncStatus = "PENDING"
                     )
                     db.orderDao().insert(updatedEntity)
-                    println("💾 Orden actualizada en Room (PENDING) - $orderId")
+                    timber.log.Timber.d("💾 Orden actualizada en Room (PENDING) - $orderId")
                 }
 
                 if (_isInternetAvailable.value) {
                     try {
                         firebaseOrderRepository.updateOrderStatus(orderId, status.name)
                         db.orderDao().updateStatus(orderId, "SYNCED")
-                        println("✅ Orden actualizada en Firebase - $orderId")
+                        timber.log.Timber.d("✅ Orden actualizada en Firebase - $orderId")
                     } catch (e: Exception) {
-                        println("⚠️ Error en Firebase, se sincronizará después: ${e.message}")
+                        timber.log.Timber.d("⚠️ Error en Firebase, se sincronizará después: ${e.message}")
                         _connectionMessage.value = "📱 Cambio guardado localmente - Se sincronizará después"
                         kotlinx.coroutines.delay(2000)
                         _connectionMessage.value = null
                     }
                 } else {
-                    println("📱 Sin internet - Cambio guardado localmente")
+                    timber.log.Timber.d("📱 Sin internet - Cambio guardado localmente")
                     _connectionMessage.value = "📱 SIN INTERNET - Cambio guardado localmente"
                     kotlinx.coroutines.delay(2000)
                     _connectionMessage.value = null
@@ -384,7 +384,7 @@ class ChefViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "❌ Error actualizando orden: ${e.message}"
-                println("❌ Chef: Error: ${e.message}")
+                timber.log.Timber.d("❌ Chef: Error: ${e.message}")
             }
         }
     }
@@ -392,7 +392,7 @@ class ChefViewModel @Inject constructor(
     // ==================== GESTIÓN DE INVENTARIO ====================
     private suspend fun updateInventoryForOrder(orderId: String) {
         val order = _orders.value.find { it.id == orderId } ?: return
-        println("📦 Chef: Actualizando inventario para orden ${order.id}")
+        timber.log.Timber.d("📦 Chef: Actualizando inventario para orden ${order.id}")
         order.items.forEach { item ->
             if (item.trackInventory) {
                 try {
@@ -402,7 +402,7 @@ class ChefViewModel @Inject constructor(
                     if (newStock >= 0) {
                         firebaseProductRepository.updateProductStock(item.productId, newStock)
                         firebaseInventoryRepository.updateStock(item.productId, newStock)
-                        println("📦 Inventario: ${item.productName}: $currentStock → $newStock")
+                        timber.log.Timber.d("📦 Inventario: ${item.productName}: $currentStock → $newStock")
                         addNotification(ChefNotification(
                             type = ChefNotificationType.INVENTORY_UPDATED,
                             title = "📦 Inventario Actualizado",
@@ -411,11 +411,11 @@ class ChefViewModel @Inject constructor(
                             tableNumber = order.tableNumber
                         ))
                     } else {
-                        println("⚠️ Stock insuficiente para ${item.productName}")
+                        timber.log.Timber.d("⚠️ Stock insuficiente para ${item.productName}")
                         _errorMessage.value = "Stock insuficiente: ${item.productName}"
                     }
                 } catch (e: Exception) {
-                    println("❌ Error actualizando inventario: ${e.message}")
+                    timber.log.Timber.d("❌ Error actualizando inventario: ${e.message}")
                 }
             }
         }
@@ -436,7 +436,7 @@ class ChefViewModel @Inject constructor(
                     entity?.let { db.orderDao().insert(it.copy(status = "CANCELLED", syncStatus = "PENDING")) }
                     if (_isInternetAvailable.value) {
                         try { firebaseOrderRepository.deleteOrder(orderId); db.orderDao().updateStatus(orderId, "SYNCED") }
-                        catch (e: Exception) { println("⚠️ Error en Firebase: ${e.message}") }
+                        catch (e: Exception) { timber.log.Timber.d("⚠️ Error en Firebase: ${e.message}") }
                     }
                     refreshOrdersFromRoom()
                     _successMessage.value = "Orden cancelada - Mesa ${order.tableNumber}"
@@ -502,7 +502,7 @@ class ChefViewModel @Inject constructor(
     fun clearAllNotifications() { _notifications.value = emptyList() }
 
     // ==================== UTILIDADES ====================
-    fun selectOrder(order: Order) { _selectedOrder.value = order; println("🎯 Chef: Orden seleccionada - Mesa ${order.tableNumber}") }
+    fun selectOrder(order: Order) { _selectedOrder.value = order; timber.log.Timber.d("🎯 Chef: Orden seleccionada - Mesa ${order.tableNumber}") }
     fun clearOrderSelection() { _selectedOrder.value = null }
     fun refreshOrders() {
         viewModelScope.launch {

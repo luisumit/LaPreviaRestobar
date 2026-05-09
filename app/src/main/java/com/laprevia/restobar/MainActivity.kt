@@ -34,6 +34,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        setContent {
+            LaPreviaRestoBarTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    AppNavigation()
+                }
+            }
+        }
+
         lifecycleScope.launch {
             try {
                 Timber.i("🚀 MainActivity: Iniciando aplicación con Firebase...")
@@ -52,17 +63,6 @@ class MainActivity : ComponentActivity() {
 
             } catch (e: Exception) {
                 Timber.e(e, "💥 MainActivity: Error")
-            }
-        }
-
-        setContent {
-            LaPreviaRestoBarTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AppNavigation()
-                }
             }
         }
     }
