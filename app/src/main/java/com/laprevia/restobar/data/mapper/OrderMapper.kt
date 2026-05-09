@@ -16,7 +16,7 @@ fun OrderEntity.toDomain(): Order {
         val result: List<OrderItem> = gson.fromJson(itemsJson, type)
         result ?: emptyList()
     } catch (e: Exception) {
-        println("❌ Error al convertir itemsJson: ${e.message}")
+        timber.log.Timber.d("❌ Error al convertir itemsJson: ${e.message}")
         emptyList()
     }
 

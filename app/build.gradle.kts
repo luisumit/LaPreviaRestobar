@@ -33,8 +33,10 @@ android {
             useSupportLibrary = true
         }
 
-        // API Keys from local.properties
-        buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
+        // API Keys from local.properties (Robust handling)
+        val rawApiKey = localProperties.getProperty("firebase.api.key") ?: ""
+        val sanitizedApiKey = rawApiKey.replace("\"", "")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$sanitizedApiKey\"")
         buildConfigField("String", "EMULATOR_BASE_URL", "\"http://10.0.2.2:8080/\"")
         buildConfigField("String", "PHYSICAL_DEVICE_BASE_URL", "\"http://192.168.0.104:8080/\"")
         buildConfigField("String", "EMULATOR_WS_URL", "\"ws://10.0.2.2:8080/ws\"")

@@ -82,7 +82,7 @@ fun AdminMainScreen(
 
                         IconButton(
                             onClick = {
-                                println("🔄 AdminScreen: Cerrando sesión...")
+                                timber.log.Timber.d("🔄 AdminScreen: Cerrando sesión...")
                                 loginViewModel.signOut()
                                 onLogout()
                             },

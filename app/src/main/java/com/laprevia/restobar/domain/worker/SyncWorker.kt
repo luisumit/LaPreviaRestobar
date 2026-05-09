@@ -20,15 +20,15 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         return withContext(Dispatchers.IO) {
             try {
-                println("🔄 SyncWorker: Iniciando sincronización de fondo...")
+                timber.log.Timber.d("🔄 SyncWorker: Iniciando sincronización de fondo...")
 
                 // Sincronizar datos pendientes
                 syncManager.syncLight()  // Usar versión ligera para background
 
-                println("✅ SyncWorker: Sincronización completada")
+                timber.log.Timber.d("✅ SyncWorker: Sincronización completada")
                 Result.success()
             } catch (e: Exception) {
-                println("❌ SyncWorker: Error - ${e.message}")
+                timber.log.Timber.d("❌ SyncWorker: Error - ${e.message}")
 
                 // Reintentar si hay error (máximo 3 veces)
                 if (runAttemptCount < 3) {
@@ -66,7 +66,7 @@ class SyncWorker @AssistedInject constructor(
                 syncRequest
             )
 
-            println("📅 SyncWorker: Programado cada $SYNC_INTERVAL_HOURS hora(s)")
+            timber.log.Timber.d("📅 SyncWorker: Programado cada $SYNC_INTERVAL_HOURS hora(s)")
         }
 
         fun scheduleImmediate(context: Context) {
@@ -79,7 +79,7 @@ class SyncWorker @AssistedInject constructor(
                 .build()
 
             WorkManager.getInstance(context).enqueue(immediateRequest)
-            println("⚡ SyncWorker: Sincronización inmediata programada")
+            timber.log.Timber.d("⚡ SyncWorker: Sincronización inmediata programada")
         }
     }
 }

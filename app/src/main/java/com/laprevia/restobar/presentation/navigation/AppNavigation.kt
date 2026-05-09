@@ -263,7 +263,7 @@ fun AppNavigation() {
                         navController.popBackStack() // ✅ SOLO PARA RETROCESO NORMAL
                     },
                     onLogout = { // ✅ AGREGAR ESTE PARÁMETRO
-                        println("🚪 AppNavigation: Cocinero cerrando sesión")
+                        timber.log.Timber.d("🚪 AppNavigation: Cocinero cerrando sesión")
                         loginViewModel.signOut()
                         isAuthenticated = false
                         navController.navigate("login") {

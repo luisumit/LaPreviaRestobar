@@ -97,7 +97,7 @@ class WaiterViewModel @Inject constructor(
 
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                println("🌐 Waiter: INTERNET DISPONIBLE")
+                timber.log.Timber.d("🌐 Waiter: INTERNET DISPONIBLE")
                 _isInternetAvailable.value = true
                 viewModelScope.launch {
                     _connectionMessage.value = "🟢 Internet disponible - Sincronizando..."
@@ -111,7 +111,7 @@ class WaiterViewModel @Inject constructor(
             }
 
             override fun onLost(network: Network) {
-                println("📱 Waiter: SIN INTERNET")
+                timber.log.Timber.d("📱 Waiter: SIN INTERNET")
                 _isInternetAvailable.value = false
                 _isFirebaseConnected.value = false
                 viewModelScope.launch {
@@ -149,7 +149,7 @@ class WaiterViewModel @Inject constructor(
     }
 
     init {
-        println("🟢 WaiterViewModel INICIADO - Offline-First + Firebase")
+        timber.log.Timber.d("🟢 WaiterViewModel INICIADO - Offline-First + Firebase")
         startNetworkMonitoring()
 
         viewModelScope.launch {
@@ -167,15 +167,15 @@ class WaiterViewModel @Inject constructor(
         try {
             val ordersWithTableZero = db.orderDao().getAll().filter { it.tableId == 0 }
             if (ordersWithTableZero.isNotEmpty()) {
-                println("🗑️ Eliminando ${ordersWithTableZero.size} órdenes con tableId=0")
+                timber.log.Timber.d("🗑️ Eliminando ${ordersWithTableZero.size} órdenes con tableId=0")
                 ordersWithTableZero.forEach { order ->
                     db.orderDao().deleteOrder(order.id)
-                    println("   Eliminada orden corrupta: ${order.id}")
+                    timber.log.Timber.d("   Eliminada orden corrupta: ${order.id}")
                 }
                 refreshOrdersFromRoom()
             }
         } catch (e: Exception) {
-            println("❌ Error limpiando órdenes con tableId=0: ${e.message}")
+            timber.log.Timber.d("❌ Error limpiando órdenes con tableId=0: ${e.message}")
         }
     }
 
@@ -184,15 +184,15 @@ class WaiterViewModel @Inject constructor(
             val allOrders = db.orderDao().getAll()
             val corruptOrders = allOrders.filter { it.tableId == 0 }
             if (corruptOrders.isNotEmpty()) {
-                println("🗑️ Cancelando ${corruptOrders.size} órdenes corruptas con tableId=0")
+                timber.log.Timber.d("🗑️ Cancelando ${corruptOrders.size} órdenes corruptas con tableId=0")
                 corruptOrders.forEach { order ->
                     db.orderDao().updateStatus(order.id, "CANCELLED")
-                    println("   Cancelada orden corrupta: ${order.id}")
+                    timber.log.Timber.d("   Cancelada orden corrupta: ${order.id}")
                 }
                 refreshOrdersFromRoom()
             }
         } catch (e: Exception) {
-            println("❌ Error limpiando órdenes corruptas: ${e.message}")
+            timber.log.Timber.d("❌ Error limpiando órdenes corruptas: ${e.message}")
         }
     }
 
@@ -201,15 +201,15 @@ class WaiterViewModel @Inject constructor(
             val allOrders = db.orderDao().getAll()
             val corruptOrders = allOrders.filter { it.tableId == 0 }
             if (corruptOrders.isNotEmpty()) {
-                println("🗑️ Eliminando ${corruptOrders.size} órdenes corruptas (tableId=0)")
+                timber.log.Timber.d("🗑️ Eliminando ${corruptOrders.size} órdenes corruptas (tableId=0)")
                 corruptOrders.forEach { order ->
                     db.orderDao().deleteOrder(order.id)
-                    println("   Eliminada orden: ${order.id}")
+                    timber.log.Timber.d("   Eliminada orden: ${order.id}")
                 }
                 refreshOrdersFromRoom()
             }
         } catch (e: Exception) {
-            println("❌ Error limpiando órdenes corruptas por tableId: ${e.message}")
+            timber.log.Timber.d("❌ Error limpiando órdenes corruptas por tableId: ${e.message}")
         }
     }
 
@@ -217,7 +217,7 @@ class WaiterViewModel @Inject constructor(
         try {
             val pendingOrders = db.orderDao().getPending()
             if (pendingOrders.isNotEmpty()) {
-                println("🔄 Sincronizando ${pendingOrders.size} órdenes pendientes...")
+                timber.log.Timber.d("🔄 Sincronizando ${pendingOrders.size} órdenes pendientes...")
                 pendingOrders.forEach { orderEntity ->
                     try {
                         val order = orderEntity.toDomain()
@@ -226,33 +226,33 @@ class WaiterViewModel @Inject constructor(
                         firebaseTableRepository.assignOrderToTable(order.tableId, order.id)
 
                         db.orderDao().updateStatus(order.id, "SYNCED")
-                        println("✅ Orden sincronizada: ${order.id}")
+                        timber.log.Timber.d("✅ Orden sincronizada: ${order.id}")
                     } catch (e: Exception) {
-                        println("❌ Error sincronizando orden: ${e.message}")
+                        timber.log.Timber.d("❌ Error sincronizando orden: ${e.message}")
                     }
                 }
                 _successMessage.value = "✅ ${pendingOrders.size} pedido(s) sincronizados"
                 refreshOrdersFromRoom()
             }
         } catch (e: Exception) {
-            println("❌ Error en syncPendingOrders: ${e.message}")
+            timber.log.Timber.d("❌ Error en syncPendingOrders: ${e.message}")
         }
     }
 
     private fun setupFirebaseRealtimeUpdates() {
         viewModelScope.launch {
             try {
-                println("🔥 Waiter: Configurando Firebase Real-time Updates...")
+                timber.log.Timber.d("🔥 Waiter: Configurando Firebase Real-time Updates...")
                 firebaseOrderRepository.listenToOrderChanges().collect { updatedOrder ->
-                    println("🔄 Waiter: Actualización del CHEF - Orden ${updatedOrder.id}")
-                    println("   - Mesa: ${updatedOrder.tableNumber}")
-                    println("   - Estado: ${updatedOrder.status}")
+                    timber.log.Timber.d("🔄 Waiter: Actualización del CHEF - Orden ${updatedOrder.id}")
+                    timber.log.Timber.d("   - Mesa: ${updatedOrder.tableNumber}")
+                    timber.log.Timber.d("   - Estado: ${updatedOrder.status}")
                     _isFirebaseConnected.value = true
                     _connectionStatus.value = "🟢 Conectado a cocina"
                     handleUpdatedOrderFromFirebase(updatedOrder)
                 }
             } catch (e: Exception) {
-                println("❌ Waiter: Error en Firebase Real-time: ${e.message}")
+                timber.log.Timber.d("❌ Waiter: Error en Firebase Real-time: ${e.message}")
                 _isFirebaseConnected.value = false
                 _connectionStatus.value = "🔴 Sin conexión con cocina"
             }
@@ -261,11 +261,11 @@ class WaiterViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 firebaseOrderRepository.listenToNewOrders().collect { newOrder ->
-                    println("📥 Waiter: Nueva orden detectada - Mesa ${newOrder.tableNumber}")
+                    timber.log.Timber.d("📥 Waiter: Nueva orden detectada - Mesa ${newOrder.tableNumber}")
                     handleUpdatedOrderFromFirebase(newOrder)
                 }
             } catch (e: Exception) {
-                println("❌ Waiter: Error escuchando nuevas órdenes: ${e.message}")
+                timber.log.Timber.d("❌ Waiter: Error escuchando nuevas órdenes: ${e.message}")
             }
         }
     }
@@ -273,21 +273,21 @@ class WaiterViewModel @Inject constructor(
     private fun handleUpdatedOrderFromFirebase(updatedOrder: Order) {
         viewModelScope.launch {
             try {
-                println("🔄 Waiter: Guardando en Room - Mesa ${updatedOrder.tableNumber}, Estado: ${updatedOrder.status}")
+                timber.log.Timber.d("🔄 Waiter: Guardando en Room - Mesa ${updatedOrder.tableNumber}, Estado: ${updatedOrder.status}")
                 val previousOrder = _orders.value.find { it.id == updatedOrder.id }
 
                 db.orderDao().insert(updatedOrder.toEntity())
                 refreshOrdersFromRoom()
 
                 if (previousOrder != null && previousOrder.status != updatedOrder.status) {
-                    println("🔔 Waiter: El chef actualizó orden ${updatedOrder.id}")
+                    timber.log.Timber.d("🔔 Waiter: El chef actualizó orden ${updatedOrder.id}")
                     showStatusChangeNotification(previousOrder, updatedOrder)
                     if (updatedOrder.status == OrderStatus.LISTO) {
                         _successMessage.value = "🎉 ¡Orden LISTA! - Mesa ${updatedOrder.tableNumber}"
                     }
                 }
             } catch (e: Exception) {
-                println("❌ Waiter: Error en handleUpdatedOrderFromFirebase: ${e.message}")
+                timber.log.Timber.d("❌ Waiter: Error en handleUpdatedOrderFromFirebase: ${e.message}")
             }
         }
     }
@@ -299,14 +299,14 @@ class WaiterViewModel @Inject constructor(
             it.status != "COMPLETED" && it.status != "CANCELLED"
         }
         _orders.value = activeOrders.map { it.toDomain() }
-        println("🗄️ Room → _orders actualizado: ${_orders.value.size} órdenes activas")
+        timber.log.Timber.d("🗄️ Room → _orders actualizado: ${_orders.value.size} órdenes activas")
     }
 
     private fun loadInitialData() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                println("🔄 Waiter: Cargando datos iniciales...")
+                timber.log.Timber.d("🔄 Waiter: Cargando datos iniciales...")
                 val tablesJob = launch { loadTables() }
                 val productsJob = launch { loadProducts() }
                 val ordersJob = launch { loadOrders() }
@@ -314,7 +314,7 @@ class WaiterViewModel @Inject constructor(
                 productsJob.join()
                 ordersJob.join()
                 _isLoading.value = false
-                println("✅ Waiter: Datos cargados - ${_tables.value.size} mesas, ${_orders.value.size} órdenes")
+                timber.log.Timber.d("✅ Waiter: Datos cargados - ${_tables.value.size} mesas, ${_orders.value.size} órdenes")
             } catch (e: Exception) {
                 _errorMessage.value = "Error cargando datos: ${e.message}"
                 _isLoading.value = false
@@ -342,18 +342,18 @@ class WaiterViewModel @Inject constructor(
             }
 
             _tables.value = updatedTables
-            println("✅ Mesas cargadas: ${updatedTables.size}")
+            timber.log.Timber.d("✅ Mesas cargadas: ${updatedTables.size}")
         } catch (e: Exception) {
-            println("❌ Waiter: Error cargando mesas: ${e.message}")
+            timber.log.Timber.d("❌ Waiter: Error cargando mesas: ${e.message}")
         }
     }
 
     private suspend fun loadOrders() {
         try {
             refreshOrdersFromRoom()
-            println("✅ Room: ${_orders.value.size} órdenes activas")
+            timber.log.Timber.d("✅ Room: ${_orders.value.size} órdenes activas")
         } catch (e: Exception) {
-            println("❌ Waiter: Error cargando órdenes: ${e.message}")
+            timber.log.Timber.d("❌ Waiter: Error cargando órdenes: ${e.message}")
         }
     }
 
@@ -361,17 +361,17 @@ class WaiterViewModel @Inject constructor(
         try {
             firebaseProductRepository.getSellableProducts().collect { productsList ->
                 _products.value = productsList.distinctBy { it.id }.sortedBy { it.name }
-                println("✅ Waiter: ${_products.value.size} productos cargados")
+                timber.log.Timber.d("✅ Waiter: ${_products.value.size} productos cargados")
             }
         } catch (e: Exception) {
-            println("❌ Waiter: Error cargando productos: ${e.message}")
+            timber.log.Timber.d("❌ Waiter: Error cargando productos: ${e.message}")
         }
     }
 
     private fun initializeFirebase() {
         viewModelScope.launch {
             try {
-                println("🔄 Waiter: Inicializando Firebase...")
+                timber.log.Timber.d("🔄 Waiter: Inicializando Firebase...")
                 firebaseTableRepository.initializeDefaultTables()
                 val testConnection = try {
                     firebaseTableRepository.getTables().first()
@@ -382,7 +382,7 @@ class WaiterViewModel @Inject constructor(
                 _isFirebaseConnected.value = testConnection && _isInternetAvailable.value
                 _connectionStatus.value = if (_isFirebaseConnected.value) "🟢 Conectado a cocina" else "🔴 Sin conexión"
             } catch (e: Exception) {
-                println("❌ Firebase: Error en inicialización: ${e.message}")
+                timber.log.Timber.d("❌ Firebase: Error en inicialización: ${e.message}")
                 _isFirebaseConnected.value = false
                 _connectionStatus.value = "🔴 Error de conexión"
             }
@@ -399,7 +399,7 @@ class WaiterViewModel @Inject constructor(
         if (table != null) {
             _currentTableId.value = tableId
             _successMessage.value = "Mesa ${table.number} seleccionada"
-            println("✅ Mesa seleccionada - ID: $tableId")
+            timber.log.Timber.d("✅ Mesa seleccionada - ID: $tableId")
         } else {
             _errorMessage.value = "Mesa no encontrada"
         }
@@ -509,7 +509,7 @@ class WaiterViewModel @Inject constructor(
     fun markOrderAsDelivered(orderId: String) {
         viewModelScope.launch {
             try {
-                println("🍽️ Waiter: Entregando comida - Orden $orderId")
+                timber.log.Timber.d("🍽️ Waiter: Entregando comida - Orden $orderId")
 
                 if (_isInternetAvailable.value) {
                     firebaseOrderRepository.updateOrderStatus(orderId, "ENTREGADO")
@@ -537,7 +537,7 @@ class WaiterViewModel @Inject constructor(
     fun markTableAsFree(orderId: String) {
         viewModelScope.launch {
             try {
-                println("🧹 Waiter: Liberando mesa - Orden $orderId")
+                timber.log.Timber.d("🧹 Waiter: Liberando mesa - Orden $orderId")
                 val order = _orders.value.find { it.id == orderId }
                 order?.tableId?.let { tableId ->
                     firebaseTableRepository.clearTable(tableId)
@@ -565,7 +565,7 @@ class WaiterViewModel @Inject constructor(
                     }
 
                     _successMessage.value = "🧹 Mesa ${order.tableNumber} liberada"
-                    println("✅ Mesa ${order.tableNumber} liberada")
+                    timber.log.Timber.d("✅ Mesa ${order.tableNumber} liberada")
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "❌ Error: ${e.message}"
@@ -576,7 +576,7 @@ class WaiterViewModel @Inject constructor(
     fun markOrderAsServed(orderId: String) {
         viewModelScope.launch {
             try {
-                println("🔄 Waiter: Marcando orden $orderId como servida")
+                timber.log.Timber.d("🔄 Waiter: Marcando orden $orderId como servida")
                 firebaseOrderRepository.updateOrderStatus(orderId, "COMPLETED")
                 val order = _orders.value.find { it.id == orderId }
                 order?.tableId?.let { tableId ->
@@ -688,7 +688,7 @@ class WaiterViewModel @Inject constructor(
     fun syncWithFirebase() {
         viewModelScope.launch {
             try {
-                println("🔄 Waiter: Sincronización manual...")
+                timber.log.Timber.d("🔄 Waiter: Sincronización manual...")
                 _isLoading.value = true
                 if (_isInternetAvailable.value) {
                     syncPendingOrders()

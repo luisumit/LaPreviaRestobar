@@ -27,12 +27,12 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val tables = snapshot.children.mapNotNull { it.toTable() }
-                println("🔥 FirebaseTables: ${tables.size} mesas cargadas")
+                timber.log.Timber.d("🔥 FirebaseTables: ${tables.size} mesas cargadas")
                 trySend(tables)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseTables: Error en getTables: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseTables: Error en getTables: ${error.message}")
                 close(error.toException())
             }
         }
@@ -47,12 +47,12 @@ class FirebaseTableRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val tables = snapshot.children.mapNotNull { it.toTable() }
                     .filter { it.syncStatus == "PENDING" }
-                println("⏳ FirebaseTables: ${tables.size} mesas pendientes")
+                timber.log.Timber.d("⏳ FirebaseTables: ${tables.size} mesas pendientes")
                 trySend(tables)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseTables: Error en getPendingTables: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseTables: Error en getPendingTables: ${error.message}")
                 close(error.toException())
             }
         }
@@ -65,7 +65,7 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
     override suspend fun updateTableStatus(tableId: Int, status: TableStatus) {
         try {
-            println("🔄 FirebaseTables: Actualizando estado mesa $tableId a $status")
+            timber.log.Timber.d("🔄 FirebaseTables: Actualizando estado mesa $tableId a $status")
 
             val updates = mapOf(
                 "status" to status.name,
@@ -73,16 +73,16 @@ class FirebaseTableRepositoryImpl @Inject constructor(
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
-            println("✅ FirebaseTables: Estado de mesa actualizado exitosamente")
+            timber.log.Timber.d("✅ FirebaseTables: Estado de mesa actualizado exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error actualizando estado de mesa: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error actualizando estado de mesa: ${e.message}")
             throw e
         }
     }
 
     override suspend fun assignOrderToTable(tableId: Int, orderId: String) {
         try {
-            println("📝 FirebaseTables: Asignando orden $orderId a mesa $tableId")
+            timber.log.Timber.d("📝 FirebaseTables: Asignando orden $orderId a mesa $tableId")
 
             val updates = mapOf(
                 "status" to TableStatus.OCUPADA.name,
@@ -91,16 +91,16 @@ class FirebaseTableRepositoryImpl @Inject constructor(
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
-            println("✅ FirebaseTables: Orden asignada a mesa exitosamente")
+            timber.log.Timber.d("✅ FirebaseTables: Orden asignada a mesa exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error asignando orden a mesa: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error asignando orden a mesa: ${e.message}")
             throw e
         }
     }
 
     override suspend fun clearTable(tableId: Int) {
         try {
-            println("🧹 FirebaseTables: Limpiando mesa $tableId")
+            timber.log.Timber.d("🧹 FirebaseTables: Limpiando mesa $tableId")
 
             val updates = mapOf(
                 "status" to TableStatus.LIBRE.name,
@@ -109,40 +109,40 @@ class FirebaseTableRepositoryImpl @Inject constructor(
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
-            println("✅ FirebaseTables: Mesa limpiada exitosamente")
+            timber.log.Timber.d("✅ FirebaseTables: Mesa limpiada exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error limpiando mesa: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error limpiando mesa: ${e.message}")
             throw e
         }
     }
 
     override suspend fun getTableById(tableId: Int): Table? {
         return try {
-            println("🔍 FirebaseTables: Buscando mesa por ID: $tableId")
+            timber.log.Timber.d("🔍 FirebaseTables: Buscando mesa por ID: $tableId")
             val snapshot = tablesRef.child(tableId.toString()).get().await()
             val table = snapshot.toTable()
             if (table != null) {
-                println("✅ FirebaseTables: Mesa encontrada: ${table.number}")
+                timber.log.Timber.d("✅ FirebaseTables: Mesa encontrada: ${table.number}")
             } else {
-                println("❌ FirebaseTables: Mesa no encontrada: $tableId")
+                timber.log.Timber.d("❌ FirebaseTables: Mesa no encontrada: $tableId")
             }
             table
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error buscando mesa $tableId: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error buscando mesa $tableId: ${e.message}")
             null
         }
     }
 
     override suspend fun updateTable(table: Table) {
         try {
-            println("🔄 FirebaseTables: Actualizando mesa: ${table.number}")
+            timber.log.Timber.d("🔄 FirebaseTables: Actualizando mesa: ${table.number}")
 
             val tableMap = table.toFirebaseMap()
             tablesRef.child(table.id.toString()).updateChildren(tableMap).await()
 
-            println("✅ FirebaseTables: Mesa actualizada exitosamente")
+            timber.log.Timber.d("✅ FirebaseTables: Mesa actualizada exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error actualizando mesa: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error actualizando mesa: ${e.message}")
             throw e
         }
     }
@@ -151,20 +151,20 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
     override suspend fun syncPendingTables() {
         try {
-            println("🔄 FirebaseTables: Sincronizando mesas pendientes...")
+            timber.log.Timber.d("🔄 FirebaseTables: Sincronizando mesas pendientes...")
             val snapshot = tablesRef.orderByChild("syncStatus").equalTo("PENDING").get().await()
             val pendingTables = snapshot.children.mapNotNull { it.toTable() }
 
             if (pendingTables.isNotEmpty()) {
-                println("📤 FirebaseTables: ${pendingTables.size} mesas pendientes encontradas")
+                timber.log.Timber.d("📤 FirebaseTables: ${pendingTables.size} mesas pendientes encontradas")
                 pendingTables.forEach { table ->
-                    println("   - Mesa ${table.number}: ${table.status}")
+                    timber.log.Timber.d("   - Mesa ${table.number}: ${table.status}")
                 }
             } else {
-                println("✅ FirebaseTables: No hay mesas pendientes")
+                timber.log.Timber.d("✅ FirebaseTables: No hay mesas pendientes")
             }
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error en syncPendingTables: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error en syncPendingTables: ${e.message}")
             throw e
         }
     }
@@ -173,7 +173,7 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
     override suspend fun initializeDefaultTables() {
         try {
-            println("🔄 FirebaseTables: Inicializando mesas por defecto...")
+            timber.log.Timber.d("🔄 FirebaseTables: Inicializando mesas por defecto...")
 
             val snapshot = tablesRef.get().await()
             if (!snapshot.exists() || snapshot.children.count() == 0) {
@@ -188,19 +188,19 @@ class FirebaseTableRepositoryImpl @Inject constructor(
                     Table(8, 8, TableStatus.LIBRE, capacity = 4)
                 )
 
-                println("🆕 FirebaseTables: Creando ${defaultTables.size} mesas por defecto")
+                timber.log.Timber.d("🆕 FirebaseTables: Creando ${defaultTables.size} mesas por defecto")
 
                 defaultTables.forEach { table ->
                     tablesRef.child(table.id.toString()).setValue(table.toFirebaseMap()).await()
                 }
 
-                println("✅ FirebaseTables: Mesas inicializadas exitosamente")
+                timber.log.Timber.d("✅ FirebaseTables: Mesas inicializadas exitosamente")
             } else {
-                println("ℹ️ FirebaseTables: Las mesas ya existen, omitiendo inicialización")
+                timber.log.Timber.d("ℹ️ FirebaseTables: Las mesas ya existen, omitiendo inicialización")
             }
 
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error inicializando mesas: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error inicializando mesas: ${e.message}")
             throw e
         }
     }
@@ -209,10 +209,10 @@ class FirebaseTableRepositoryImpl @Inject constructor(
         return try {
             val snapshot = tablesRef.get().await()
             val count = snapshot.childrenCount.toInt()
-            println("📊 FirebaseTables: Total de mesas: $count")
+            timber.log.Timber.d("📊 FirebaseTables: Total de mesas: $count")
             count
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error obteniendo conteo de mesas: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error obteniendo conteo de mesas: ${e.message}")
             0
         }
     }
@@ -233,11 +233,11 @@ class FirebaseTableRepositoryImpl @Inject constructor(
                 }
             }
 
-            println("🐛 FirebaseTables: Debug info generada")
+            timber.log.Timber.d("🐛 FirebaseTables: Debug info generada")
             debugInfo
         } catch (e: Exception) {
             val errorMsg = "Error: ${e.message}"
-            println("❌ FirebaseTables: $errorMsg")
+            timber.log.Timber.d("❌ FirebaseTables: $errorMsg")
             errorMsg
         }
     }
@@ -249,14 +249,14 @@ class FirebaseTableRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 snapshot.children.forEach { child ->
                     child.toTable()?.let { table ->
-                        println("📡 FirebaseTables: Cambio detectado en mesa ${table.number}")
+                        timber.log.Timber.d("📡 FirebaseTables: Cambio detectado en mesa ${table.number}")
                         trySend(table)
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseTables: Error en listenToTableChanges: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseTables: Error en listenToTableChanges: ${error.message}")
                 close(error.toException())
             }
         }
@@ -296,7 +296,7 @@ class FirebaseTableRepositoryImpl @Inject constructor(
                 syncStatus = syncStatus
             )
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error convirtiendo DataSnapshot: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error convirtiendo DataSnapshot: ${e.message}")
             null
         }
     }
@@ -318,13 +318,13 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
     suspend fun getTablesByStatus(status: TableStatus): List<Table> {
         return try {
-            println("🔍 FirebaseTables: Buscando mesas con estado: $status")
+            timber.log.Timber.d("🔍 FirebaseTables: Buscando mesas con estado: $status")
             val snapshot = tablesRef.orderByChild("status").equalTo(status.name).get().await()
             val tables = snapshot.children.mapNotNull { it.toTable() }
-            println("✅ FirebaseTables: ${tables.size} mesas encontradas con estado $status")
+            timber.log.Timber.d("✅ FirebaseTables: ${tables.size} mesas encontradas con estado $status")
             tables
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error obteniendo mesas por estado: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error obteniendo mesas por estado: ${e.message}")
             emptyList()
         }
     }
@@ -339,7 +339,7 @@ class FirebaseTableRepositoryImpl @Inject constructor(
 
     suspend fun reserveTable(tableId: Int) {
         try {
-            println("📅 FirebaseTables: Reservando mesa $tableId")
+            timber.log.Timber.d("📅 FirebaseTables: Reservando mesa $tableId")
 
             val updates = mapOf(
                 "status" to TableStatus.RESERVADA.name,
@@ -347,9 +347,9 @@ class FirebaseTableRepositoryImpl @Inject constructor(
             )
             tablesRef.child(tableId.toString()).updateChildren(updates).await()
 
-            println("✅ FirebaseTables: Mesa reservada exitosamente")
+            timber.log.Timber.d("✅ FirebaseTables: Mesa reservada exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error reservando mesa: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error reservando mesa: ${e.message}")
             throw e
         }
     }
@@ -373,7 +373,7 @@ class FirebaseTableRepositoryImpl @Inject constructor(
                 "totalCapacity" to totalCapacity
             )
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error obteniendo estadísticas: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error obteniendo estadísticas: ${e.message}")
             emptyMap()
         }
     }
@@ -383,24 +383,24 @@ class FirebaseTableRepositoryImpl @Inject constructor(
             val snapshot = tablesRef.child(tableId.toString()).get().await()
             snapshot.exists()
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error verificando existencia de mesa: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error verificando existencia de mesa: ${e.message}")
             false
         }
     }
 
     suspend fun getTableByNumber(tableNumber: Int): Table? {
         return try {
-            println("🔍 FirebaseTables: Buscando mesa por número: $tableNumber")
+            timber.log.Timber.d("🔍 FirebaseTables: Buscando mesa por número: $tableNumber")
             val snapshot = tablesRef.orderByChild("number").equalTo(tableNumber.toDouble()).get().await()
             val table = snapshot.children.firstOrNull()?.toTable()
             if (table != null) {
-                println("✅ FirebaseTables: Mesa encontrada: ${table.number}")
+                timber.log.Timber.d("✅ FirebaseTables: Mesa encontrada: ${table.number}")
             } else {
-                println("❌ FirebaseTables: Mesa no encontrada con número: $tableNumber")
+                timber.log.Timber.d("❌ FirebaseTables: Mesa no encontrada con número: $tableNumber")
             }
             table
         } catch (e: Exception) {
-            println("❌ FirebaseTables: Error buscando mesa por número: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseTables: Error buscando mesa por número: ${e.message}")
             null
         }
     }

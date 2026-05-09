@@ -48,7 +48,7 @@ class InventoryViewModel @Inject constructor(
     val pendingSyncCount: StateFlow<Int> = _pendingSyncCount.asStateFlow()
 
     init {
-        println("🔧 InventoryViewModel INICIADO - Cargando productos desde Admin")
+        timber.log.Timber.d("🔧 InventoryViewModel INICIADO - Cargando productos desde Admin")
 
         viewModelScope.launch {
             // 1. Cargar desde productos (PRINCIPAL)
@@ -67,7 +67,7 @@ class InventoryViewModel @Inject constructor(
     private suspend fun loadInventoryFromProducts() {
         try {
             _isLoading.value = true
-            println("📦 Cargando productos desde Admin...")
+            timber.log.Timber.d("📦 Cargando productos desde Admin...")
 
             // Obtener productos activos con trackInventory = true
             firebaseProductRepository.getProductsWithInventory().collect { products ->
@@ -87,17 +87,17 @@ class InventoryViewModel @Inject constructor(
                 _isOffline.value = false
                 _pendingSyncCount.value = 0
 
-                println("✅ Inventario cargado: ${inventoryList.size} productos desde Admin")
+                timber.log.Timber.d("✅ Inventario cargado: ${inventoryList.size} productos desde Admin")
 
                 if (inventoryList.isNotEmpty()) {
-                    println("📦 Detalles del inventario:")
+                    timber.log.Timber.d("📦 Detalles del inventario:")
                     inventoryList.forEachIndexed { index, item ->
-                        println("   ${index + 1}. ${item.productName}: ${item.currentStock} ${item.unitOfMeasure}")
+                        timber.log.Timber.d("   ${index + 1}. ${item.productName}: ${item.currentStock} ${item.unitOfMeasure}")
                     }
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error cargando desde productos: ${e.message}")
+            timber.log.Timber.d("❌ Error cargando desde productos: ${e.message}")
             // Fallback: cargar desde Room
             loadInventoryFromRoom()
         }
@@ -116,13 +116,13 @@ class InventoryViewModel @Inject constructor(
             _inventory.value = inventoryList
             _isOffline.value = true
 
-            println("📱 InventoryViewModel: ${inventoryList.size} items cargados desde Room (offline)")
+            timber.log.Timber.d("📱 InventoryViewModel: ${inventoryList.size} items cargados desde Room (offline)")
 
             if (inventoryList.isEmpty()) {
                 _errorMessage.value = "📱 No hay productos con inventario. Crea productos en el panel de Administrador."
             }
         } catch (e: Exception) {
-            println("❌ InventoryViewModel: Error cargando desde Room: ${e.message}")
+            timber.log.Timber.d("❌ InventoryViewModel: Error cargando desde Room: ${e.message}")
         } finally {
             _isLoading.value = false
         }
@@ -136,7 +136,7 @@ class InventoryViewModel @Inject constructor(
             val trackedProducts = products.filter { it.trackInventory }
 
             if (trackedProducts.isNotEmpty()) {
-                println("📦 InventoryViewModel: Sincronizando ${trackedProducts.size} productos desde Admin")
+                timber.log.Timber.d("📦 InventoryViewModel: Sincronizando ${trackedProducts.size} productos desde Admin")
 
                 trackedProducts.forEach { product ->
                     val existing = db.inventoryDao().getById(product.id)
@@ -151,7 +151,7 @@ class InventoryViewModel @Inject constructor(
                             category = product.category
                         )
                         db.inventoryDao().insert(newInventory.toEntity().copy(syncStatus = "SYNCED"))
-                        println("   ✅ Inventario creado para: ${product.name}")
+                        timber.log.Timber.d("   ✅ Inventario creado para: ${product.name}")
                     } else if (existing.currentStock != product.stock || existing.productName != product.name) {
                         val updatedInventory = existing.copy(
                             productName = product.name,
@@ -161,12 +161,12 @@ class InventoryViewModel @Inject constructor(
                             syncStatus = "SYNCED"
                         )
                         db.inventoryDao().insert(updatedInventory)
-                        println("   🔄 Inventario actualizado para: ${product.name}")
+                        timber.log.Timber.d("   🔄 Inventario actualizado para: ${product.name}")
                     }
                 }
             }
         } catch (e: Exception) {
-            println("❌ Error sincronizando productos desde Admin: ${e.message}")
+            timber.log.Timber.d("❌ Error sincronizando productos desde Admin: ${e.message}")
         }
     }
 
@@ -190,17 +190,17 @@ class InventoryViewModel @Inject constructor(
                         )
                     }
 
-                    println("⚠️ InventoryViewModel: ${_lowStockItems.value.size} items con stock bajo")
+                    timber.log.Timber.d("⚠️ InventoryViewModel: ${_lowStockItems.value.size} items con stock bajo")
 
                     if (_lowStockItems.value.isNotEmpty()) {
-                        println("🚨 Items con stock bajo:")
+                        timber.log.Timber.d("🚨 Items con stock bajo:")
                         _lowStockItems.value.forEach { item ->
-                            println("   - ${item.productName}: ${item.currentStock}/${item.minimumStock} ${item.unitOfMeasure}")
+                            timber.log.Timber.d("   - ${item.productName}: ${item.currentStock}/${item.minimumStock} ${item.unitOfMeasure}")
                         }
                     }
                 }
             } catch (e: Exception) {
-                println("❌ Error cargando items con stock bajo: ${e.message}")
+                timber.log.Timber.d("❌ Error cargando items con stock bajo: ${e.message}")
                 loadLowStockFromRoom()
             }
         }
@@ -211,9 +211,9 @@ class InventoryViewModel @Inject constructor(
             val allItems = db.inventoryDao().getAll().map { it.toDomain() }
             val lowStock = allItems.filter { it.currentStock <= it.minimumStock }
             _lowStockItems.value = lowStock
-            println("⚠️ InventoryViewModel: ${lowStock.size} items con stock bajo (desde Room)")
+            timber.log.Timber.d("⚠️ InventoryViewModel: ${lowStock.size} items con stock bajo (desde Room)")
         } catch (e: Exception) {
-            println("❌ Error cargando low stock desde Room: ${e.message}")
+            timber.log.Timber.d("❌ Error cargando low stock desde Room: ${e.message}")
         }
     }
 
@@ -229,7 +229,7 @@ class InventoryViewModel @Inject constructor(
                     syncPendingInventory()
                 }
             } catch (e: Exception) {
-                println("❌ InventoryViewModel: Error verificando pendientes: ${e.message}")
+                timber.log.Timber.d("❌ InventoryViewModel: Error verificando pendientes: ${e.message}")
             }
         }
     }
@@ -237,7 +237,7 @@ class InventoryViewModel @Inject constructor(
     private fun syncPendingInventory() {
         viewModelScope.launch {
             try {
-                println("🔄 InventoryViewModel: Sincronizando inventario pendiente...")
+                timber.log.Timber.d("🔄 InventoryViewModel: Sincronizando inventario pendiente...")
                 syncManager.syncInventory()
 
                 val pendingCount = db.inventoryDao().getPending().size
@@ -249,7 +249,7 @@ class InventoryViewModel @Inject constructor(
 
                 loadInventoryFromProducts()
             } catch (e: Exception) {
-                println("❌ InventoryViewModel: Error sincronizando: ${e.message}")
+                timber.log.Timber.d("❌ InventoryViewModel: Error sincronizando: ${e.message}")
             }
         }
     }
@@ -257,7 +257,7 @@ class InventoryViewModel @Inject constructor(
     // ==================== FILTRADO ====================
 
     fun filterByCategory(category: String?) {
-        println("🎯 Filtrando por categoría: $category")
+        timber.log.Timber.d("🎯 Filtrando por categoría: $category")
         _selectedCategory.value = category
 
         if (category == null) {
@@ -267,7 +267,7 @@ class InventoryViewModel @Inject constructor(
                 it.category?.equals(category, ignoreCase = true) == true
             }
             _inventory.value = filtered
-            println("🎯 Filtrado: ${filtered.size} items de categoría '$category'")
+            timber.log.Timber.d("🎯 Filtrado: ${filtered.size} items de categoría '$category'")
         }
     }
 
@@ -277,14 +277,14 @@ class InventoryViewModel @Inject constructor(
             .distinct()
             .sorted()
 
-        println("🏷️ Categorías disponibles: $categories")
+        timber.log.Timber.d("🏷️ Categorías disponibles: $categories")
         return categories
     }
 
     // ==================== REFRESCAR ====================
 
     fun refreshInventory() {
-        println("🔄 Refrescando inventario...")
+        timber.log.Timber.d("🔄 Refrescando inventario...")
         viewModelScope.launch {
             loadInventoryFromProducts()
             loadLowStockItems()
@@ -297,7 +297,7 @@ class InventoryViewModel @Inject constructor(
     fun updateStock(productId: String, newQuantity: Double) {
         viewModelScope.launch {
             try {
-                println("📊 Actualizando stock de producto $productId a $newQuantity")
+                timber.log.Timber.d("📊 Actualizando stock de producto $productId a $newQuantity")
 
                 // 1️⃣ ACTUALIZAR EN FIREBASE PRODUCTS
                 firebaseProductRepository.updateProductStock(productId, newQuantity)
@@ -326,12 +326,12 @@ class InventoryViewModel @Inject constructor(
                     }
                 }
 
-                println("✅ Stock actualizado correctamente")
+                timber.log.Timber.d("✅ Stock actualizado correctamente")
                 _successMessage.value = "✅ Stock actualizado"
                 refreshInventory()
 
             } catch (e: Exception) {
-                println("❌ Error actualizando stock: ${e.message}")
+                timber.log.Timber.d("❌ Error actualizando stock: ${e.message}")
                 _errorMessage.value = "Error actualizando stock: ${e.message}"
             }
         }
@@ -342,7 +342,7 @@ class InventoryViewModel @Inject constructor(
     fun manualSync() {
         viewModelScope.launch {
             try {
-                println("🔄 InventoryViewModel: Sincronización manual...")
+                timber.log.Timber.d("🔄 InventoryViewModel: Sincronización manual...")
                 _isLoading.value = true
 
                 syncManager.syncInventory()
@@ -359,7 +359,7 @@ class InventoryViewModel @Inject constructor(
                 _isOffline.value = false
 
             } catch (e: Exception) {
-                println("❌ InventoryViewModel: Error en sincronización: ${e.message}")
+                timber.log.Timber.d("❌ InventoryViewModel: Error en sincronización: ${e.message}")
                 _errorMessage.value = "Error en sincronización: ${e.message}"
                 _isOffline.value = true
             } finally {

@@ -337,7 +337,7 @@ fun OrdersListContent(
                     OrderCard(
                         order = order,
                         onMarkAsDelivered = {
-                            println("🍽️ Entregando comida orden: ${order.id}")
+                            timber.log.Timber.d("🍽️ Entregando comida orden: ${order.id}")
                             viewModel.markOrderAsDelivered(order.id)
                         }
                     )
@@ -360,7 +360,7 @@ fun OrdersListContent(
                     OrderCard(
                         order = order,
                         onMarkAsServed = {
-                            println("🧹 Liberando mesa orden: ${order.id}")
+                            timber.log.Timber.d("🧹 Liberando mesa orden: ${order.id}")
                             viewModel.markTableAsFree(order.id)
                         }
                     )
