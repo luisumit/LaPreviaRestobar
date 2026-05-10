@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // ✅ PRIORIDAD MÁXIMA: Dibujar la interfaz inmediatamente
         setContent {
             LaPreviaRestoBarTheme {
                 Surface(
@@ -45,24 +46,32 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // ✅ INICIALIZACIÓN DIFERIDA: No bloquea el dibujo de la pantalla
         lifecycleScope.launch {
             try {
-                Timber.i("🚀 MainActivity: Iniciando aplicación con Firebase...")
-                firebaseInitializerService.initializeAllData()
+                // Esperamos un momento para que la UI se asiente
+                delay(1000)
+                
+                Timber.i("🚀 MainActivity: Iniciando servicios de fondo...")
+                
+                // Intentar inicializar, pero capturar errores para que no afecten a la UI
+                launch { 
+                    try { firebaseInitializerService.initializeAllData() } 
+                    catch (e: Exception) { Timber.w("⚠️ Fallo inicialización datos") }
+                }
+                
+                launch { 
+                    try { inventorySyncService.startInventorySync() } 
+                    catch (e: Exception) { Timber.w("⚠️ Fallo sync inventario") }
+                }
 
-                Timber.i("🔄 MainActivity: Iniciando sincronización de inventario...")
-                inventorySyncService.startInventorySync()
-
-                Timber.i("🔄 MainActivity: Sincronizando datos offline...")
-                syncManager.syncFull()
-
-                delay(2000)
-                firebaseInitializerService.checkFirebaseStatus()
-
-                Timber.i("✅ MainActivity: Todo inicializado correctamente")
+                launch { 
+                    try { syncManager.syncFull() } 
+                    catch (e: Exception) { Timber.w("⚠️ Fallo sync full") }
+                }
 
             } catch (e: Exception) {
-                Timber.e(e, "💥 MainActivity: Error")
+                Timber.e(e, "💥 MainActivity: Error en procesos de fondo")
             }
         }
     }
