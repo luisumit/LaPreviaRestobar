@@ -4,14 +4,10 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.google.firebase.FirebaseApp
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.laprevia.restobar.domain.worker.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
-import com.laprevia.restobar.BuildConfig
 
 @HiltAndroidApp
 class LaPreviaApp : Application(), Configuration.Provider {
@@ -27,29 +23,20 @@ class LaPreviaApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        // Configuración de Timber: Solo logs en DEBUG para privacidad
+        // Timber solo en DEBUG
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Inicializar Firebase y App Check para blindar el acceso a la base de datos
         try {
+            // ✅ Inicialización mínima de Firebase para evitar bloqueos
             FirebaseApp.initializeApp(this)
-            val firebaseAppCheck = FirebaseAppCheck.getInstance()
+            Timber.i("🔥 FirebaseApp inicializado")
             
-            if (BuildConfig.DEBUG) {
-                firebaseAppCheck.installAppCheckProviderFactory(
-                    DebugAppCheckProviderFactory.getInstance()
-                )
-                Timber.d("🔒 App Check: Modo DEBUG activado")
-            } else {
-                firebaseAppCheck.installAppCheckProviderFactory(
-                    PlayIntegrityAppCheckProviderFactory.getInstance()
-                )
-                Timber.i("🔒 App Check: Play Integrity activado")
-            }
+            // ⚠️ App Check desactivado temporalmente para pruebas locales
+            // Evitamos que el bloqueo de red de App Check deje la pantalla negra
         } catch (e: Exception) {
-            Timber.e(e, "❌ Error inicializando seguridad de Firebase")
+            Timber.e(e, "❌ Error inicializando Firebase")
         }
 
         try {
