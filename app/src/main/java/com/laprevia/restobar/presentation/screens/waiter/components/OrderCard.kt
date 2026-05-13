@@ -1,8 +1,9 @@
-// OrderCard.kt - VERSIÓN ACTUALIZADA CON ENTREGADO
+// OrderCard.kt - VERSIÓN ACTUALIZADA CON BOTONES RESPONSIVOS
 package com.laprevia.restobar.presentation.screens.waiter.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
@@ -11,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laprevia.restobar.data.model.Order
@@ -19,17 +21,56 @@ import com.laprevia.restobar.data.model.OrderStatus
 @Composable
 fun OrderCard(
     order: Order,
-    onMarkAsDelivered: () -> Unit = {},  // ✅ NUEVO: Para entregar comida (LISTO → ENTREGADO)
-    onMarkAsServed: () -> Unit = {},     // ✅ NUEVO: Para liberar mesa (ENTREGADO → COMPLETED)
+    onMarkAsDelivered: () -> Unit = {},  // Para entregar comida (LISTO → ENTREGADO)
+    onMarkAsServed: () -> Unit = {},     // Para liberar mesa (ENTREGADO → COMPLETED)
+    onCancel: () -> Unit = {},           // Para cancelar pedido
     onStatusUpdate: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    // ✅ Detectar tamaño de pantalla
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    // ✅ En tablet landscape, los botones pueden ser más grandes
+    val buttonHeight = if (isTablet) 48.dp else 36.dp
+    val buttonContentSpacing = if (isTablet) 8.dp else 4.dp
+    val iconSize = if (isTablet) 20.dp else 18.dp
+
+    // Diálogo de confirmación para cancelar
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Cancelar Pedido") },
+            text = {
+                Text("¿Estás seguro de que quieres cancelar este pedido?\n\nSe devolverá el stock y la mesa quedará libre.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onCancel()
+                        showCancelDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                ) {
+                    Text("Sí, Cancelar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("No, Volver")
+                }
+            }
+        )
+    }
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = if (isTablet) 12.dp else 8.dp, vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -38,7 +79,7 @@ fun OrderCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(if (isTablet) 20.dp else 16.dp)
         ) {
             // Header
             Row(
@@ -49,12 +90,12 @@ fun OrderCard(
                 Column {
                     Text(
                         text = "Mesa ${order.tableNumber}",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Pedido #${order.id.takeLast(6)}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = if (isTablet) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Text(
@@ -67,7 +108,7 @@ fun OrderCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "S/. ${"%.2f".format(order.total)}",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -87,7 +128,7 @@ fun OrderCard(
                 Column {
                     Text(
                         text = getStatusText(order.status),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                         color = getStatusColor(order.status),
                         fontWeight = FontWeight.Medium
                     )
@@ -100,7 +141,7 @@ fun OrderCard(
 
                 IconButton(
                     onClick = { expanded = !expanded },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(if (isTablet) 32.dp else 24.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
@@ -121,12 +162,12 @@ fun OrderCard(
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(if (isTablet) 12.dp else 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "📝 Nota: $notes",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = if (isTablet) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                             color = Color(0xFF8D6E63),
                             modifier = Modifier.weight(1f)
                         )
@@ -139,17 +180,17 @@ fun OrderCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
+                        .padding(top = if (isTablet) 16.dp else 12.dp)
                 ) {
                     Text(
                         text = "📦 Items del pedido (${order.items.size})",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = if (isTablet) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     order.items.forEach { item ->
-                        WaiterOrderItemRow(item = item)
+                        WaiterOrderItemRow(item = item, isTablet = isTablet)
                     }
 
                     Row(
@@ -160,22 +201,22 @@ fun OrderCard(
                     ) {
                         Text(
                             text = "Total items:",
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = order.items.sumOf { it.quantity }.toString(),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
 
-            // ✅ BOTONES SEGÚN EL ESTADO DE LA ORDEN
+            // ✅ BOTONES RESPONSIVOS SEGÚN EL ESTADO DE LA ORDEN
             when (order.status) {
                 OrderStatus.LISTO -> {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(if (isTablet) 12.dp else 8.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -185,66 +226,166 @@ fun OrderCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(if (isTablet) 16.dp else 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Listo",
-                                tint = Color(0xFF4CAF50)
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
                             )
                             Text(
                                 text = "✅ PEDIDO LISTO - Entregar al cliente",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF4CAF50)
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            timber.log.Timber.d("🍽️ OrderCard: Entregando comida - Orden ${order.id}")
-                            onMarkAsDelivered()
-                        },
+                    Spacer(modifier = Modifier.height(if (isTablet) 12.dp else 8.dp))
+
+                    // ✅ Botones responsivos - En tablet se ven mejor
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2196F3)
-                        )
+                        horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Entregar comida",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("🍽️ ENTREGAR COMIDA")
+                        // Botón CANCELAR
+                        Button(
+                            onClick = { showCancelDialog = true },
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                            contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(buttonContentSpacing),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cancel,
+                                    contentDescription = "Cancelar",
+                                    modifier = Modifier.size(iconSize)
+                                )
+                                Text(
+                                    if (isTablet) "❌ CANCELAR PEDIDO" else "CANCELAR",
+                                    color = Color.White,
+                                    fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
+                                )
+                            }
+                        }
+                        // Botón ENTREGAR
+                        Button(
+                            onClick = {
+                                println("🍽️ OrderCard: Entregando comida - Orden ${order.id}")
+                                onMarkAsDelivered()
+                            },
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                            contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(buttonContentSpacing),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Entregar comida",
+                                    modifier = Modifier.size(iconSize)
+                                )
+                                Text(
+                                    if (isTablet) "🍽️ ENTREGAR COMIDA" else "ENTREGAR",
+                                    color = Color.White,
+                                    fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
+                                )
+                            }
+                        }
                     }
                 }
                 OrderStatus.ENTREGADO -> {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            timber.log.Timber.d("🧹 OrderCard: Liberando mesa - Orden ${order.id}")
-                            onMarkAsServed()
-                        },
+                    Spacer(modifier = Modifier.height(if (isTablet) 12.dp else 8.dp))
+
+                    // ✅ Botones responsivos
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
-                        )
+                        horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Liberar mesa",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("🧹 LIBERAR MESA")
+                        // Botón CANCELAR
+                        Button(
+                            onClick = { showCancelDialog = true },
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                            contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(buttonContentSpacing),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cancel,
+                                    contentDescription = "Cancelar",
+                                    modifier = Modifier.size(iconSize)
+                                )
+                                Text(
+                                    if (isTablet) "❌ CANCELAR" else "CANCELAR",
+                                    color = Color.White,
+                                    fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
+                                )
+                            }
+                        }
+                        // Botón LIBERAR MESA
+                        Button(
+                            onClick = {
+                                println("🧹 OrderCard: Liberando mesa - Orden ${order.id}")
+                                onMarkAsServed()
+                            },
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                            contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(buttonContentSpacing),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Liberar mesa",
+                                    modifier = Modifier.size(iconSize)
+                                )
+                                Text(
+                                    if (isTablet) "🧹 LIBERAR MESA" else "LIBERAR",
+                                    color = Color.White,
+                                    fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
+                                )
+                            }
+                        }
                     }
                 }
                 else -> {
-                    // Otros estados no tienen botones
+                    // Para estados ENVIADO, ACEPTADO, EN_PREPARACION - solo botón cancelar
+                    Spacer(modifier = Modifier.height(if (isTablet) 12.dp else 8.dp))
+                    Button(
+                        onClick = { showCancelDialog = true },
+                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                        contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(buttonContentSpacing),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Cancel,
+                                contentDescription = "Cancelar pedido",
+                                modifier = Modifier.size(iconSize)
+                            )
+                            Text(
+                                if (isTablet) "❌ CANCELAR PEDIDO" else "CANCELAR",
+                                color = Color.White,
+                                fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
+                            )
+                        }
+                    }
                 }
             }
 
@@ -309,7 +450,7 @@ fun OrderProgressBar(status: OrderStatus) {
 }
 
 @Composable
-fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
+fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem, isTablet: Boolean = false) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -322,14 +463,14 @@ fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(if (isTablet) 16.dp else 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "${item.quantity}x ${item.productName}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
 

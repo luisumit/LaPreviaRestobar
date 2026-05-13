@@ -10,5 +10,6 @@ interface FirebaseOrderRepository : OrderRepository {
     fun getOrdersRealTime(): Flow<List<Order>>
     fun getActiveOrders(): Flow<List<Order>>
 
-
+    // ✅ MÉTODO AGREGADO: Obtener lista de órdenes (suspending)
+    suspend fun getOrdersList(): List<Order>
 }

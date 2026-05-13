@@ -40,4 +40,8 @@
     <color name="green_success">#FF388E3C</color>
     <color name="orange_warning">#FFFF9800</color>
     <color name="red_error">#FFD32F2F</color>
+
+
+    <color name="notification_low_stock">#FF9800</color>
+    <color name="notification_out_of_stock">#F44336</color>
 </resources>
