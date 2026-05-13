@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.util.UUID
+import kotlinx.coroutines.delay
 
 data class AdminUiState(
     val products: List<Product> = emptyList(),
@@ -292,6 +293,34 @@ class AdminViewModel @Inject constructor(
         }
     }
 
+    // ✅ NUEVO: Verificar stock bajo inmediatamente
+    fun checkLowStockImmediately() {
+        viewModelScope.launch {
+            try {
+                val products = db.productDao().getAll()
+                val trackedProducts = products.filter { it.trackInventory }
+
+                val outOfStock = trackedProducts.filter { it.stock == 0.0 }
+                val lowStock = trackedProducts.filter { it.stock > 0 && it.stock <= it.minStock }
+
+                if (outOfStock.isNotEmpty() || lowStock.isNotEmpty()) {
+                    val message = when {
+                        outOfStock.isNotEmpty() && lowStock.isNotEmpty() ->
+                            "❌ ${outOfStock.size} agotados | ⚠️ ${lowStock.size} stock bajo"
+                        outOfStock.isNotEmpty() ->
+                            "❌ ${outOfStock.size} producto(s) AGOTADOS"
+                        else ->
+                            "⚠️ ${lowStock.size} producto(s) con stock bajo"
+                    }
+                    _uiState.value = _uiState.value.copy(warning = message)
+                    println("⚠️ Admin: $message")
+                }
+            } catch (e: Exception) {
+                println("❌ Admin: Error verificando stock bajo: ${e.message}")
+            }
+        }
+    }
+
     fun showProductForm(product: Product? = null) {
         _uiState.value = _uiState.value.copy(
             showProductForm = true,
@@ -360,6 +389,9 @@ class AdminViewModel @Inject constructor(
                 refreshProducts()
                 hideProductForm()
 
+                // ✅ Verificar stock después de crear
+                checkLowStockImmediately()
+
             } catch (e: Exception) {
                 println("❌ Admin: Error creando producto: ${e.message}")
                 showMessage("Error al crear producto: ${e.message}", isError = true)
@@ -398,6 +430,9 @@ class AdminViewModel @Inject constructor(
                 refreshProducts()
                 hideProductForm()
 
+                // ✅ Verificar stock después de actualizar
+                checkLowStockImmediately()
+
             } catch (e: Exception) {
                 println("❌ Admin: Error actualizando producto: ${e.message}")
                 showMessage("Error al actualizar producto: ${e.message}", isError = true)
@@ -435,6 +470,9 @@ class AdminViewModel @Inject constructor(
 
                 refreshProducts()
                 hideDeleteDialog()
+
+                // ✅ Verificar stock después de eliminar
+                checkLowStockImmediately()
 
             } catch (e: Exception) {
                 println("❌ Admin: Error eliminando producto: ${e.message}")
