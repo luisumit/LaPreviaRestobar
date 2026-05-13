@@ -1,6 +1,5 @@
 package com.laprevia.restobar.repositories
 
-
 import com.laprevia.restobar.data.model.Table
 import com.laprevia.restobar.data.model.TableStatus
 import com.laprevia.restobar.domain.repository.TableRepository
@@ -20,6 +19,12 @@ class FakeTableRepository : TableRepository {
     override fun getTables(): Flow<List<Table>> = flow {
         emit(tables)
     }
+
+    override suspend fun getTableById(tableId: Int): Table? {
+        return tables.find { it.id == tableId }
+    }
+
+    override suspend fun getTablesCount(): Int = tables.size
 
     override suspend fun updateTableStatus(tableId: Int, status: TableStatus) {
         val index = tables.indexOfFirst { it.id == tableId }
@@ -48,7 +53,24 @@ class FakeTableRepository : TableRepository {
         }
     }
 
-    override suspend fun getTableById(tableId: Int): Table? {
-        return tables.find { it.id == tableId }
+    override suspend fun updateTable(table: Table) {
+        val index = tables.indexOfFirst { it.id == table.id }
+        if (index != -1) {
+            tables[index] = table
+        }
+    }
+
+    override suspend fun initializeDefaultTables() {
+        // No-op for fake
+    }
+
+    override suspend fun debugTables(): String = "Fake debug info"
+
+    override suspend fun syncPendingTables() {
+        // No-op for fake
+    }
+
+    override fun getPendingTables(): Flow<List<Table>> = flow {
+        emit(emptyList())
     }
 }
