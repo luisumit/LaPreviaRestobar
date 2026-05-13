@@ -2,9 +2,9 @@ name: Android CI Build
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "test" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "test" ]
 
 jobs:
   build:
@@ -22,14 +22,19 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Crear archivo google-services.json
+      - name: Crear archivos google-services.json por variant
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
             echo "Warning: GOOGLE_SERVICES_JSON secret is missing"
           else
-            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+            mkdir -p app/src/debug
+            mkdir -p app/src/staging
+            mkdir -p app/src/release
+            echo "$GOOGLE_SERVICES_JSON" > app/src/debug/google-services.json
+            echo "$GOOGLE_SERVICES_JSON" > app/src/staging/google-services.json
+            echo "$GOOGLE_SERVICES_JSON" > app/src/release/google-services.json
           fi
 
       - name: Crear archivo local.properties
@@ -41,32 +46,37 @@ jobs:
       - name: Dar permisos al ejecutable Gradle
         run: chmod +x ./gradlew
 
-      # DETEKT (ANÁLISIS ESTÁTICO)
+      # 🔍 DETEKT (ANÁLISIS ESTÁTICO)
       - name: Ejecutar análisis estático con Detekt
         run: ./gradlew detekt || echo "Detekt task failed or not found, continuing..."
 
-      # LINT (ANÁLISIS ESTÁTICO ANDROID)
+      # 🔍 LINT (ANÁLISIS ESTÁTICO ANDROID)
       - name: Ejecutar Análisis Estático (Lint)
         run: ./gradlew lintDebug
 
-      # BUILD
+      # 🧪 TESTS UNITARIOS
+      - name: Ejecutar Tests Unitarios
+        run: ./gradlew testDebugUnitTest
+
+      # 🏗️ BUILD
       - name: Compilar APK de depuración
         run: ./gradlew assembleDebug
 
-      # SUBIR APK
+      # 📦 SUBIR APK
       - name: Subir APK generado
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-      # SUBIR REPORTE DE DETEKT Y LINT
-      - name: Subir reportes de análisis
+      # 📊 SUBIR REPORTES
+      - name: Subir reportes de análisis y tests
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: static-analysis-reports
+          name: reports
           path: |
             app/build/reports/detekt/
             app/build/reports/lint-results-debug.html
             app/build/reports/lint-results-debug.xml
+            app/build/reports/tests/
