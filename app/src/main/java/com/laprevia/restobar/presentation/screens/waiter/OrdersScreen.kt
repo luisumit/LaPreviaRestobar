@@ -309,7 +309,7 @@ fun OrdersStatItem(
     }
 }
 
-// ✅ ACTUALIZADO: OrdersListContent con los nuevos estados
+// ✅ ACTUALIZADO: OrdersListContent con botón de CANCELAR
 @Composable
 fun OrdersListContent(
     orders: List<com.laprevia.restobar.data.model.Order>,
@@ -339,6 +339,10 @@ fun OrdersListContent(
                         onMarkAsDelivered = {
                             println("🍽️ Entregando comida orden: ${order.id}")
                             viewModel.markOrderAsDelivered(order.id)
+                        },
+                        onCancel = {
+                            println("❌ Cancelando orden: ${order.id}")
+                            viewModel.cancelOrder(order.id)
                         }
                     )
                 }
@@ -362,6 +366,10 @@ fun OrdersListContent(
                         onMarkAsServed = {
                             println("🧹 Liberando mesa orden: ${order.id}")
                             viewModel.markTableAsFree(order.id)
+                        },
+                        onCancel = {
+                            println("❌ Cancelando orden: ${order.id}")
+                            viewModel.cancelOrder(order.id)
                         }
                     )
                 }
@@ -380,7 +388,13 @@ fun OrdersListContent(
                     )
                 }
                 items(inProgressOrders.sortedBy { it.createdAt }) { order ->
-                    OrderCard(order = order)
+                    OrderCard(
+                        order = order,
+                        onCancel = {
+                            println("❌ Cancelando orden: ${order.id}")
+                            viewModel.cancelOrder(order.id)
+                        }
+                    )
                 }
             }
         }
@@ -397,7 +411,13 @@ fun OrdersListContent(
                     )
                 }
                 items(acceptedOrders.sortedBy { it.createdAt }) { order ->
-                    OrderCard(order = order)
+                    OrderCard(
+                        order = order,
+                        onCancel = {
+                            println("❌ Cancelando orden: ${order.id}")
+                            viewModel.cancelOrder(order.id)
+                        }
+                    )
                 }
             }
         }
@@ -414,7 +434,13 @@ fun OrdersListContent(
                     )
                 }
                 items(sentOrders.sortedBy { it.createdAt }) { order ->
-                    OrderCard(order = order)
+                    OrderCard(
+                        order = order,
+                        onCancel = {
+                            println("❌ Cancelando orden: ${order.id}")
+                            viewModel.cancelOrder(order.id)
+                        }
+                    )
                 }
             }
         }

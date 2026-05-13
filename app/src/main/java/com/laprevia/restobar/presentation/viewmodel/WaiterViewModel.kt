@@ -85,6 +85,9 @@ class WaiterViewModel @Inject constructor(
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications: StateFlow<List<Notification>> = _notifications.asStateFlow()
 
+    // ✅ Set para evitar notificaciones duplicadas
+    private val _sentNotifications = mutableSetOf<String>()
+
     private fun checkInternet(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
@@ -278,6 +281,7 @@ class WaiterViewModel @Inject constructor(
 
                 db.orderDao().insert(updatedOrder.toEntity())
                 refreshOrdersFromRoom()
+                loadTables()
 
                 if (previousOrder != null && previousOrder.status != updatedOrder.status) {
                     println("🔔 Waiter: El chef actualizó orden ${updatedOrder.id}")
@@ -292,11 +296,10 @@ class WaiterViewModel @Inject constructor(
         }
     }
 
-    // ✅ CORREGIDO: Filtrar órdenes COMPLETED y CANCELLED
     private suspend fun refreshOrdersFromRoom() {
         val roomOrders = db.orderDao().getAll()
         val activeOrders = roomOrders.filter {
-            it.status != "COMPLETED" && it.status != "CANCELLED"
+            it.status != "COMPLETED" && it.status != "CANCELLED" && it.tableId != 0
         }
         _orders.value = activeOrders.map { it.toDomain() }
         println("🗄️ Room → _orders actualizado: ${_orders.value.size} órdenes activas")
@@ -307,12 +310,16 @@ class WaiterViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 println("🔄 Waiter: Cargando datos iniciales...")
+                if (_isInternetAvailable.value) {
+                    syncOrdersFromFirebase()
+                }
+                loadProductsOnce()
+
                 val tablesJob = launch { loadTables() }
-                val productsJob = launch { loadProducts() }
-                val ordersJob = launch { loadOrders() }
+                val ordersJob = launch { refreshOrdersFromRoom() }
                 tablesJob.join()
-                productsJob.join()
                 ordersJob.join()
+
                 _isLoading.value = false
                 println("✅ Waiter: Datos cargados - ${_tables.value.size} mesas, ${_orders.value.size} órdenes")
             } catch (e: Exception) {
@@ -322,7 +329,34 @@ class WaiterViewModel @Inject constructor(
         }
     }
 
-    // ✅ CORREGIDO: Actualizar estado de mesas según órdenes activas
+    private suspend fun syncOrdersFromFirebase() {
+        try {
+            val firebaseOrders = firebaseOrderRepository.getOrdersRealTime().first()
+            firebaseOrders.forEach { order ->
+                val existing = db.orderDao().getById(order.id)
+                if (existing == null || existing.status != order.status.name) {
+                    db.orderDao().insert(order.toEntity().copy(syncStatus = "SYNCED"))
+                }
+            }
+            refreshOrdersFromRoom()
+            println("✅ Órdenes sincronizadas desde Firebase: ${firebaseOrders.size}")
+        } catch (e: Exception) {
+            println("❌ Error sincronizando órdenes: ${e.message}")
+        }
+    }
+
+    private suspend fun loadProductsOnce() {
+        try {
+            val productsList = firebaseProductRepository.getSellableProducts().first()
+            _products.value = productsList.distinctBy { it.id }.sortedBy { it.name }
+            println("✅ Waiter: ${_products.value.size} productos cargados")
+        } catch (e: Exception) {
+            println("❌ Waiter: Error cargando productos: ${e.message}")
+            val roomProducts = db.productDao().getAll().map { it.toDomain() }
+            _products.value = roomProducts.distinctBy { it.id }.sortedBy { it.name }
+        }
+    }
+
     private suspend fun loadTables() {
         try {
             val tablesList = firebaseTableRepository.getTables().first()
@@ -343,6 +377,9 @@ class WaiterViewModel @Inject constructor(
 
             _tables.value = updatedTables
             println("✅ Mesas cargadas: ${updatedTables.size}")
+            updatedTables.forEach { table ->
+                println("   - Mesa ${table.number}: ${table.status}")
+            }
         } catch (e: Exception) {
             println("❌ Waiter: Error cargando mesas: ${e.message}")
         }
@@ -354,17 +391,6 @@ class WaiterViewModel @Inject constructor(
             println("✅ Room: ${_orders.value.size} órdenes activas")
         } catch (e: Exception) {
             println("❌ Waiter: Error cargando órdenes: ${e.message}")
-        }
-    }
-
-    private suspend fun loadProducts() {
-        try {
-            firebaseProductRepository.getSellableProducts().collect { productsList ->
-                _products.value = productsList.distinctBy { it.id }.sortedBy { it.name }
-                println("✅ Waiter: ${_products.value.size} productos cargados")
-            }
-        } catch (e: Exception) {
-            println("❌ Waiter: Error cargando productos: ${e.message}")
         }
     }
 
@@ -526,6 +552,7 @@ class WaiterViewModel @Inject constructor(
                 }
 
                 refreshOrdersFromRoom()
+                loadTables()
                 _successMessage.value = "🍽️ Comida entregada - Mesa ${entity?.tableNumber}"
             } catch (e: Exception) {
                 _errorMessage.value = "❌ Error: ${e.message}"
@@ -533,7 +560,6 @@ class WaiterViewModel @Inject constructor(
         }
     }
 
-    // ✅ CORREGIDO: Liberar mesa correctamente
     fun markTableAsFree(orderId: String) {
         viewModelScope.launch {
             try {
@@ -551,7 +577,6 @@ class WaiterViewModel @Inject constructor(
                         ))
                     }
 
-                    // Actualizar estado local
                     _orders.value = _orders.value.filter { it.id != orderId }
 
                     val currentTables = _tables.value.toMutableList()
@@ -607,7 +632,111 @@ class WaiterViewModel @Inject constructor(
         }
     }
 
+    // ==================== CANCELAR PEDIDO ====================
+
+    fun cancelOrder(orderId: String) {
+        viewModelScope.launch {
+            try {
+                println("❌ Waiter: Cancelando orden $orderId")
+                val order = _orders.value.find { it.id == orderId }
+
+                if (order != null) {
+                    // 1️⃣ Devolver el stock
+                    order.items.forEach { item ->
+                        if (item.trackInventory) {
+                            try {
+                                if (_isInternetAvailable.value) {
+                                    val currentStock = firebaseProductRepository.getProductStock(item.productId)
+                                    val newStock = currentStock + item.quantity
+                                    firebaseProductRepository.updateProductStock(item.productId, newStock)
+                                    firebaseInventoryRepository.updateStock(item.productId, newStock)
+                                    println("📦 Stock devuelto: ${item.productName}: $currentStock → $newStock (+${item.quantity})")
+                                }
+                            } catch (e: Exception) {
+                                println("⚠️ Error devolviendo stock de ${item.productName}: ${e.message}")
+                            }
+                        }
+                    }
+
+                    // 2️⃣ Actualizar estado en Room a CANCELLED
+                    val entity = db.orderDao().getAll().find { it.id == orderId }
+                    entity?.let {
+                        db.orderDao().insert(it.copy(
+                            status = "CANCELLED",
+                            syncStatus = if (_isInternetAvailable.value) "SYNCED" else "PENDING"
+                        ))
+                    }
+
+                    // 3️⃣ ✅ ACTUALIZAR en Firebase a CANCELLED (NO eliminar)
+                    if (_isInternetAvailable.value) {
+                        try {
+                            firebaseOrderRepository.updateOrderStatus(orderId, "CANCELLED")
+                            firebaseTableRepository.clearTable(order.tableId)
+                            println("✅ Orden cancelada en Firebase (estado CANCELLED)")
+                        } catch (e: Exception) {
+                            println("⚠️ Error en Firebase: ${e.message}")
+                        }
+                    }
+
+                    // 4️⃣ Liberar la mesa localmente
+                    _orders.value = _orders.value.filter { it.id != orderId }
+
+                    val currentTables = _tables.value.toMutableList()
+                    val index = currentTables.indexOfFirst { it.id == order.tableId }
+                    if (index != -1) {
+                        currentTables[index] = currentTables[index].copy(
+                            status = TableStatus.LIBRE,
+                            currentOrderId = null
+                        )
+                        _tables.value = currentTables
+                    }
+
+                    _successMessage.value = "✅ Pedido cancelado - Mesa ${order.tableNumber} liberada"
+                    println("✅ Mesa ${order.tableNumber} liberada por cancelación")
+
+                    // ✅ NOTIFICACIÓN CON CONTROL DE DUPLICADOS
+                    val notificationKey = "${order.id}_CANCELLED"
+                    if (!_sentNotifications.contains(notificationKey)) {
+                        _sentNotifications.add(notificationKey)
+                        addNotification(Notification(
+                            type = NotificationType.ORDER_CANCELLED,
+                            title = "❌ Pedido Cancelado",
+                            message = "Se canceló el pedido de la Mesa ${order.tableNumber}",
+                            orderId = order.id,
+                            tableNumber = order.tableNumber
+                        ))
+                        viewModelScope.launch {
+                            delay(5000)
+                            _sentNotifications.remove(notificationKey)
+                        }
+                    }
+
+                } else {
+                    _errorMessage.value = "No se encontró la orden para cancelar"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "❌ Error cancelando pedido: ${e.message}"
+                println("❌ Waiter: Error cancelando orden: ${e.message}")
+            }
+        }
+    }
+
+    // ✅ CORREGIDO: Notificaciones sin duplicados
     private fun showStatusChangeNotification(previous: Order, current: Order) {
+        // ✅ NO notificar cancelación aquí (ya se hace en cancelOrder)
+        if (current.status == OrderStatus.CANCELLED) {
+            println("🔇 Waiter: Cancelación ignorada aquí")
+            return
+        }
+
+        val notificationKey = "${current.id}_${current.status}"
+        if (_sentNotifications.contains(notificationKey)) {
+            println("🔇 Waiter: Notificación duplicada ignorada: $notificationKey")
+            return
+        }
+
+        _sentNotifications.add(notificationKey)
+
         val notification = when (current.status) {
             OrderStatus.ACEPTADO -> Notification(
                 type = NotificationType.ORDER_ACCEPTED,
@@ -639,13 +768,21 @@ class WaiterViewModel @Inject constructor(
             )
             else -> null
         }
+
         notification?.let {
             addNotification(it)
+            println("✅ Waiter: Notificación agregada - ${it.title}")
+        }
+
+        viewModelScope.launch {
+            delay(5000)
+            _sentNotifications.remove(notificationKey)
         }
     }
 
     private fun addNotification(notification: Notification) {
         _notifications.value = listOf(notification) + _notifications.value.take(4)
+        println("🔔 Waiter: Notificación agregada - ${notification.title}")
     }
 
     fun removeNotification(notification: Notification) {
@@ -668,14 +805,13 @@ class WaiterViewModel @Inject constructor(
         _connectionMessage.value = null
     }
 
-    // ✅ CORREGIDO: Refrescar datos en orden correcto
     fun refreshData() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 refreshOrdersFromRoom()
                 loadTables()
-                loadProducts()
+                loadProductsOnce()
                 _successMessage.value = "✅ Datos actualizados"
             } catch (e: Exception) {
                 _errorMessage.value = "❌ Error: ${e.message}"
@@ -692,6 +828,7 @@ class WaiterViewModel @Inject constructor(
                 _isLoading.value = true
                 if (_isInternetAvailable.value) {
                     syncPendingOrders()
+                    syncOrdersFromFirebase()
                     initializeFirebase()
                     refreshData()
                     _isFirebaseConnected.value = true
