@@ -32,15 +32,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
-        // API Keys from local.properties (Robust handling)
-        val rawApiKey = localProperties.getProperty("firebase.api.key") ?: ""
-        val sanitizedApiKey = rawApiKey.replace("\"", "")
-        buildConfigField("String", "FIREBASE_API_KEY", "\"$sanitizedApiKey\"")
-        buildConfigField("String", "EMULATOR_BASE_URL", "\"http://10.0.2.2:8080/\"")
-        buildConfigField("String", "PHYSICAL_DEVICE_BASE_URL", "\"http://192.168.0.104:8080/\"")
-        buildConfigField("String", "EMULATOR_WS_URL", "\"ws://10.0.2.2:8080/ws\"")
-        buildConfigField("String", "PHYSICAL_DEVICE_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
     }
 
     buildTypes {
@@ -49,6 +40,11 @@ android {
             isDebuggable = true
             isMinifyEnabled = false
             buildConfigField("String", "ENVIRONMENT", "\"DEBUG\"")
+            // URLs locales para desarrollo
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/\"")
+            buildConfigField("String", "PHYSICAL_BASE_URL", "\"http://192.168.0.104:8080/\"")
+            buildConfigField("String", "WS_URL", "\"ws://10.0.2.2:8080/ws\"")
+            buildConfigField("String", "PHYSICAL_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
             buildConfigField(
                 "String", "FIREBASE_API_KEY",
                 "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
@@ -60,7 +56,13 @@ android {
             versionNameSuffix = "-STAGING"
             isDebuggable = true
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "ENVIRONMENT", "\"STAGING\"")
+            // URLs del servidor de pruebas
+            buildConfigField("String", "BASE_URL", "\"http://192.168.0.104:8080/\"")
+            buildConfigField("String", "PHYSICAL_BASE_URL", "\"http://192.168.0.104:8080/\"")
+            buildConfigField("String", "WS_URL", "\"ws://192.168.0.104:8080/ws\"")
+            buildConfigField("String", "PHYSICAL_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
             buildConfigField(
                 "String", "FIREBASE_API_KEY",
                 "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
@@ -72,6 +74,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
+            // URLs de producción — reemplazar con las reales cuando estén listas
+            buildConfigField("String", "BASE_URL", "\"https://api.laprevia.com/\"")
+            buildConfigField("String", "PHYSICAL_BASE_URL", "\"https://api.laprevia.com/\"")
+            buildConfigField("String", "WS_URL", "\"wss://api.laprevia.com/ws\"")
+            buildConfigField("String", "PHYSICAL_WS_URL", "\"wss://api.laprevia.com/ws\"")
             buildConfigField(
                 "String", "FIREBASE_API_KEY",
                 "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
@@ -106,7 +113,6 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // Fix for 16KB page alignment error in Android 15
             useLegacyPackaging = true
         }
     }
@@ -116,10 +122,8 @@ kapt {
     correctErrorTypes = true
 }
 
-
-
 dependencies {
-    // Core Android (Safer versions)
+    // Core Android
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
@@ -158,7 +162,7 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
 
-    // Firebase (With App Check for database security)
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
@@ -188,6 +192,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
 detekt {
     toolVersion = "1.23.6"
     config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
