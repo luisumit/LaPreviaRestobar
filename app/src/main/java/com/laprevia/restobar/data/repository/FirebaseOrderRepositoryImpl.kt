@@ -37,6 +37,19 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
         awaitClose { ordersRef.removeEventListener(eventListener) }
     }
 
+    // ✅ NUEVO MÉTODO: getOrdersList (suspending)
+    override suspend fun getOrdersList(): List<Order> {
+        return try {
+            val snapshot = ordersRef.get().await()
+            val orders = snapshot.children.mapNotNull { it.toOrder() }
+            println("📦 FirebaseOrders: ${orders.size} órdenes obtenidas")
+            orders
+        } catch (e: Exception) {
+            println("❌ FirebaseOrders: Error getOrdersList: ${e.message}")
+            emptyList()
+        }
+    }
+
     override fun getActiveOrders(): Flow<List<Order>> = callbackFlow {
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -76,7 +89,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override fun getOrdersWithItems(): Flow<List<Order>> = getOrders()
 
-    // ✅ NUEVO MÉTODO: getPendingOrders
     override fun getPendingOrders(): Flow<List<Order>> = callbackFlow {
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -244,13 +256,30 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
     private fun DataSnapshot.toOrder(): Order? {
         return try {
             val id = key ?: return null
-            val tableId = child("tableId").getValue(Int::class.java) ?: 0
+            // ✅ CORREGIDO: tableId como var para poder modificarlo
+            var tableId = child("tableId").getValue(Int::class.java) ?: 0
             val tableNumber = child("tableNumber").getValue(Int::class.java) ?: 0
+
+            // ✅ CORREGIDO: Si tableId es 0, usar tableNumber (mesas del 1 al 8)
+            if (tableId == 0 && tableNumber in 1..8) {
+                println("⚠️ FirebaseOrders: tableId era 0, corrigiendo a $tableNumber")
+                tableId = tableNumber
+            }
+
             val statusStr = child("status").getValue(String::class.java) ?: "PENDING"
             val status = try {
                 OrderStatus.valueOf(statusStr)
             } catch (e: IllegalArgumentException) {
-                OrderStatus.PENDING
+                when (statusStr) {
+                    "ENVIADO" -> OrderStatus.ENVIADO
+                    "ACEPTADO" -> OrderStatus.ACEPTADO
+                    "EN_PREPARACION" -> OrderStatus.EN_PREPARACION
+                    "LISTO" -> OrderStatus.LISTO
+                    "ENTREGADO" -> OrderStatus.ENTREGADO
+                    "COMPLETED" -> OrderStatus.COMPLETED
+                    "CANCELLED" -> OrderStatus.CANCELLED
+                    else -> OrderStatus.PENDING
+                }
             }
             val waiterId = child("waiterId").getValue(String::class.java)
             val waiterName = child("waiterName").getValue(String::class.java)
