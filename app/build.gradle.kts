@@ -110,13 +110,20 @@ android {
             useLegacyPackaging = true
         }
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.jvmArgs("-Dnet.bytebuddy.experimental=true")
+            }
+        }
+    }
 }
 
 kapt {
     correctErrorTypes = true
 }
-
-
 
 dependencies {
     // Core Android (Safer versions)
@@ -187,7 +194,22 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("junit:junit:4.13.2")
+ 
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("androidx.test:core:1.5.0")
+    testImplementation ("org.mockito:mockito-core:5.11.0")
+    testImplementation ("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    // Cambia esto:
+
+
+// Por esto:
+    testImplementation("org.robolectric:robolectric:4.13")
 }
+
 detekt {
     toolVersion = "1.23.6"
     config.setFrom(files("$rootDir/config/detekt/detekt.yml"))

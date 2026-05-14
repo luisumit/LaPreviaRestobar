@@ -1,48 +1,41 @@
 package com.laprevia.restobar
 
-
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.laprevia.restobar.data.model.Product
+import com.laprevia.restobar.data.model.TableStatus
+import com.laprevia.restobar.repositories.FakeTableRepository
+import com.laprevia.restobar.repositories.FakeOrderRepository
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
-import org.junit.Before
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class WaiterViewModelTest {
+class TableRepositoryTest {
 
-    private lateinit var viewModel: com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
-    private lateinit var fakeTableRepository: FakeTableRepository
-    private lateinit var fakeOrderRepository: FakeOrderRepository
-    private lateinit var fakeProductRepository: FakeProductRepository
+    @Test
+    fun `crear orden deberia cambiar estado de mesa a OCUPADA`() = runTest {
+        // Given
+        val tableRepo = FakeTableRepository()
+        tableRepo.initializeDefaultTables()
 
-    @Before
-    fun setup() {
-        fakeTableRepository = FakeTableRepository()
-        fakeOrderRepository = FakeOrderRepository()
-        fakeProductRepository = FakeProductRepository()
-        viewModel = com.laprevia.restobar.presentation.viewmodel.WaiterViewModel(
-            fakeTableRepository,
-            fakeOrderRepository,
-            fakeProductRepository
-        )
+        // When
+        tableRepo.assignOrderToTable(tableId = 1, orderId = "orden-123")
+
+        // Then
+        val table = tableRepo.getTableById(1)
+        assertEquals(TableStatus.OCUPADA, table?.status)
     }
 
     @Test
-    fun `create order should update table status`() = runTest {
+    fun `liberar mesa deberia cambiar estado a LIBRE`() = runTest {
         // Given
-        val tableId = 1
-        val items = listOf(
-            com.laprevia.restobar.data.model.OrderItem(
-                com.laprevia.restobar.data.model.Product("1", "Cerveza", 5.0, "Bebidas", 10),
-                2
-            )
-        )
+        val tableRepo = FakeTableRepository()
+        tableRepo.initializeDefaultTables()
+        tableRepo.assignOrderToTable(tableId = 1, orderId = "orden-123")
 
         // When
-        viewModel.createOrder(tableId, items)
+        tableRepo.clearTable(tableId = 1)
 
         // Then
-        val table = fakeTableRepository.getTableById(tableId)
-        assertEquals(com.laprevia.restobar.data.model.TableStatus.OCUPADA, table?.status)
+        val table = tableRepo.getTableById(1)
+        assertEquals(TableStatus.LIBRE, table?.status)
     }
 }
