@@ -28,14 +28,15 @@ jobs:
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
             echo "Warning: GOOGLE_SERVICES_JSON secret is missing"
+            echo "{}" > app/google-services.json
           else
             mkdir -p app/src/debug
             mkdir -p app/src/staging
             mkdir -p app/src/release
-            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/src/debug/google-services.json
-            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/src/staging/google-services.json
-            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/src/release/google-services.json
             echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
+            cp app/google-services.json app/src/debug/google-services.json
+            cp app/google-services.json app/src/staging/google-services.json
+            cp app/google-services.json app/src/release/google-services.json
           fi
 
       - name: Crear archivo local.properties
