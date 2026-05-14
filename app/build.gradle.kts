@@ -34,6 +34,16 @@ android {
         }
     }
 
+    // ✅ AGREGADO: Configuración de firma para CI/CD
+    signingConfigs {
+        create("release") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             versionNameSuffix = "-DEBUG"
@@ -73,6 +83,8 @@ android {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
+            // ✅ AGREGADO: Usar la firma para release
+            signingConfig = signingConfigs.getByName("release")
             buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
             // URLs de producción — reemplazar con las reales cuando estén listas
             buildConfigField("String", "BASE_URL", "\"https://api.laprevia.com/\"")
@@ -201,13 +213,13 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("junit:junit:4.13.2")
-testImplementation("androidx.arch.core:core-testing:2.2.0")
-testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
-testImplementation("org.mockito:mockito-core:5.12.0")
-testImplementation("androidx.test:core:1.5.0")
-testImplementation("org.robolectric:robolectric:4.13")  // ✅ tu cambio
-kapt("androidx.hilt:hilt-compiler:1.2.0")              // ✅ cambio de tu compañero
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("androidx.test:core:1.5.0")
+    testImplementation("org.robolectric:robolectric:4.13")  // ✅ tu cambio
+    kapt("androidx.hilt:hilt-compiler:1.2.0")              // ✅ cambio de tu compañero
 }
 
 detekt {
