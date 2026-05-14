@@ -22,26 +22,28 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // ✅ REEMPLAZA POR ESTO
-    private val EMULATOR_BASE_URL = BuildConfig.EMULATOR_BASE_URL
-    private val PHYSICAL_DEVICE_BASE_URL = BuildConfig.PHYSICAL_DEVICE_BASE_URL
-    private val EMULATOR_WS_URL = BuildConfig.EMULATOR_WS_URL
-    private val PHYSICAL_DEVICE_WS_URL = BuildConfig.PHYSICAL_DEVICE_WS_URL
+    // Ahora cada variant aporta sus propias URLs via BuildConfig
+    private val BASE_URL = BuildConfig.BASE_URL
+    private val PHYSICAL_BASE_URL = BuildConfig.PHYSICAL_BASE_URL
+    private val WS_URL = BuildConfig.WS_URL
+    private val PHYSICAL_WS_URL = BuildConfig.PHYSICAL_WS_URL
 
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        val loggingLevel = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.NONE  // Sin logs en release
+        }
         return OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .addInterceptor(HttpLoggingInterceptor().apply { level = loggingLevel })
             .build()
     }
 
-    // 🔥 Determinar automáticamente si es emulador o dispositivo físico
     private fun isRunningOnEmulator(): Boolean {
         return (android.os.Build.FINGERPRINT.startsWith("generic") ||
                 android.os.Build.MODEL.contains("sdk") ||
@@ -49,31 +51,29 @@ object NetworkModule {
                 android.os.Build.MODEL.contains("Android SDK"))
     }
 
-    // 🔥 CORREGIDO: Con qualifier @BaseUrl (del mismo paquete)
     @Provides
     @Singleton
     @BaseUrl
     fun provideBaseUrl(): String {
         return if (isRunningOnEmulator()) {
-            Timber.d("📱 Ejecutando en EMULADOR - URL: $EMULATOR_BASE_URL")
-            EMULATOR_BASE_URL
+            Timber.d("📱 EMULADOR [${BuildConfig.ENVIRONMENT}] - URL: $BASE_URL")
+            BASE_URL
         } else {
-            Timber.d("📱 Ejecutando en DISPOSITIVO FÍSICO - URL: $PHYSICAL_DEVICE_BASE_URL")
-            PHYSICAL_DEVICE_BASE_URL
+            Timber.d("📱 DISPOSITIVO FÍSICO [${BuildConfig.ENVIRONMENT}] - URL: $PHYSICAL_BASE_URL")
+            PHYSICAL_BASE_URL
         }
     }
 
-    // 🔥 CORREGIDO: Con qualifier @WebSocketUrl (del mismo paquete)
     @Provides
     @Singleton
     @WebSocketUrl
     fun provideWebSocketUrl(): String {
         return if (isRunningOnEmulator()) {
-            Timber.d("🔗 WebSocket URL para EMULADOR: $EMULATOR_WS_URL")
-            EMULATOR_WS_URL
+            Timber.d("🔗 WebSocket EMULADOR [${BuildConfig.ENVIRONMENT}]: $WS_URL")
+            WS_URL
         } else {
-            Timber.d("🔗 WebSocket URL para DISPOSITIVO FÍSICO: $PHYSICAL_DEVICE_WS_URL")
-            PHYSICAL_DEVICE_WS_URL
+            Timber.d("🔗 WebSocket FÍSICO [${BuildConfig.ENVIRONMENT}]: $PHYSICAL_WS_URL")
+            PHYSICAL_WS_URL
         }
     }
 
@@ -81,7 +81,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(
         okHttpClient: OkHttpClient,
-        @BaseUrl baseUrl: String // 🔥 Usa el qualifier aquí
+        @BaseUrl baseUrl: String
     ): Retrofit {
         return Retrofit.Builder()
             .baseUrl(baseUrl)
@@ -96,14 +96,13 @@ object NetworkModule {
         return retrofit.create(ApiService::class.java)
     }
 
-    // 🔥 CORREGIDO: Usa el qualifier @WebSocketUrl
     @Provides
     @Singleton
     fun provideWebSocketClient(
         @ApplicationContext context: Context,
-        @WebSocketUrl webSocketUrl: String // 🔥 Usa el qualifier aquí
+        @WebSocketUrl webSocketUrl: String
     ): RealTimeWebSocketClient {
-        Timber.d("🎯 Creando WebSocketClient para: $webSocketUrl")
+        Timber.d("🎯 Creando WebSocketClient [${BuildConfig.ENVIRONMENT}]: $webSocketUrl")
         return RealTimeWebSocketClient(context, webSocketUrl)
     }
 }

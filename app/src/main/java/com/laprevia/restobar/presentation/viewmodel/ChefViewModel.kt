@@ -15,16 +15,19 @@ import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
+import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 
 @HiltViewModel
 class ChefViewModel @Inject constructor(
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseInventoryRepository: FirebaseInventoryRepository,
+    private val firebaseProductRepository: FirebaseProductRepository,
     private val db: AppDatabase,
     private val syncManager: SyncManager,
     @ApplicationContext private val context: Context
@@ -57,6 +60,12 @@ class ChefViewModel @Inject constructor(
 
     private val _connectionMessage = MutableStateFlow<String?>(null)
     val connectionMessage: StateFlow<String?> = _connectionMessage.asStateFlow()
+
+    // ✅ Set para evitar notificaciones duplicadas
+    private val _sentNotifications = mutableSetOf<String>()
+
+    // ✅ Mapa para control de tiempo de cancelaciones
+    private val _lastProcessedCancellation = mutableMapOf<String, Long>()
 
     private fun checkInternet(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -138,7 +147,6 @@ class ChefViewModel @Inject constructor(
             val activeOrders = roomOrders.filter {
                 it.status != "COMPLETED" && it.status != "CANCELLED"
             }
-            // ✅ AGREGADO: Eliminar duplicados por ID
             val uniqueOrders = activeOrders.distinctBy { it.id }
             _orders.value = uniqueOrders.map { it.toDomain() }
             _isLoading.value = false
@@ -155,7 +163,6 @@ class ChefViewModel @Inject constructor(
     // ==================== FIREBASE REAL-TIME UPDATES ====================
 
     private fun setupFirebaseRealtimeUpdates() {
-        // ✅ AGREGADO: Escuchar TODAS las órdenes al iniciar
         viewModelScope.launch {
             try {
                 println("🔥 Chef: Cargando TODAS las órdenes existentes de Firebase...")
@@ -194,9 +201,94 @@ class ChefViewModel @Inject constructor(
                 println("❌ Chef: Error en listenToOrderChanges: ${e.message}")
             }
         }
+
+        viewModelScope.launch {
+            try {
+                firebaseOrderRepository.listenToOrderChanges().collect { updatedOrder ->
+                    if (updatedOrder.status == OrderStatus.ENTREGADO) {
+                        println("🍽️ Chef: El MESERO entregó la comida - Mesa ${updatedOrder.tableNumber}")
+                        db.orderDao().insert(updatedOrder.toEntity().copy(syncStatus = "SYNCED"))
+                        refreshOrdersFromRoom()
+                        addNotification(ChefNotification(
+                            type = ChefNotificationType.ORDER_DELIVERED,
+                            title = "🍽️ Comida Entregada - Mesa ${updatedOrder.tableNumber}",
+                            message = "El mesero entregó la comida al cliente",
+                            orderId = updatedOrder.id,
+                            tableNumber = updatedOrder.tableNumber
+                        ))
+                    }
+                }
+            } catch (e: Exception) {
+                println("❌ Chef: Error escuchando ENTREGADO: ${e.message}")
+            }
+        }
+
+        // ✅ Escuchar pedidos cancelados - CON CONTROLES MEJORADOS
+        viewModelScope.launch {
+            try {
+                firebaseOrderRepository.listenToOrderChanges().collect { updatedOrder ->
+                    // ✅ 1. IGNORAR órdenes con mesa 0
+                    if (updatedOrder.tableId == 0 || updatedOrder.tableNumber == 0) {
+                        println("🔇 Chef: Ignorando orden con mesa inválida - ID: ${updatedOrder.id}")
+                        return@collect
+                    }
+
+                    // ✅ 2. Solo procesar CANCELLED
+                    if (updatedOrder.status != OrderStatus.CANCELLED) {
+                        return@collect
+                    }
+
+                    val notificationKey = "${updatedOrder.id}_CANCELLED"
+                    val now = System.currentTimeMillis()
+                    val lastTime = _lastProcessedCancellation[notificationKey] ?: 0
+
+                    // ✅ 3. Evitar procesar la misma cancelación en menos de 10 segundos
+                    if (now - lastTime < 10000) {
+                        println("🔇 Chef: Cancelación ignorada (muy reciente): $notificationKey")
+                        return@collect
+                    }
+
+                    // ✅ 4. Verificar si ya existe en Room para evitar duplicados
+                    val existingInRoom = db.orderDao().getById(updatedOrder.id)
+                    if (existingInRoom?.status == "CANCELLED") {
+                        println("🔇 Chef: Orden ya estaba cancelada en Room - ID: ${updatedOrder.id}")
+                        return@collect
+                    }
+
+                    _lastProcessedCancellation[notificationKey] = now
+
+                    println("❌ Chef: El MESERO canceló el pedido - Mesa ${updatedOrder.tableNumber}")
+
+                    // Guardar en Room
+                    db.orderDao().insert(updatedOrder.toEntity().copy(syncStatus = "SYNCED"))
+
+                    // REFRESCAR UI (esto hace que desaparezca de la lista)
+                    refreshOrdersFromRoom()
+
+                    // Mostrar NOTIFICACIÓN de cancelación (solo una vez)
+                    if (!_sentNotifications.contains(notificationKey)) {
+                        _sentNotifications.add(notificationKey)
+                        addNotification(ChefNotification(
+                            type = ChefNotificationType.ORDER_CANCELLED,
+                            title = "❌ Pedido Cancelado - Mesa ${updatedOrder.tableNumber}",
+                            message = "El mesero canceló el pedido de la mesa",
+                            orderId = updatedOrder.id,
+                            tableNumber = updatedOrder.tableNumber
+                        ))
+                        _successMessage.value = "Pedido de mesa ${updatedOrder.tableNumber} fue cancelado"
+                    }
+
+                    // Limpiar después de 10 segundos
+                    kotlinx.coroutines.delay(10000)
+                    _lastProcessedCancellation.remove(notificationKey)
+                    _sentNotifications.remove(notificationKey)
+                }
+            } catch (e: Exception) {
+                println("❌ Chef: Error escuchando pedidos cancelados: ${e.message}")
+            }
+        }
     }
 
-    // ✅ AGREGADO: Nuevo método para manejar órdenes de Firebase
     private suspend fun handleOrderFromFirebase(order: Order) {
         println("📦 Chef: Procesando orden existente - Mesa ${order.tableNumber}")
         db.orderDao().insert(order.toEntity().copy(syncStatus = "SYNCED"))
@@ -228,28 +320,36 @@ class ChefViewModel @Inject constructor(
 
     private suspend fun refreshOrdersFromRoom() {
         val roomOrders = db.orderDao().getAll()
-        // ✅ AGREGADO: distinctBy para eliminar duplicados
         val activeOrders = roomOrders.filter {
-            it.status != "COMPLETED" && it.status != "CANCELLED" && it.tableId != 0
-        }.distinctBy { it.id }  // ✅ CLAVE: eliminar duplicados por ID
+            it.status != "COMPLETED" &&
+                    it.status != "CANCELLED" &&
+                    it.tableId != 0
+        }.distinctBy { it.id }
 
-        _orders.value = activeOrders.map { entity ->
-            Order(
-                id          = entity.id,
-                tableId     = entity.tableId,
-                tableNumber = entity.tableNumber,
-                items = entity.toDomain().items,
-
-                status      = OrderStatus.valueOf(entity.status),
-                createdAt   = entity.createdAt,
-                updatedAt   = entity.updatedAt,
-                total       = entity.total,
-                waiterId    = entity.waiterId ?: "",
-                waiterName  = entity.waiterName ?: "",
-                notes       = entity.notes
-            )
+        _orders.value = activeOrders.mapNotNull { entity ->
+            try {
+                Order(
+                    id          = entity.id,
+                    tableId     = entity.tableId,
+                    tableNumber = entity.tableNumber,
+                    items = entity.toDomain().items,
+                    status      = OrderStatus.valueOf(entity.status),
+                    createdAt   = entity.createdAt,
+                    updatedAt   = entity.updatedAt,
+                    total       = entity.total,
+                    waiterId    = entity.waiterId ?: "",
+                    waiterName  = entity.waiterName ?: "",
+                    notes       = entity.notes
+                )
+            } catch (e: Exception) {
+                println("❌ Chef: Error parseando orden ${entity.id}: ${e.message}")
+                null
+            }
         }
         println("🗄️ Chef: Room → UI actualizado: ${_orders.value.size} órdenes activas")
+        _orders.value.forEach { order ->
+            println("   - Mesa ${order.tableNumber}: ${order.status}")
+        }
     }
 
     private fun syncWithFirebase() {
@@ -335,7 +435,7 @@ class ChefViewModel @Inject constructor(
                     _connectionMessage.value = null
                 }
 
-                if (status == OrderStatus.EN_PREPARACION && _isInternetAvailable.value) {
+                if (status == OrderStatus.ACEPTADO && _isInternetAvailable.value) {
                     updateInventoryForOrder(orderId)
                 }
 
@@ -359,15 +459,18 @@ class ChefViewModel @Inject constructor(
     // ==================== GESTIÓN DE INVENTARIO ====================
     private suspend fun updateInventoryForOrder(orderId: String) {
         val order = _orders.value.find { it.id == orderId } ?: return
-        println("📦 Chef: Actualizando inventario para orden ${order.id}")
+        println("📦 Chef: Actualizando inventario (pedido ACEPTADO) - Orden ${order.id}")
+
         order.items.forEach { item ->
             if (item.trackInventory) {
                 try {
-                    val currentStock = firebaseInventoryRepository.getCurrentStock(item.productId)
+                    val currentStock = firebaseProductRepository.getProductStock(item.productId)
                     val newStock = currentStock - item.quantity
                     if (newStock >= 0) {
+                        firebaseProductRepository.updateProductStock(item.productId, newStock)
                         firebaseInventoryRepository.updateStock(item.productId, newStock)
-                        println("📦 Inventario: ${item.productName}: $currentStock → $newStock")
+                        println("📦 Stock reducido: ${item.productName}: $currentStock → $newStock")
+
                         addNotification(ChefNotification(
                             type = ChefNotificationType.INVENTORY_UPDATED,
                             title = "📦 Inventario Actualizado",
@@ -379,7 +482,9 @@ class ChefViewModel @Inject constructor(
                         println("⚠️ Stock insuficiente para ${item.productName}")
                         _errorMessage.value = "Stock insuficiente: ${item.productName}"
                     }
-                } catch (e: Exception) { println("❌ Error actualizando inventario: ${e.message}") }
+                } catch (e: Exception) {
+                    println("❌ Error actualizando inventario: ${e.message}")
+                }
             }
         }
     }
@@ -395,22 +500,48 @@ class ChefViewModel @Inject constructor(
             try {
                 val order = _orders.value.find { it.id == orderId }
                 if (order != null) {
+                    val notificationKey = "${order.id}_CANCELLED"
+                    if (!_sentNotifications.contains(notificationKey)) {
+                        _sentNotifications.add(notificationKey)
+
+                        addNotification(ChefNotification(
+                            type = ChefNotificationType.ORDER_CANCELLED,
+                            title = "❌ Pedido Cancelado",
+                            message = "El pedido de la Mesa ${order.tableNumber} fue cancelado",
+                            orderId = order.id,
+                            tableNumber = order.tableNumber
+                        ))
+
+                        kotlinx.coroutines.delay(5000)
+                        _sentNotifications.remove(notificationKey)
+                    }
+
                     val entity = db.orderDao().getAll().find { it.id == orderId }
                     entity?.let { db.orderDao().insert(it.copy(status = "CANCELLED", syncStatus = "PENDING")) }
                     if (_isInternetAvailable.value) {
-                        try { firebaseOrderRepository.deleteOrder(orderId); db.orderDao().updateStatus(orderId, "SYNCED") }
-                        catch (e: Exception) { println("⚠️ Error en Firebase: ${e.message}") }
+                        try {
+                            firebaseOrderRepository.updateOrderStatus(orderId, "CANCELLED")
+                            db.orderDao().updateStatus(orderId, "SYNCED")
+                        } catch (e: Exception) {
+                            println("⚠️ Error en Firebase: ${e.message}")
+                        }
                     }
                     refreshOrdersFromRoom()
                     _successMessage.value = "Orden cancelada - Mesa ${order.tableNumber}"
                     if (_selectedOrder.value?.id == orderId) clearOrderSelection()
                 }
-            } catch (e: Exception) { _errorMessage.value = "Error cancelando orden: ${e.message}" }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error cancelando orden: ${e.message}"
+            }
         }
     }
 
     // ==================== NOTIFICACIONES ====================
     private fun showNewOrderNotification(order: Order) {
+        val notificationKey = "${order.id}_NEW_ORDER"
+        if (_sentNotifications.contains(notificationKey)) return
+        _sentNotifications.add(notificationKey)
+
         addNotification(ChefNotification(
             type = ChefNotificationType.NEW_ORDER,
             title = "🆕 Nueva Orden - Mesa ${order.tableNumber}",
@@ -420,9 +551,20 @@ class ChefViewModel @Inject constructor(
             itemsCount = order.items.size,
             totalAmount = order.total
         ))
+
+        viewModelScope.launch {
+            delay(5000)
+            _sentNotifications.remove(notificationKey)
+        }
     }
 
     private fun showStatusChangeNotification(previous: Order, current: Order) {
+        // ✅ Evitar notificación duplicada
+        val notificationKey = "${current.id}_${current.status}"
+        if (_sentNotifications.contains(notificationKey)) return
+
+        _sentNotifications.add(notificationKey)
+
         val notification = when (current.status) {
             OrderStatus.ACEPTADO -> ChefNotification(
                 type = ChefNotificationType.ORDER_ACCEPTED,
@@ -445,17 +587,44 @@ class ChefViewModel @Inject constructor(
                 orderId = current.id,
                 tableNumber = current.tableNumber
             )
+            OrderStatus.ENTREGADO -> ChefNotification(
+                type = ChefNotificationType.ORDER_DELIVERED,
+                title = "🍽️ Comida Entregada - Mesa ${current.tableNumber}",
+                message = "El mesero entregó la comida al cliente",
+                orderId = current.id,
+                tableNumber = current.tableNumber
+            )
+            OrderStatus.CANCELLED -> ChefNotification(
+                type = ChefNotificationType.ORDER_CANCELLED,
+                title = "❌ Pedido Cancelado - Mesa ${current.tableNumber}",
+                message = "El mesero canceló el pedido",
+                orderId = current.id,
+                tableNumber = current.tableNumber
+            )
             else -> null
         }
+
         notification?.let { addNotification(it) }
+
+        viewModelScope.launch {
+            delay(5000)
+            _sentNotifications.remove(notificationKey)
+        }
     }
 
     private fun addNotification(notification: ChefNotification) {
         _notifications.value = listOf(notification) + _notifications.value.take(4)
+        println("🔔 Chef: Notificación agregada - ${notification.title}")
     }
 
     fun removeNotification(notification: ChefNotification) { _notifications.value = _notifications.value.filter { it != notification } }
     fun clearAllNotifications() { _notifications.value = emptyList() }
+
+    fun clearNotificationHistory() {
+        _sentNotifications.clear()
+        _lastProcessedCancellation.clear()
+        println("🗑️ Chef: Historial de notificaciones limpiado")
+    }
 
     // ==================== UTILIDADES ====================
     fun selectOrder(order: Order) { _selectedOrder.value = order; println("🎯 Chef: Orden seleccionada - Mesa ${order.tableNumber}") }
@@ -473,11 +642,12 @@ class ChefViewModel @Inject constructor(
     fun clearSuccessMessage() { _successMessage.value = null }
     fun clearConnectionMessage() { _connectionMessage.value = null }
 
-    // ==================== PROPIEDADES COMPUTADAS ====================
+    // ==================== PROPIEDADAS COMPUTADAS ====================
     val newOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.ENVIADO }
     val acceptedOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.ACEPTADO }
     val inProgressOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.EN_PREPARACION }
     val readyOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.LISTO }
+    val deliveredOrdersCount: Int get() = _orders.value.count { it.status == OrderStatus.ENTREGADO }
     val totalActiveOrders: Int get() = _orders.value.size
 
     val connectionStatus: String get() =
@@ -490,6 +660,7 @@ class ChefViewModel @Inject constructor(
         OrderStatus.ACEPTADO -> "✅ Aceptado"
         OrderStatus.EN_PREPARACION -> "👨‍🍳 En preparación"
         OrderStatus.LISTO -> "🎉 Listo para servir"
+        OrderStatus.ENTREGADO -> "🍽️ Comida entregada"
         OrderStatus.COMPLETED -> "✅ Completado"
         OrderStatus.CANCELLED -> "❌ Cancelado"
         else -> status.name
@@ -509,6 +680,6 @@ class ChefViewModel @Inject constructor(
     )
 
     enum class ChefNotificationType {
-        NEW_ORDER, ORDER_ACCEPTED, ORDER_IN_PREPARATION, ORDER_READY, ORDER_CANCELLED, INVENTORY_UPDATED
+        NEW_ORDER, ORDER_ACCEPTED, ORDER_IN_PREPARATION, ORDER_READY, ORDER_DELIVERED, ORDER_CANCELLED, INVENTORY_UPDATED
     }
 }

@@ -23,23 +23,23 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
     // ==================== MÉTODOS DE LA INTERFACE InventoryRepository ====================
 
     override fun getInventory(): Flow<List<Inventory>> = callbackFlow {
-        println("🔥 FirebaseInventory: Suscribiéndose a todos los items de inventario")
+        timber.log.Timber.d("🔥 FirebaseInventory: Suscribiéndose a todos los items de inventario")
 
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val inventory = snapshot.children.mapNotNull { it.toInventory() }
-                println("✅ FirebaseInventory: ${inventory.size} items cargados")
+                timber.log.Timber.d("✅ FirebaseInventory: ${inventory.size} items cargados")
 
-                println("📋 DETALLE COMPLETO DEL INVENTARIO:")
+                timber.log.Timber.d("📋 DETALLE COMPLETO DEL INVENTARIO:")
                 if (inventory.isEmpty()) {
-                    println("   ⚠️ NO HAY DATOS en la colección 'inventory'")
+                    timber.log.Timber.d("   ⚠️ NO HAY DATOS en la colección 'inventory'")
                 } else {
                     inventory.forEachIndexed { index, item ->
-                        println("   ${index + 1}. ID: '${item.productId}'")
-                        println("      Nombre: '${item.productName}'")
-                        println("      Stock: ${item.currentStock} ${item.unitOfMeasure}")
-                        println("      Mínimo: ${item.minimumStock}")
-                        println("      Categoría: '${item.category ?: "N/A"}'")
+                        timber.log.Timber.d("   ${index + 1}. ID: '${item.productId}'")
+                        timber.log.Timber.d("      Nombre: '${item.productName}'")
+                        timber.log.Timber.d("      Stock: ${item.currentStock} ${item.unitOfMeasure}")
+                        timber.log.Timber.d("      Mínimo: ${item.minimumStock}")
+                        timber.log.Timber.d("      Categoría: '${item.category ?: "N/A"}'")
                     }
                 }
 
@@ -47,14 +47,14 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseInventory: Error en getInventory: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseInventory: Error en getInventory: ${error.message}")
                 close(error.toException())
             }
         }
 
         inventoryRef.addValueEventListener(eventListener)
         awaitClose {
-            println("🔴 FirebaseInventory: Cerrando listener de inventario")
+            timber.log.Timber.d("🔴 FirebaseInventory: Cerrando listener de inventario")
             inventoryRef.removeEventListener(eventListener)
         }
     }
@@ -64,12 +64,12 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val inventory = snapshot.children.mapNotNull { it.toInventory() }
                     .filter { it.currentStock <= it.minimumStock }
-                println("⚠️ FirebaseInventory: ${inventory.size} items con stock bajo")
+                timber.log.Timber.d("⚠️ FirebaseInventory: ${inventory.size} items con stock bajo")
                 trySend(inventory)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseInventory: Error en getLowStockItems: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseInventory: Error en getLowStockItems: ${error.message}")
                 close(error.toException())
             }
         }
@@ -80,16 +80,16 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
 
     override suspend fun updateStock(productId: String, newQuantity: Double) {
         try {
-            println("🔄 FirebaseInventory: Actualizando stock de $productId a $newQuantity")
+            timber.log.Timber.d("🔄 FirebaseInventory: Actualizando stock de $productId a $newQuantity")
 
             val updates = mapOf(
                 "currentStock" to newQuantity
             )
             inventoryRef.child(productId).updateChildren(updates).await()
 
-            println("✅ FirebaseInventory: Stock actualizado exitosamente")
+            timber.log.Timber.d("✅ FirebaseInventory: Stock actualizado exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error actualizando stock: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error actualizando stock: ${e.message}")
             throw e
         }
     }
@@ -97,7 +97,7 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
     // ✅ MÉTODO: addInventoryItem
     override suspend fun addInventoryItem(item: Inventory) {
         try {
-            println("📝 FirebaseInventory: Agregando item al inventario - ${item.productName}")
+            timber.log.Timber.d("📝 FirebaseInventory: Agregando item al inventario - ${item.productName}")
 
             val itemData = mapOf(
                 "productId" to item.productId,
@@ -110,10 +110,10 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             )
 
             inventoryRef.child(item.productId).setValue(itemData).await()
-            println("✅ FirebaseInventory: Item agregado exitosamente - ${item.productName}")
+            timber.log.Timber.d("✅ FirebaseInventory: Item agregado exitosamente - ${item.productName}")
 
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error agregando item: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error agregando item: ${e.message}")
             throw e
         }
     }
@@ -121,17 +121,17 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
     // ✅ MÉTODO: deleteInventoryItem
     override suspend fun deleteInventoryItem(productId: String) {
         try {
-            println("🗑️ FirebaseInventory: Eliminando item del inventario: $productId")
+            timber.log.Timber.d("🗑️ FirebaseInventory: Eliminando item del inventario: $productId")
 
             val snapshot = inventoryRef.child(productId).get().await()
             if (snapshot.exists()) {
                 inventoryRef.child(productId).removeValue().await()
-                println("✅ FirebaseInventory: Item $productId eliminado exitosamente")
+                timber.log.Timber.d("✅ FirebaseInventory: Item $productId eliminado exitosamente")
             } else {
-                println("⚠️ FirebaseInventory: Item $productId no existe")
+                timber.log.Timber.d("⚠️ FirebaseInventory: Item $productId no existe")
             }
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error eliminando item $productId: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error eliminando item $productId: ${e.message}")
             throw e
         }
     }
@@ -139,19 +139,19 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
     // ✅ NUEVO MÉTODO: getInventoryItemById (EL QUE FALTABA)
     override suspend fun getInventoryItemById(productId: String): Inventory? {
         return try {
-            println("🔍 FirebaseInventory: Buscando item por ID: $productId")
+            timber.log.Timber.d("🔍 FirebaseInventory: Buscando item por ID: $productId")
             val snapshot = inventoryRef.child(productId).get().await()
             val inventory = snapshot.toInventory()
 
             if (inventory != null) {
-                println("✅ FirebaseInventory: Item encontrado - ${inventory.productName}")
+                timber.log.Timber.d("✅ FirebaseInventory: Item encontrado - ${inventory.productName}")
             } else {
-                println("❌ FirebaseInventory: Item no encontrado - $productId")
+                timber.log.Timber.d("❌ FirebaseInventory: Item no encontrado - $productId")
             }
 
             inventory
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error obteniendo item $productId: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error obteniendo item $productId: ${e.message}")
             null
         }
     }
@@ -159,11 +159,11 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
     // ✅ MÉTODO: updateInventoryFields
     override suspend fun updateInventoryFields(productId: String, updates: Map<String, Any>) {
         try {
-            println("🔄 FirebaseInventory: Actualizando campos de $productId con $updates")
+            timber.log.Timber.d("🔄 FirebaseInventory: Actualizando campos de $productId con $updates")
 
             val snapshot = inventoryRef.child(productId).get().await()
             if (!snapshot.exists()) {
-                println("➕ FirebaseInventory: Creando nuevo producto $productId")
+                timber.log.Timber.d("➕ FirebaseInventory: Creando nuevo producto $productId")
                 val fullData = mutableMapOf<String, Any>()
                 fullData.putAll(updates)
                 fullData["productId"] = productId
@@ -172,9 +172,9 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
                 inventoryRef.child(productId).updateChildren(updates).await()
             }
 
-            println("✅ FirebaseInventory: Campos de $productId actualizados exitosamente")
+            timber.log.Timber.d("✅ FirebaseInventory: Campos de $productId actualizados exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error actualizando campos de $productId: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error actualizando campos de $productId: ${e.message}")
             throw e
         }
     }
@@ -189,12 +189,12 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val inventory = snapshot.children.mapNotNull { it.toInventory() }
                     .filter { it.category == category }
-                println("🏷️ FirebaseInventory: ${inventory.size} items en categoría $category")
+                timber.log.Timber.d("🏷️ FirebaseInventory: ${inventory.size} items en categoría $category")
                 trySend(inventory)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseInventory: Error en getInventoryByCategory: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseInventory: Error en getInventoryByCategory: ${error.message}")
                 close(error.toException())
             }
         }
@@ -212,14 +212,14 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 snapshot.children.forEach { child ->
                     child.toInventory()?.let { inventory ->
-                        println("📡 FirebaseInventory: Cambio detectado en ${inventory.productName}")
+                        timber.log.Timber.d("📡 FirebaseInventory: Cambio detectado en ${inventory.productName}")
                         trySend(inventory)
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseInventory: Error en listenToInventoryChanges: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseInventory: Error en listenToInventoryChanges: ${error.message}")
                 close(error.toException())
             }
         }
@@ -237,9 +237,9 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
                     }
 
                 if (lowStockItems.isNotEmpty()) {
-                    println("🚨 FirebaseInventory: ALERTA - ${lowStockItems.size} items con stock crítico")
+                    timber.log.Timber.d("🚨 FirebaseInventory: ALERTA - ${lowStockItems.size} items con stock crítico")
                     lowStockItems.forEach { item ->
-                        println("   - ${item.productName}: ${item.currentStock} ${item.unitOfMeasure} (mínimo: ${item.minimumStock})")
+                        timber.log.Timber.d("   - ${item.productName}: ${item.currentStock} ${item.unitOfMeasure} (mínimo: ${item.minimumStock})")
                     }
                 }
 
@@ -247,7 +247,7 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseInventory: Error en getLowStockAlerts: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseInventory: Error en getLowStockAlerts: ${error.message}")
                 close(error.toException())
             }
         }
@@ -257,30 +257,30 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun initializeDefaultInventory() {
-        println("ℹ️ FirebaseInventory: El inventario se sincroniza desde los productos con trackInventory = true")
+        timber.log.Timber.d("ℹ️ FirebaseInventory: El inventario se sincroniza desde los productos con trackInventory = true")
 
         try {
             val snapshot = inventoryRef.get().await()
             val currentCount = snapshot.children.count()
-            println("📊 FirebaseInventory: Actualmente hay $currentCount items en inventario")
+            timber.log.Timber.d("📊 FirebaseInventory: Actualmente hay $currentCount items en inventario")
 
             if (currentCount == 0) {
-                println("💡 FirebaseInventory: Usa el método initializeSampleData del ViewModel para crear datos")
+                timber.log.Timber.d("💡 FirebaseInventory: Usa el método initializeSampleData del ViewModel para crear datos")
             }
         } catch (e: Exception) {
-            println("⚠️ FirebaseInventory: Error verificando estado: ${e.message}")
+            timber.log.Timber.d("⚠️ FirebaseInventory: Error verificando estado: ${e.message}")
         }
     }
 
     override suspend fun getCurrentStock(productId: String): Double {
         return try {
-            println("🔍 FirebaseInventory: Buscando stock para producto: $productId")
+            timber.log.Timber.d("🔍 FirebaseInventory: Buscando stock para producto: $productId")
             val snapshot = inventoryRef.child(productId).child("currentStock").get().await()
             val stock = snapshot.getValue(Double::class.java) ?: 0.0
-            println("✅ FirebaseInventory: Stock encontrado: $stock")
+            timber.log.Timber.d("✅ FirebaseInventory: Stock encontrado: $stock")
             stock
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error obteniendo stock de $productId: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error obteniendo stock de $productId: ${e.message}")
             0.0
         }
     }
@@ -297,7 +297,7 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             val category = child("category").getValue(String::class.java)
 
             if (productName.isBlank()) {
-                println("⚠️ FirebaseInventory: Producto con ID '$productId' tiene nombre vacío")
+                timber.log.Timber.d("⚠️ FirebaseInventory: Producto con ID '$productId' tiene nombre vacío")
             }
 
             Inventory(
@@ -309,7 +309,7 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
                 category = category
             )
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error convirtiendo DataSnapshot: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error convirtiendo DataSnapshot: ${e.message}")
             null
         }
     }
@@ -337,10 +337,10 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             }
 
             updateStock(productId, newStock)
-            println("📊 FirebaseInventory: Stock de $productId ajustado de $currentStock a $newStock")
+            timber.log.Timber.d("📊 FirebaseInventory: Stock de $productId ajustado de $currentStock a $newStock")
 
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error ajustando stock: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error ajustando stock: ${e.message}")
             throw e
         }
     }
@@ -350,7 +350,7 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
             val currentStock = getCurrentStock(productId)
             currentStock >= requiredQuantity
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error verificando stock: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error verificando stock: ${e.message}")
             false
         }
     }
@@ -372,21 +372,21 @@ class FirebaseInventoryRepositoryImpl @Inject constructor(
                 "totalValue" to totalValue
             )
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error obteniendo estadísticas: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error obteniendo estadísticas: ${e.message}")
             emptyMap()
         }
     }
 
     suspend fun clearAllInventory() {
         try {
-            println("🗑️ FirebaseInventory: LIMPIANDO TODO EL INVENTARIO...")
+            timber.log.Timber.d("🗑️ FirebaseInventory: LIMPIANDO TODO EL INVENTARIO...")
             val snapshot = inventoryRef.get().await()
             snapshot.children.forEach { child ->
                 child.ref.removeValue().await()
             }
-            println("✅ FirebaseInventory: Inventario limpiado exitosamente")
+            timber.log.Timber.d("✅ FirebaseInventory: Inventario limpiado exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseInventory: Error limpiando inventario: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseInventory: Error limpiando inventario: ${e.message}")
             throw e
         }
     }

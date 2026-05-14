@@ -1,4 +1,3 @@
-// TablesScreen.kt - VERSIÓN CORREGIDA
 package com.laprevia.restobar.presentation.screens.waiter
 
 import androidx.compose.foundation.background

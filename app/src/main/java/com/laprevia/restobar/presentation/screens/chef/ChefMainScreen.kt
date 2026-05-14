@@ -157,7 +157,7 @@ fun ChefMainScreen(
 
                             IconButton(
                                 onClick = {
-                                    println("🔄 ChefScreen: Cerrando sesión...")
+                                    timber.log.Timber.d("🔄 ChefScreen: Cerrando sesión...")
                                     loginViewModel.signOut()
                                     onLogout()
                                 },

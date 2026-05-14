@@ -8,11 +8,13 @@ interface FirebaseProductRepository : ProductRepository {
     fun listenToProductChanges(): Flow<Product>
     fun getProductsRealTime(): Flow<List<Product>>
 
-
     // ✅ MÉTODOS ADICIONALES ÚTILES
     suspend fun searchProducts(query: String): List<Product>
     suspend fun getProductsByCategory(category: String): List<Product>
     suspend fun productExists(productId: String): Boolean
     suspend fun getProductStats(): Map<String, Any>
 
+    // ✅ NUEVOS MÉTODOS PARA GESTIÓN DE STOCK - CON OVERRIDE
+    override suspend fun getProductStock(productId: String): Double
+    override suspend fun updateProductStock(productId: String, newStock: Double)
 }
