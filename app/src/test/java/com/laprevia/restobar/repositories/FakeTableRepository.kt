@@ -9,27 +9,19 @@ import kotlinx.coroutines.flow.flowOf
 class FakeTableRepository : FirebaseTableRepository {
     private val tables = mutableListOf<Table>()
 
-    // ==================== FirebaseTableRepository (tiempo real) ====================
     override fun listenToTableChanges(): Flow<Table> = flowOf()
-
     override fun getTablesRealTime(): Flow<List<Table>> = flowOf(tables)
-
-    // ==================== TableRepository ====================
     override fun getTables(): Flow<List<Table>> = flowOf(tables)
 
     override suspend fun getTableById(tableId: Int): Table? {
         return tables.find { it.id == tableId }
     }
 
-    override suspend fun getTablesCount(): Int {
-        return tables.size
-    }
+    override suspend fun getTablesCount(): Int = tables.size
 
     override suspend fun updateTableStatus(tableId: Int, status: TableStatus) {
         val index = tables.indexOfFirst { it.id == tableId }
-        if (index != -1) {
-            tables[index] = tables[index].copy(status = status)
-        }
+        if (index != -1) tables[index] = tables[index].copy(status = status)
     }
 
     override suspend fun assignOrderToTable(tableId: Int, orderId: String) {
@@ -54,9 +46,7 @@ class FakeTableRepository : FirebaseTableRepository {
 
     override suspend fun updateTable(table: Table) {
         val index = tables.indexOfFirst { it.id == table.id }
-        if (index != -1) {
-            tables[index] = table
-        }
+        if (index != -1) tables[index] = table
     }
 
     override suspend fun initializeDefaultTables() {
@@ -72,13 +62,9 @@ class FakeTableRepository : FirebaseTableRepository {
         }
     }
 
-    override suspend fun debugTables(): String {
-        return "debug: ${tables.size} tables"
-    }
+    override suspend fun debugTables(): String = "debug: ${tables.size} tables"
 
-    override suspend fun syncPendingTables() {
-        // No hacer nada en tests
-    }
+    override suspend fun syncPendingTables() {}
 
     override fun getPendingTables(): Flow<List<Table>> = flowOf(emptyList())
 }
