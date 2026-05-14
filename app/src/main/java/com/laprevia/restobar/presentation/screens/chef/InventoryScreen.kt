@@ -63,7 +63,7 @@ fun InventoryScreen(
     val successMessage by viewModel.successMessage.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    println("📱 InventoryScreen: Inventario: ${inventory.size} items")
+    timber.log.Timber.d("📱 InventoryScreen: Inventario: ${inventory.size} items")
 
     LaunchedEffect(Unit) {
         viewModel.refreshInventory()

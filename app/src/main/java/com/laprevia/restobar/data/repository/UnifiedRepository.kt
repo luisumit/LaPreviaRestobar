@@ -24,12 +24,12 @@ class UnifiedOrderRepository @Inject constructor(
             remoteRepo.createOrder(order)
             // Si funciona, guardar local como SYNCED
             localDao.insert(entity.copy(syncStatus = "SYNCED"))
-            println("✅ Order created and synced: ${order.id}")
+            timber.log.Timber.d("✅ Order created and synced: ${order.id}")
             order.id
         } catch (e: Exception) {
             // Sin internet, guardar local como PENDING
             localDao.insert(entity.copy(syncStatus = "PENDING"))
-            println("💾 Order saved locally (offline): ${order.id}")
+            timber.log.Timber.d("💾 Order saved locally (offline): ${order.id}")
             order.id
         }
     }

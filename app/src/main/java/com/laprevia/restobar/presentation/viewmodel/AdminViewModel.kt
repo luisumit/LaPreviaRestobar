@@ -61,7 +61,7 @@ class AdminViewModel @Inject constructor(
 
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                println("🌐 INTERNET DISPONIBLE")
+                timber.log.Timber.d("🌐 INTERNET DISPONIBLE")
                 _isInternetAvailable.value = true
                 viewModelScope.launch {
                     _uiState.value = _uiState.value.copy(
@@ -79,7 +79,7 @@ class AdminViewModel @Inject constructor(
             }
 
             override fun onLost(network: Network) {
-                println("📱 SIN INTERNET")
+                timber.log.Timber.d("📱 SIN INTERNET")
                 _isInternetAvailable.value = false
                 viewModelScope.launch {
                     _uiState.value = _uiState.value.copy(
@@ -115,7 +115,7 @@ class AdminViewModel @Inject constructor(
     }
 
     init {
-        println("🔧 AdminViewModel INICIADO - Offline-First con Room + Firebase")
+        timber.log.Timber.d("🔧 AdminViewModel INICIADO - Offline-First con Room + Firebase")
 
         startNetworkMonitoring()
 
@@ -140,14 +140,14 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 firebaseProductRepository.listenToProductChanges().collect { updatedProduct ->
-                    println("🔄 Admin: Cambio detectado en producto: ${updatedProduct.name}")
-                    println("   - Nuevo stock: ${updatedProduct.stock}")
+                    timber.log.Timber.d("🔄 Admin: Cambio detectado en producto: ${updatedProduct.name}")
+                    timber.log.Timber.d("   - Nuevo stock: ${updatedProduct.stock}")
 
                     // Actualizar en Room
                     val existing = db.productDao().getById(updatedProduct.id)
                     if (existing != null && existing.stock != updatedProduct.stock) {
                         db.productDao().insert(updatedProduct.toEntity().copy(syncStatus = "SYNCED"))
-                        println("✅ Admin: Stock actualizado en Room: ${updatedProduct.name} → ${updatedProduct.stock}")
+                        timber.log.Timber.d("✅ Admin: Stock actualizado en Room: ${updatedProduct.name} → ${updatedProduct.stock}")
 
                         // Refrescar UI
                         loadProductsFromRoom()
@@ -155,7 +155,7 @@ class AdminViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                println("❌ Admin: Error en listenToProductChanges: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error en listenToProductChanges: ${e.message}")
             }
         }
     }
@@ -190,27 +190,27 @@ class AdminViewModel @Inject constructor(
                 isOffline = !_isInternetAvailable.value
             )
 
-            println("📱 Admin: ${uniqueProducts.size} productos cargados desde Room")
+            timber.log.Timber.d("📱 Admin: ${uniqueProducts.size} productos cargados desde Room")
             uniqueProducts.forEach { product ->
                 if (product.trackInventory) {
-                    println("   - ${product.name}: stock=${product.stock}")
+                    timber.log.Timber.d("   - ${product.name}: stock=${product.stock}")
                 }
             }
         } catch (e: Exception) {
-            println("❌ Admin: Error cargando desde Room: ${e.message}")
+            timber.log.Timber.d("❌ Admin: Error cargando desde Room: ${e.message}")
         }
     }
 
     private fun loadProductsFromFirebase() {
         viewModelScope.launch {
             try {
-                println("🔥 Admin: Cargando productos desde Firebase...")
+                timber.log.Timber.d("🔥 Admin: Cargando productos desde Firebase...")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
                 firebaseProductRepository.getProductsRealTime().collect { firebaseProducts ->
-                    println("✅ Productos desde Firebase: ${firebaseProducts.size}")
+                    timber.log.Timber.d("✅ Productos desde Firebase: ${firebaseProducts.size}")
                     firebaseProducts.forEach { product ->
-                        println("   - ${product.name}: stock=${product.stock}")
+                        timber.log.Timber.d("   - ${product.name}: stock=${product.stock}")
                     }
 
                     firebaseProducts.forEach { product ->
@@ -235,10 +235,10 @@ class AdminViewModel @Inject constructor(
                         pendingSyncCount = pendingProducts.size
                     )
 
-                    println("📊 Admin: ${uniqueProducts.size} productos totales (${pendingProducts.size} pendientes)")
+                    timber.log.Timber.d("📊 Admin: ${uniqueProducts.size} productos totales (${pendingProducts.size} pendientes)")
                 }
             } catch (e: Exception) {
-                println("❌ Admin: Error cargando desde Firebase: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error cargando desde Firebase: ${e.message}")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isOffline = true
@@ -260,7 +260,7 @@ class AdminViewModel @Inject constructor(
                     showMessage("📱 ${pendingCount} producto(s) pendiente(s) de sincronizar", isWarning = true)
                 }
             } catch (e: Exception) {
-                println("❌ Admin: Error verificando pendientes: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error verificando pendientes: ${e.message}")
             }
         }
     }
@@ -268,7 +268,7 @@ class AdminViewModel @Inject constructor(
     private fun syncPendingProducts() {
         viewModelScope.launch {
             try {
-                println("🔄 Admin: Sincronizando productos pendientes...")
+                timber.log.Timber.d("🔄 Admin: Sincronizando productos pendientes...")
                 showMessage("Sincronizando productos pendientes...", isWarning = true)
 
                 syncManager.syncProducts()
@@ -287,7 +287,7 @@ class AdminViewModel @Inject constructor(
                     loadProductsFromFirebase()
                 }
             } catch (e: Exception) {
-                println("❌ Admin: Error sincronizando: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error sincronizando: ${e.message}")
                 showMessage("Error al sincronizar: ${e.message}", isError = true)
             }
         }
@@ -355,7 +355,7 @@ class AdminViewModel @Inject constructor(
     fun createProduct(product: Product) {
         viewModelScope.launch {
             try {
-                println("📝 Admin: Creando producto - ${product.name}")
+                timber.log.Timber.d("📝 Admin: Creando producto - ${product.name}")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
                 val finalProduct = if (product.id.isEmpty()) {
@@ -372,7 +372,7 @@ class AdminViewModel @Inject constructor(
                 }
 
                 db.productDao().insert(finalProduct.toEntity().copy(syncStatus = "PENDING"))
-                println("💾 Producto guardado en Room - ${finalProduct.name}")
+                timber.log.Timber.d("💾 Producto guardado en Room - ${finalProduct.name}")
 
                 if (_isInternetAvailable.value) {
                     try {
@@ -393,7 +393,7 @@ class AdminViewModel @Inject constructor(
                 checkLowStockImmediately()
 
             } catch (e: Exception) {
-                println("❌ Admin: Error creando producto: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error creando producto: ${e.message}")
                 showMessage("Error al crear producto: ${e.message}", isError = true)
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -404,7 +404,7 @@ class AdminViewModel @Inject constructor(
     fun updateProduct(product: Product) {
         viewModelScope.launch {
             try {
-                println("📝 Admin: Actualizando producto - ${product.name}")
+                timber.log.Timber.d("📝 Admin: Actualizando producto - ${product.name}")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
                 val updatedEntity = product.toEntity().copy(
@@ -413,7 +413,7 @@ class AdminViewModel @Inject constructor(
                     lastModified = System.currentTimeMillis()
                 )
                 db.productDao().insert(updatedEntity)
-                println("💾 Producto actualizado en Room - ${product.name}")
+                timber.log.Timber.d("💾 Producto actualizado en Room - ${product.name}")
 
                 if (_isInternetAvailable.value) {
                     try {
@@ -434,7 +434,7 @@ class AdminViewModel @Inject constructor(
                 checkLowStockImmediately()
 
             } catch (e: Exception) {
-                println("❌ Admin: Error actualizando producto: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error actualizando producto: ${e.message}")
                 showMessage("Error al actualizar producto: ${e.message}", isError = true)
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -451,11 +451,11 @@ class AdminViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                println("🗑️ Admin: Eliminando producto - ${product.name}")
+                timber.log.Timber.d("🗑️ Admin: Eliminando producto - ${product.name}")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
                 db.productDao().deleteProduct(product.id)
-                println("💾 Producto eliminado de Room - ${product.name}")
+                timber.log.Timber.d("💾 Producto eliminado de Room - ${product.name}")
 
                 if (_isInternetAvailable.value) {
                     try {
@@ -475,7 +475,7 @@ class AdminViewModel @Inject constructor(
                 checkLowStockImmediately()
 
             } catch (e: Exception) {
-                println("❌ Admin: Error eliminando producto: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error eliminando producto: ${e.message}")
                 showMessage("Error al eliminar producto: ${e.message}", isError = true)
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -486,7 +486,7 @@ class AdminViewModel @Inject constructor(
     fun manualSync() {
         viewModelScope.launch {
             try {
-                println("🔄 Admin: Sincronización manual...")
+                timber.log.Timber.d("🔄 Admin: Sincronización manual...")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
                 if (_isInternetAvailable.value) {
@@ -505,7 +505,7 @@ class AdminViewModel @Inject constructor(
                 }
 
             } catch (e: Exception) {
-                println("❌ Admin: Error en sincronización: ${e.message}")
+                timber.log.Timber.d("❌ Admin: Error en sincronización: ${e.message}")
                 showMessage("Error en sincronización: ${e.message}", isError = true)
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)

@@ -60,7 +60,7 @@ fun TableDetailsScreen(
         if (isValidTableId && tableIdInt != null) {
             viewModel.setCurrentTable(tableIdInt)
         } else {
-            println("❌ TableDetailsScreen: ID de mesa inválido: $tableId")
+            timber.log.Timber.d("❌ TableDetailsScreen: ID de mesa inválido: $tableId")
             viewModel.clearCurrentOrder()
         }
     }
@@ -242,10 +242,10 @@ fun TableDetailsScreen(
             onConfirm = {
                 // ✅ VALIDACIÓN ADICIONAL AÑADIDA antes de crear la orden
                 if (table.id !in 1..8) {
-                    println("❌ ERROR: Intento de crear orden con tableId inválido: ${table.id}")
+                    timber.log.Timber.d("❌ ERROR: Intento de crear orden con tableId inválido: ${table.id}")
                     // No crear la orden si el ID es inválido
                 } else {
-                    println("📤 Enviando pedido - tableId: ${table.id}, tableNumber: ${table.number}")
+                    timber.log.Timber.d("📤 Enviando pedido - tableId: ${table.id}, tableNumber: ${table.number}")
                     viewModel.createOrder(
                         tableId = table.id,      // ✅ Esto debe ser 1,2,3,4,5,6,7,8
                         tableNumber = table.number
