@@ -1,50 +1,34 @@
 package com.laprevia.restobar
 
-import android.content.Context
-import com.laprevia.restobar.data.local.db.AppDatabase
-import com.laprevia.restobar.data.local.sync.SyncManager
-import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
-import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
-import com.laprevia.restobar.domain.repository.FirebaseProductRepository
-import com.laprevia.restobar.domain.repository.FirebaseTableRepository
-import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.laprevia.restobar.data.model.TableStatus
+import com.laprevia.restobar.repositories.FakeTableRepository
+import com.laprevia.restobar.repositories.FakeOrderRepository
 import kotlinx.coroutines.test.runTest
-import org.junit.Before
+import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.mockito.kotlin.mock
 
-import org.junit.Ignore
+class TableRepositoryTest {
 
-@Ignore("Tests broken by architecture changes, skipping for CI verification")
-@OptIn(ExperimentalCoroutinesApi::class)
-class WaiterViewModelTest {
+    @Test
+    fun `crear orden deberia cambiar estado de mesa a OCUPADA`() = runTest {
+        val tableRepo = FakeTableRepository()
+        tableRepo.initializeDefaultTables()
 
-    private lateinit var viewModel: WaiterViewModel
-    private val firebaseTableRepository: FirebaseTableRepository = mock()
-    private val firebaseOrderRepository: FirebaseOrderRepository = mock()
-    private val firebaseProductRepository: FirebaseProductRepository = mock()
-    private val firebaseInventoryRepository: FirebaseInventoryRepository = mock()
-    private val db: AppDatabase = mock()
-    private val syncManager: SyncManager = mock()
-    private val context: Context = mock()
+        tableRepo.assignOrderToTable(tableId = 1, orderId = "orden-123")
 
-    @Before
-    fun setup() {
-        viewModel = WaiterViewModel(
-            firebaseTableRepository,
-            firebaseOrderRepository,
-            firebaseProductRepository,
-            firebaseInventoryRepository,
-            db,
-            syncManager,
-            context
-        )
+        val table = tableRepo.getTableById(1)
+        assertEquals(TableStatus.OCUPADA, table?.status)
     }
 
     @Test
-    fun `placeholder test`() = runTest {
-        // This is a placeholder since the original tests were broken by architecture changes
-        assert(true)
+    fun `liberar mesa deberia cambiar estado a LIBRE`() = runTest {
+        val tableRepo = FakeTableRepository()
+        tableRepo.initializeDefaultTables()
+        tableRepo.assignOrderToTable(tableId = 1, orderId = "orden-123")
+
+        tableRepo.clearTable(tableId = 1)
+
+        val table = tableRepo.getTableById(1)
+        assertEquals(TableStatus.LIBRE, table?.status)
     }
 }

@@ -94,12 +94,12 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val orders = snapshot.children.mapNotNull { it.toOrder() }
                     .filter { it.status == OrderStatus.PENDING }
-                println("⏳ FirebaseOrders: ${orders.size} órdenes pendientes")
+                timber.log.Timber.d("⏳ FirebaseOrders: ${orders.size} órdenes pendientes")
                 trySend(orders)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseOrders: Error en getPendingOrders: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseOrders: Error en getPendingOrders: ${error.message}")
                 close(error.toException())
             }
         }
@@ -232,21 +232,21 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override suspend fun syncPendingOrders() {
         try {
-            println("🔄 FirebaseOrders: Sincronizando órdenes pendientes...")
+            timber.log.Timber.d("🔄 FirebaseOrders: Sincronizando órdenes pendientes...")
 
             val snapshot = ordersRef.orderByChild("status").equalTo("PENDING").get().await()
             val pendingOrders = snapshot.children.mapNotNull { it.toOrder() }
 
             if (pendingOrders.isNotEmpty()) {
-                println("📤 FirebaseOrders: ${pendingOrders.size} órdenes pendientes encontradas")
+                timber.log.Timber.d("📤 FirebaseOrders: ${pendingOrders.size} órdenes pendientes encontradas")
                 pendingOrders.forEach { order ->
-                    println("   - Orden ${order.id}: Mesa ${order.tableNumber}, Estado: ${order.status}")
+                    timber.log.Timber.d("   - Orden ${order.id}: Mesa ${order.tableNumber}, Estado: ${order.status}")
                 }
             } else {
-                println("✅ FirebaseOrders: No hay órdenes pendientes")
+                timber.log.Timber.d("✅ FirebaseOrders: No hay órdenes pendientes")
             }
         } catch (e: Exception) {
-            println("❌ FirebaseOrders: Error en syncPendingOrders: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseOrders: Error en syncPendingOrders: ${e.message}")
             throw e
         }
     }
@@ -316,7 +316,7 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
                         items.add(orderItem)
                     } catch (e: Exception) {
-                        println("❌ Error leyendo item: ${e.message}")
+                        timber.log.Timber.d("❌ Error leyendo item: ${e.message}")
                     }
                 }
             }
@@ -335,7 +335,7 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
                 notes = notes
             )
         } catch (e: Exception) {
-            println("❌ Error convirtiendo DataSnapshot a Order: ${e.message}")
+            timber.log.Timber.d("❌ Error convirtiendo DataSnapshot a Order: ${e.message}")
             null
         }
     }

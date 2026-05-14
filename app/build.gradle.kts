@@ -32,13 +32,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
-        // API Keys from local.properties
-        buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("firebase.api.key") ?: ""}\"")
-        buildConfigField("String", "EMULATOR_BASE_URL", "\"http://10.0.2.2:8080/\"")
-        buildConfigField("String", "PHYSICAL_DEVICE_BASE_URL", "\"http://192.168.0.104:8080/\"")
-        buildConfigField("String", "EMULATOR_WS_URL", "\"ws://10.0.2.2:8080/ws\"")
-        buildConfigField("String", "PHYSICAL_DEVICE_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
     }
 
     buildTypes {
@@ -47,6 +40,11 @@ android {
             isDebuggable = true
             isMinifyEnabled = false
             buildConfigField("String", "ENVIRONMENT", "\"DEBUG\"")
+            // URLs locales para desarrollo
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/\"")
+            buildConfigField("String", "PHYSICAL_BASE_URL", "\"http://192.168.0.104:8080/\"")
+            buildConfigField("String", "WS_URL", "\"ws://10.0.2.2:8080/ws\"")
+            buildConfigField("String", "PHYSICAL_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
             buildConfigField(
                 "String", "FIREBASE_API_KEY",
                 "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
@@ -58,7 +56,13 @@ android {
             versionNameSuffix = "-STAGING"
             isDebuggable = true
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "ENVIRONMENT", "\"STAGING\"")
+            // URLs del servidor de pruebas
+            buildConfigField("String", "BASE_URL", "\"http://192.168.0.104:8080/\"")
+            buildConfigField("String", "PHYSICAL_BASE_URL", "\"http://192.168.0.104:8080/\"")
+            buildConfigField("String", "WS_URL", "\"ws://192.168.0.104:8080/ws\"")
+            buildConfigField("String", "PHYSICAL_WS_URL", "\"ws://192.168.0.104:8080/ws\"")
             buildConfigField(
                 "String", "FIREBASE_API_KEY",
                 "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
@@ -70,6 +74,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
+            // URLs de producción — reemplazar con las reales cuando estén listas
+            buildConfigField("String", "BASE_URL", "\"https://api.laprevia.com/\"")
+            buildConfigField("String", "PHYSICAL_BASE_URL", "\"https://api.laprevia.com/\"")
+            buildConfigField("String", "WS_URL", "\"wss://api.laprevia.com/ws\"")
+            buildConfigField("String", "PHYSICAL_WS_URL", "\"wss://api.laprevia.com/ws\"")
             buildConfigField(
                 "String", "FIREBASE_API_KEY",
                 "\"${localProperties.getProperty("firebase.api.key") ?: ""}\""
@@ -104,8 +113,16 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // Fix for 16KB page alignment error in Android 15
             useLegacyPackaging = true
+        }
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.jvmArgs("-Dnet.bytebuddy.experimental=true")
+            }
         }
     }
 }
@@ -114,10 +131,8 @@ kapt {
     correctErrorTypes = true
 }
 
-
-
 dependencies {
-    // Core Android (Safer versions)
+    // Core Android
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
@@ -156,7 +171,7 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
 
-    // Firebase (With App Check for database security)
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
@@ -185,13 +200,16 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    implementation("androidx.hilt:hilt-work:1.2.0")
-    kapt("androidx.hilt:hilt-compiler:1.2.0")
-
-    // ✅ Para AssistedInject (necesario para Workers)
-    implementation("com.google.dagger:hilt-android:2.51.1")
-    kapt("com.google.dagger:hilt-compiler:2.51.1")
+    testImplementation("junit:junit:4.13.2")
+testImplementation("androidx.arch.core:core-testing:2.2.0")
+testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+testImplementation("org.mockito:mockito-core:5.12.0")
+testImplementation("androidx.test:core:1.5.0")
+testImplementation("org.robolectric:robolectric:4.13")  // ✅ tu cambio
+kapt("androidx.hilt:hilt-compiler:1.2.0")              // ✅ cambio de tu compañero
 }
+
 detekt {
     toolVersion = "1.23.6"
     config.setFrom(files("$rootDir/config/detekt/detekt.yml"))

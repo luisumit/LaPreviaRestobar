@@ -28,16 +28,12 @@ jobs:
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
             echo "Warning: GOOGLE_SERVICES_JSON secret is missing"
-            # Crear un JSON vacío válido para evitar errores de 'Malformed root json' si el secreto falta
             echo "{}" > app/google-services.json
           else
-            # 1. Mantener el archivo en el root de app (Requerido por el plugin para inicializar)
-            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
-            
-            # 2. Copiar a las carpetas de variants para soporte multi-entorno
             mkdir -p app/src/debug
             mkdir -p app/src/staging
             mkdir -p app/src/release
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
             cp app/google-services.json app/src/debug/google-services.json
             cp app/google-services.json app/src/staging/google-services.json
             cp app/google-services.json app/src/release/google-services.json
@@ -52,11 +48,11 @@ jobs:
       - name: Dar permisos al ejecutable Gradle
         run: chmod +x ./gradlew
 
-      # DETEKT (ANÁLISIS ESTÁTICO)
+      # DETEKT
       - name: Ejecutar análisis estático con Detekt
         run: ./gradlew detekt || echo "Detekt task failed or not found, continuing..."
 
-      # LINT (ANÁLISIS ESTÁTICO ANDROID)
+      # LINT
       - name: Ejecutar Análisis Estático (Lint)
         run: ./gradlew lintDebug
 

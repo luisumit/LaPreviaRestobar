@@ -24,23 +24,23 @@ class FirebaseProductRepositoryImpl @Inject constructor(
 
     override suspend fun getProductById(id: String): Product {
         return try {
-            println("🔍 FirebaseProducts: Buscando producto por ID: $id")
+            timber.log.Timber.d("🔍 FirebaseProducts: Buscando producto por ID: $id")
 
             val snapshot = productsRef.child(id).get().await()
 
             if (snapshot.exists()) {
                 val product = snapshot.toProduct()
-                println("✅ FirebaseProducts: Producto encontrado - ${product.name} (ID: ${product.id})")
-                println("   - Categoría: ${product.category}")
-                println("   - Precio: ${product.salePrice}")
-                println("   - TrackInventory: ${product.trackInventory}")
+                timber.log.Timber.d("✅ FirebaseProducts: Producto encontrado - ${product.name} (ID: ${product.id})")
+                timber.log.Timber.d("   - Categoría: ${product.category}")
+                timber.log.Timber.d("   - Precio: ${product.salePrice}")
+                timber.log.Timber.d("   - TrackInventory: ${product.trackInventory}")
                 product
             } else {
-                println("❌ FirebaseProducts: Producto no encontrado - ID: $id")
+                timber.log.Timber.d("❌ FirebaseProducts: Producto no encontrado - ID: $id")
                 createDefaultProduct(id)
             }
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error obteniendo producto $id - ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error obteniendo producto $id - ${e.message}")
             createDefaultProduct(id)
         }
     }
@@ -85,7 +85,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 updatedAt = child("updatedAt").getValue(Long::class.java) ?: System.currentTimeMillis()
             )
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error convirtiendo DataSnapshot: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error convirtiendo DataSnapshot: ${e.message}")
             Product(
                 id = "error_${System.currentTimeMillis()}",
                 name = "Error al cargar",
@@ -110,12 +110,12 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val products = snapshot.children.map { it.toProduct() }
-                println("🔥 FirebaseProducts: ${products.size} productos cargados")
+                timber.log.Timber.d("🔥 FirebaseProducts: ${products.size} productos cargados")
                 trySend(products)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseProducts: Error en getAllProducts: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseProducts: Error en getAllProducts: ${error.message}")
                 close(error.toException())
             }
         }
@@ -128,12 +128,12 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val products = snapshot.children.map { it.toProduct() }
                     .filter { it.isActive }
-                println("✅ FirebaseProducts: ${products.size} productos activos")
+                timber.log.Timber.d("✅ FirebaseProducts: ${products.size} productos activos")
                 trySend(products)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseProducts: Error en getActiveProducts: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseProducts: Error en getActiveProducts: ${error.message}")
                 close(error.toException())
             }
         }
@@ -146,12 +146,12 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val products = snapshot.children.map { it.toProduct() }
                     .filter { it.isActive }
-                println("💰 FirebaseProducts: ${products.size} productos activos")
+                timber.log.Timber.d("💰 FirebaseProducts: ${products.size} productos activos")
                 trySend(products)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseProducts: Error en getSellableProducts: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseProducts: Error en getSellableProducts: ${error.message}")
                 close(error.toException())
             }
         }
@@ -166,12 +166,12 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                     .map { it.category }
                     .distinct()
                     .sorted()
-                println("🏷️ FirebaseProducts: ${categories.size} categorías encontradas")
+                timber.log.Timber.d("🏷️ FirebaseProducts: ${categories.size} categorías encontradas")
                 trySend(categories)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseProducts: Error en getCategories: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseProducts: Error en getCategories: ${error.message}")
                 close(error.toException())
             }
         }
@@ -185,67 +185,67 @@ class FirebaseProductRepositoryImpl @Inject constructor(
 
     override suspend fun getProductByName(name: String): Product? {
         return try {
-            println("🔍 FirebaseProducts: Buscando producto por nombre: $name")
+            timber.log.Timber.d("🔍 FirebaseProducts: Buscando producto por nombre: $name")
             val snapshot = productsRef.orderByChild("name").equalTo(name).get().await()
             val product = snapshot.children.firstOrNull()?.toProduct()
             if (product != null) {
-                println("✅ FirebaseProducts: Producto encontrado: ${product.name}")
+                timber.log.Timber.d("✅ FirebaseProducts: Producto encontrado: ${product.name}")
             } else {
-                println("❌ FirebaseProducts: Producto no encontrado: $name")
+                timber.log.Timber.d("❌ FirebaseProducts: Producto no encontrado: $name")
             }
             product
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error buscando producto por nombre $name: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error buscando producto por nombre $name: ${e.message}")
             null
         }
     }
 
     override suspend fun createProduct(product: Product) {
         try {
-            println("🆕 FirebaseProducts: Creando producto: ${product.name}")
+            timber.log.Timber.d("🆕 FirebaseProducts: Creando producto: ${product.name}")
             val productMap = toFirebaseMap(product)
             productsRef.child(product.id).setValue(productMap).await()
-            println("✅ FirebaseProducts: Producto creado exitosamente: ${product.name}")
+            timber.log.Timber.d("✅ FirebaseProducts: Producto creado exitosamente: ${product.name}")
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error creando producto: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error creando producto: ${e.message}")
             throw e
         }
     }
 
     override suspend fun updateProduct(product: Product) {
         try {
-            println("🔄 FirebaseProducts: Actualizando producto: ${product.name}")
+            timber.log.Timber.d("🔄 FirebaseProducts: Actualizando producto: ${product.name}")
             val productMap = toFirebaseMap(product)
             productsRef.child(product.id).updateChildren(productMap).await()
-            println("✅ FirebaseProducts: Producto actualizado exitosamente: ${product.name}")
+            timber.log.Timber.d("✅ FirebaseProducts: Producto actualizado exitosamente: ${product.name}")
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error actualizando producto: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error actualizando producto: ${e.message}")
             throw e
         }
     }
 
     override suspend fun updateProductStatus(id: String, isActive: Boolean) {
         try {
-            println("⚡ FirebaseProducts: Actualizando estado de producto $id a $isActive")
+            timber.log.Timber.d("⚡ FirebaseProducts: Actualizando estado de producto $id a $isActive")
             val updates = mapOf(
                 "isActive" to isActive,
                 "updatedAt" to System.currentTimeMillis()
             )
             productsRef.child(id).updateChildren(updates).await()
-            println("✅ FirebaseProducts: Estado actualizado exitosamente")
+            timber.log.Timber.d("✅ FirebaseProducts: Estado actualizado exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error actualizando estado: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error actualizando estado: ${e.message}")
             throw e
         }
     }
 
     override suspend fun deleteProduct(id: String) {
         try {
-            println("🗑️ FirebaseProducts: Eliminando producto: $id")
+            timber.log.Timber.d("🗑️ FirebaseProducts: Eliminando producto: $id")
             productsRef.child(id).removeValue().await()
-            println("✅ FirebaseProducts: Producto eliminado exitosamente")
+            timber.log.Timber.d("✅ FirebaseProducts: Producto eliminado exitosamente")
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error eliminando producto: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error eliminando producto: ${e.message}")
             throw e
         }
     }
@@ -257,13 +257,13 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 snapshot.children.forEach { child ->
                     val product = child.toProduct()
-                    println("📡 FirebaseProducts: Cambio detectado en ${product.name}")
+                    timber.log.Timber.d("📡 FirebaseProducts: Cambio detectado en ${product.name}")
                     trySend(product)
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseProducts: Error en listenToProductChanges: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseProducts: Error en listenToProductChanges: ${error.message}")
                 close(error.toException())
             }
         }
@@ -280,12 +280,12 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val products = snapshot.children.map { it.toProduct() }
                     .filter { it.trackInventory }
-                println("📦 FirebaseProducts: ${products.size} productos con control de inventario")
+                timber.log.Timber.d("📦 FirebaseProducts: ${products.size} productos con control de inventario")
                 trySend(products)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseProducts: Error en getProductsWithInventory: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseProducts: Error en getProductsWithInventory: ${error.message}")
                 close(error.toException())
             }
         }
@@ -296,13 +296,13 @@ class FirebaseProductRepositoryImpl @Inject constructor(
     // ✅ MÉTODO CORREGIDO - Obtener stock (con override porque está en ProductRepository)
     override suspend fun getProductStock(productId: String): Double {
         return try {
-            println("📊 FirebaseProducts: Obteniendo stock del producto: $productId")
+            timber.log.Timber.d("📊 FirebaseProducts: Obteniendo stock del producto: $productId")
             val snapshot = productsRef.child(productId).child("stock").get().await()
             val stock = snapshot.getValue(Double::class.java) ?: 0.0
-            println("✅ FirebaseProducts: Stock actual de $productId: $stock")
+            timber.log.Timber.d("✅ FirebaseProducts: Stock actual de $productId: $stock")
             stock
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error obteniendo stock de $productId: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error obteniendo stock de $productId: ${e.message}")
             0.0
         }
     }
@@ -310,15 +310,15 @@ class FirebaseProductRepositoryImpl @Inject constructor(
     // ✅ MÉTODO CORREGIDO - Actualizar stock (con override y UN SOLO método)
     override suspend fun updateProductStock(productId: String, newStock: Double) {
         try {
-            println("📊 FirebaseProducts: Actualizando stock de $productId a $newStock")
+            timber.log.Timber.d("📊 FirebaseProducts: Actualizando stock de $productId a $newStock")
             val updates = mapOf(
                 "stock" to newStock,
                 "updatedAt" to System.currentTimeMillis()
             )
             productsRef.child(productId).updateChildren(updates).await()
-            println("✅ FirebaseProducts: Stock actualizado exitosamente: $productId → $newStock")
+            timber.log.Timber.d("✅ FirebaseProducts: Stock actualizado exitosamente: $productId → $newStock")
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error actualizando stock de $productId: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error actualizando stock de $productId: ${e.message}")
             throw e
         }
     }
@@ -327,30 +327,30 @@ class FirebaseProductRepositoryImpl @Inject constructor(
 
     override suspend fun searchProducts(query: String): List<Product> {
         return try {
-            println("🔍 FirebaseProducts: Buscando productos con query: $query")
+            timber.log.Timber.d("🔍 FirebaseProducts: Buscando productos con query: $query")
             val snapshot = productsRef.get().await()
             val products = snapshot.children.map { it.toProduct() }
                 .filter { product ->
                     product.name.contains(query, ignoreCase = true) ||
                             product.description.contains(query, ignoreCase = true)
                 }
-            println("✅ FirebaseProducts: ${products.size} productos encontrados para '$query'")
+            timber.log.Timber.d("✅ FirebaseProducts: ${products.size} productos encontrados para '$query'")
             products
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error buscando productos: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error buscando productos: ${e.message}")
             emptyList()
         }
     }
 
     override suspend fun getProductsByCategory(category: String): List<Product> {
         return try {
-            println("🏷️ FirebaseProducts: Buscando productos en categoría: $category")
+            timber.log.Timber.d("🏷️ FirebaseProducts: Buscando productos en categoría: $category")
             val snapshot = productsRef.orderByChild("category").equalTo(category).get().await()
             val products = snapshot.children.map { it.toProduct() }
-            println("✅ FirebaseProducts: ${products.size} productos en categoría '$category'")
+            timber.log.Timber.d("✅ FirebaseProducts: ${products.size} productos en categoría '$category'")
             products
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error obteniendo productos por categoría: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error obteniendo productos por categoría: ${e.message}")
             emptyList()
         }
     }
@@ -360,7 +360,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             val snapshot = productsRef.child(productId).get().await()
             snapshot.exists()
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error verificando existencia de producto: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error verificando existencia de producto: ${e.message}")
             false
         }
     }
@@ -377,7 +377,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "categoriesCount" to products.map { it.category }.distinct().count()
             )
         } catch (e: Exception) {
-            println("❌ FirebaseProducts: Error obteniendo estadísticas: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseProducts: Error obteniendo estadísticas: ${e.message}")
             emptyMap()
         }
     }

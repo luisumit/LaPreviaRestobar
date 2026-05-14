@@ -48,7 +48,7 @@ fun OrdersScreen(
 
     LaunchedEffect(notifications) {
         if (notifications.isNotEmpty()) {
-            println("📢 Notificaciones del chef: ${notifications.size}")
+            timber.log.Timber.d("📢 Notificaciones del chef: ${notifications.size}")
         }
     }
 

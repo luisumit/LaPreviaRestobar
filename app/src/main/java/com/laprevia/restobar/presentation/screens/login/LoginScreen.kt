@@ -103,12 +103,12 @@ fun LoginScreen(
         when (uiState) {
             is LoginUiState.Authenticated -> {
                 val role = (uiState as LoginUiState.Authenticated).role
-                println("🔍 LoginScreen: Usuario autenticado como $role")
+                timber.log.Timber.d("🔍 LoginScreen: Usuario autenticado como $role")
                 // ✅ NO navegar aquí - la navegación se maneja en AppNavigation
             }
             is LoginUiState.RoleSelected -> {
                 val role = (uiState as LoginUiState.RoleSelected).role
-                println("🔍 LoginScreen: Rol seleccionado $role")
+                timber.log.Timber.d("🔍 LoginScreen: Rol seleccionado $role")
                 // ✅ NO navegar aquí - la navegación se maneja en AppNavigation
             }
             else -> {
