@@ -1,4 +1,4 @@
-// AdminMainScreen.kt - VERSIÓN CON MENSAJES DE ESTADO OFFLINE
+// AdminMainScreen.kt - VERSIÓN CON NOTIFICACIONES DE STOCK
 package com.laprevia.restobar.presentation.screens.admin
 
 import androidx.compose.foundation.background
@@ -18,9 +18,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.laprevia.restobar.presentation.notifications.AdminStockScheduler
 import com.laprevia.restobar.presentation.viewmodel.AdminViewModel
 import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
 import kotlinx.coroutines.delay
@@ -34,6 +37,16 @@ fun AdminMainScreen(
     onLogout: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
+    val context = LocalContext.current
+
+    // Detectar tamaño de pantalla
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
+    // ✅ Iniciar verificación de stock al abrir Admin
+    LaunchedEffect(Unit) {
+        AdminStockScheduler.schedulePeriodicCheck(context)
+    }
 
     // Auto-clear para mensajes después de 3 segundos
     LaunchedEffect(uiState.success, uiState.warning, uiState.error) {
@@ -51,8 +64,8 @@ fun AdminMainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 8.dp,
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        elevation = if (isTablet) 12.dp else 8.dp,
+                        shape = RoundedCornerShape(bottomStart = if (isTablet) 32.dp else 24.dp, bottomEnd = if (isTablet) 32.dp else 24.dp)
                     ),
                 color = Color(0xFF1a1a2e),
                 contentColor = Color.White
@@ -62,7 +75,7 @@ fun AdminMainScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = if (isTablet) 16.dp else 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -71,23 +84,43 @@ fun AdminMainScreen(
                                 "LA PREVIA RESTOBAR",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium
+                                style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium
                             )
                             Text(
                                 "Panel Administrativo",
                                 color = Color.White.copy(alpha = 0.8f),
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
 
+                        // ✅ Botón de prueba de notificación (opcional - puedes eliminarlo después)
                         IconButton(
                             onClick = {
-                                println("🔄 AdminScreen: Cerrando sesión...")
+                                AdminStockScheduler.triggerImmediateCheck(context)
+                            },
+                            modifier = Modifier
+                                .size(if (isTablet) 48.dp else 44.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFF9800))
+                        ) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = "Probar notificación",
+                                tint = Color.White,
+                                modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(if (isTablet) 8.dp else 4.dp))
+
+                        IconButton(
+                            onClick = {
+                                timber.log.Timber.d("🔄 AdminScreen: Cerrando sesión...")
                                 loginViewModel.signOut()
                                 onLogout()
                             },
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(if (isTablet) 48.dp else 44.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFFe94560))
                         ) {
@@ -95,7 +128,7 @@ fun AdminMainScreen(
                                 Icons.Default.Logout,
                                 contentDescription = "Cerrar sesión",
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
                             )
                         }
                     }
@@ -115,7 +148,7 @@ fun AdminMainScreen(
                 onClick = { viewModel.showProductForm() },
                 containerColor = Color(0xFFe94560),
                 contentColor = Color.White,
-                modifier = Modifier.shadow(8.dp, CircleShape)
+                modifier = Modifier.shadow(if (isTablet) 12.dp else 8.dp, CircleShape)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar Producto")
             }
@@ -149,8 +182,8 @@ fun AdminMainScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    .padding(if (isTablet) 24.dp else 16.dp)
+                    .shadow(if (isTablet) 8.dp else 4.dp, RoundedCornerShape(if (isTablet) 24.dp else 16.dp)),
                 colors = CardDefaults.cardColors(
                     containerColor = Color(0xFF1a1a2e).copy(alpha = 0.8f)
                 )
@@ -158,12 +191,12 @@ fun AdminMainScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(if (isTablet) 24.dp else 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
+                            .size(if (isTablet) 80.dp else 60.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.radialGradient(
@@ -179,18 +212,18 @@ fun AdminMainScreen(
                             Icons.Default.Inventory,
                             contentDescription = "Admin",
                             tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(if (isTablet) 36.dp else 28.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(if (isTablet) 20.dp else 16.dp))
 
                     Column {
                         Text(
                             "Panel de Administración",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge
+                            style = if (isTablet) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge
                         )
                         Text(
                             viewModel.connectionStatusText,
@@ -207,7 +240,7 @@ fun AdminMainScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = if (isTablet) 24.dp else 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 ProductStatCard(
@@ -216,7 +249,7 @@ fun AdminMainScreen(
                     gradientColors = listOf(Color(0xFF4facfe), Color(0xFF00f2fe)),
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
                 ProductStatCard(
                     title = "Activos",
                     value = uiState.products.count { it.isActive }.toString(),
@@ -228,8 +261,8 @@ fun AdminMainScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 12.dp),
+                    .padding(horizontal = if (isTablet) 24.dp else 16.dp)
+                    .padding(top = if (isTablet) 16.dp else 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 ProductStatCard(
@@ -238,7 +271,7 @@ fun AdminMainScreen(
                     gradientColors = listOf(Color(0xFFfa709a), Color(0xFFfee140)),
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
                 ProductStatCard(
                     title = "Categorías",
                     value = uiState.categories.size.toString(),
@@ -247,14 +280,14 @@ fun AdminMainScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(if (isTablet) 24.dp else 20.dp))
 
             // Lista de productos
             Card(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = if (isTablet) 12.dp else 8.dp)
+                    .shadow(if (isTablet) 8.dp else 4.dp, RoundedCornerShape(if (isTablet) 24.dp else 16.dp)),
                 colors = CardDefaults.cardColors(
                     containerColor = Color.White
                 )
@@ -262,14 +295,14 @@ fun AdminMainScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(if (isTablet) 24.dp else 16.dp)
                 ) {
                     Text(
                         text = "Productos Registrados",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1a1a2e),
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = if (isTablet) 20.dp else 16.dp)
                     )
 
                     if (uiState.products.isEmpty()) {
@@ -285,18 +318,18 @@ fun AdminMainScreen(
                                 Icon(
                                     Icons.Default.Inventory,
                                     contentDescription = "Sin productos",
-                                    modifier = Modifier.size(64.dp),
+                                    modifier = Modifier.size(if (isTablet) 80.dp else 64.dp),
                                     tint = Color(0xFF1a1a2e).copy(alpha = 0.5f)
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(if (isTablet) 20.dp else 16.dp))
                                 Text(
                                     text = "No hay productos registrados",
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge,
                                     color = Color(0xFF1a1a2e).copy(alpha = 0.7f)
                                 )
                                 Text(
                                     text = "Presiona el botón + para agregar uno",
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                                     color = Color(0xFF1a1a2e).copy(alpha = 0.5f),
                                     modifier = Modifier.padding(top = 8.dp)
                                 )
@@ -305,7 +338,7 @@ fun AdminMainScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)
                         ) {
                             items(uiState.products) { product ->
                                 ProductAdminCard(
@@ -510,11 +543,14 @@ fun ProductStatCard(
     gradientColors: List<Color>,
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
     Card(
         modifier = modifier
-            .height(100.dp)
-            .shadow(8.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
+            .height(if (isTablet) 120.dp else 100.dp)
+            .shadow(if (isTablet) 12.dp else 8.dp, RoundedCornerShape(if (isTablet) 20.dp else 16.dp)),
+        shape = RoundedCornerShape(if (isTablet) 20.dp else 16.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
         )
@@ -524,25 +560,25 @@ fun ProductStatCard(
                 .fillMaxSize()
                 .background(
                     brush = Brush.linearGradient(gradientColors),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(if (isTablet) 20.dp else 16.dp)
                 )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(if (isTablet) 20.dp else 16.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = if (isTablet) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = if (isTablet) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.9f)
                 )
             }

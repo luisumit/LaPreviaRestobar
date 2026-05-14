@@ -1,24 +1,28 @@
 package com.laprevia.restobar.repositories
 
-
 import com.laprevia.restobar.data.model.Table
 import com.laprevia.restobar.data.model.TableStatus
-import com.laprevia.restobar.domain.repository.TableRepository
+import com.laprevia.restobar.domain.repository.FirebaseTableRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 
-class FakeTableRepository : TableRepository {
+class FakeTableRepository : FirebaseTableRepository {
     private val tables = mutableListOf<Table>()
 
-    init {
-        // Agregar mesas de ejemplo
-        for (i in 1..10) {
-            tables.add(Table(i, i, TableStatus.LIBRE))
-        }
+    // ==================== FirebaseTableRepository (tiempo real) ====================
+    override fun listenToTableChanges(): Flow<Table> = flowOf()
+
+    override fun getTablesRealTime(): Flow<List<Table>> = flowOf(tables)
+
+    // ==================== TableRepository ====================
+    override fun getTables(): Flow<List<Table>> = flowOf(tables)
+
+    override suspend fun getTableById(tableId: Int): Table? {
+        return tables.find { it.id == tableId }
     }
 
-    override fun getTables(): Flow<List<Table>> = flow {
-        emit(tables)
+    override suspend fun getTablesCount(): Int {
+        return tables.size
     }
 
     override suspend fun updateTableStatus(tableId: Int, status: TableStatus) {
@@ -48,7 +52,33 @@ class FakeTableRepository : TableRepository {
         }
     }
 
-    override suspend fun getTableById(tableId: Int): Table? {
-        return tables.find { it.id == tableId }
+    override suspend fun updateTable(table: Table) {
+        val index = tables.indexOfFirst { it.id == table.id }
+        if (index != -1) {
+            tables[index] = table
+        }
     }
+
+    override suspend fun initializeDefaultTables() {
+        for (i in 1..8) {
+            tables.add(
+                Table(
+                    id = i,
+                    number = i,
+                    status = TableStatus.LIBRE,
+                    currentOrderId = null
+                )
+            )
+        }
+    }
+
+    override suspend fun debugTables(): String {
+        return "debug: ${tables.size} tables"
+    }
+
+    override suspend fun syncPendingTables() {
+        // No hacer nada en tests
+    }
+
+    override fun getPendingTables(): Flow<List<Table>> = flowOf(emptyList())
 }

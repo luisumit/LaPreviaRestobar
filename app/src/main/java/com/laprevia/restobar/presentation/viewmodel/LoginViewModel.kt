@@ -63,7 +63,7 @@ class LoginViewModel @Inject constructor(
                     // ✅ SOLO actualizar estado, NO navegar aquí
                     _uiState.value = LoginUiState.Authenticated(role, currentUser)
                     _isLoading.value = false
-                    println("✅ ViewModel: Usuario ya autenticado - $role")
+                    timber.log.Timber.d("✅ ViewModel: Usuario ya autenticado - $role")
                 }
             } else {
                 delay(1000)
@@ -71,7 +71,7 @@ class LoginViewModel @Inject constructor(
                 _isLoading.value = false
                 _currentUser.value = null
                 _userRole.value = null
-                println("✅ ViewModel: No hay usuario autenticado")
+                timber.log.Timber.d("✅ ViewModel: No hay usuario autenticado")
             }
         }
     }
@@ -82,11 +82,11 @@ class LoginViewModel @Inject constructor(
             // Verificar más específicamente si ya estamos en el mismo rol
             val currentState = _uiState.value
             if (currentState is LoginUiState.RoleSelected && currentState.role == role) {
-                println("🔄 ViewModel: Ya está seleccionado el rol $role")
+                timber.log.Timber.d("🔄 ViewModel: Ya está seleccionado el rol $role")
                 return@launch
             }
 
-            println("🔄 ViewModel: Seleccionando rol $role")
+            timber.log.Timber.d("🔄 ViewModel: Seleccionando rol $role")
             hasNavigated = false // ✅ Resetear flag
             _userRole.value = role
             _uiState.value = LoginUiState.RoleSelected(role)
@@ -97,11 +97,11 @@ class LoginViewModel @Inject constructor(
     fun navigateBack() {
         viewModelScope.launch {
             if (_uiState.value is LoginUiState.NoRoleSelected) {
-                println("🔄 ViewModel: Ya estamos en estado inicial")
+                timber.log.Timber.d("🔄 ViewModel: Ya estamos en estado inicial")
                 return@launch
             }
 
-            println("🔄 ViewModel: Volviendo al inicio")
+            timber.log.Timber.d("🔄 ViewModel: Volviendo al inicio")
             hasNavigated = false // ✅ Resetear flag
             _userRole.value = null
             _uiState.value = LoginUiState.NoRoleSelected
@@ -117,7 +117,7 @@ class LoginViewModel @Inject constructor(
     ) {
         // ✅ MEJORADO: Verificar si ya estamos cargando
         if (_isLoading.value) {
-            println("🔄 ViewModel: Login ya en progreso, ignorando...")
+            timber.log.Timber.d("🔄 ViewModel: Login ya en progreso, ignorando...")
             return
         }
 
@@ -126,7 +126,7 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                println("🔄 ViewModel: Iniciando autenticación para $email")
+                timber.log.Timber.d("🔄 ViewModel: Iniciando autenticación para $email")
                 val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
                 val user = authResult.user
 
@@ -140,7 +140,7 @@ class LoginViewModel @Inject constructor(
                         _uiState.value = LoginUiState.Authenticated(role, user)
                         _isLoading.value = false
 
-                        println("✅ ViewModel: Autenticación exitosa - $role")
+                        timber.log.Timber.d("✅ ViewModel: Autenticación exitosa - $role")
                         onSuccess(role, user)
                     }
                 } else {
@@ -149,7 +149,7 @@ class LoginViewModel @Inject constructor(
                         _uiState.value = LoginUiState.Error("Error en la autenticación")
                     }
                     _isLoading.value = false
-                    println("❌ ViewModel: Error - usuario es null")
+                    timber.log.Timber.d("❌ ViewModel: Error - usuario es null")
                     onError("Error en la autenticación")
                 }
             } catch (e: Exception) {
@@ -158,7 +158,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.value = LoginUiState.Error("Error: ${e.message ?: "Error desconocido"}")
                 }
                 _isLoading.value = false
-                println("❌ ViewModel: Error en autenticación: ${e.message}")
+                timber.log.Timber.d("❌ ViewModel: Error en autenticación: ${e.message}")
                 onError(e.message ?: "Error desconocido")
             }
         }
@@ -174,7 +174,7 @@ class LoginViewModel @Inject constructor(
     ) {
         // ✅ MEJORADO: Verificar si ya estamos cargando
         if (_isLoading.value) {
-            println("🔄 ViewModel: Registro ya en progreso, ignorando...")
+            timber.log.Timber.d("🔄 ViewModel: Registro ya en progreso, ignorando...")
             return
         }
 
@@ -183,7 +183,7 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                println("🔄 ViewModel: Creando usuario $email con rol $role")
+                timber.log.Timber.d("🔄 ViewModel: Creando usuario $email con rol $role")
                 val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
                 val user = authResult.user
 
@@ -197,14 +197,14 @@ class LoginViewModel @Inject constructor(
                     _uiState.value = LoginUiState.Authenticated(role, user)
                     _isLoading.value = false
 
-                    println("✅ ViewModel: Usuario creado exitosamente - $role")
+                    timber.log.Timber.d("✅ ViewModel: Usuario creado exitosamente - $role")
                     onSuccess()
                 } else {
                     if (_uiState.value !is LoginUiState.Error) {
                         _uiState.value = LoginUiState.Error("Error creando usuario")
                     }
                     _isLoading.value = false
-                    println("❌ ViewModel: Error - usuario es null al crear")
+                    timber.log.Timber.d("❌ ViewModel: Error - usuario es null al crear")
                     onError("Error creando usuario")
                 }
             } catch (e: Exception) {
@@ -212,7 +212,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.value = LoginUiState.Error("Error: ${e.message ?: "Error desconocido"}")
                 }
                 _isLoading.value = false
-                println("❌ ViewModel: Error creando usuario: ${e.message}")
+                timber.log.Timber.d("❌ ViewModel: Error creando usuario: ${e.message}")
                 onError(e.message ?: "Error desconocido")
             }
         }
@@ -223,18 +223,18 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             // ✅ MEJORADO: Verificar estado actual
             if (_uiState.value is LoginUiState.NoRoleSelected) {
-                println("🔄 ViewModel: Ya estamos desconectados")
+                timber.log.Timber.d("🔄 ViewModel: Ya estamos desconectados")
                 return@launch
             }
 
-            println("🔄 ViewModel: Cerrando sesión...")
+            timber.log.Timber.d("🔄 ViewModel: Cerrando sesión...")
             firebaseAuth.signOut()
             // ✅ ACTUALIZADO: Limpiar ambas propiedades
             _currentUser.value = null
             _userRole.value = null
             _uiState.value = LoginUiState.NoRoleSelected
             hasNavigated = false // ✅ Resetear flag
-            println("✅ ViewModel: Sesión cerrada - usuario y rol limpiados")
+            timber.log.Timber.d("✅ ViewModel: Sesión cerrada - usuario y rol limpiados")
         }
     }
 
@@ -247,12 +247,12 @@ class LoginViewModel @Inject constructor(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val roleString = snapshot.getValue(String::class.java) ?: "MESERO"
                 val role = UserRole.fromString(roleString)
-                println("✅ ViewModel: Rol obtenido de Firebase: $role")
+                timber.log.Timber.d("✅ ViewModel: Rol obtenido de Firebase: $role")
                 onRoleRetrieved(role)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ ViewModel: Error obteniendo rol: ${error.message}")
+                timber.log.Timber.d("❌ ViewModel: Error obteniendo rol: ${error.message}")
                 onRoleRetrieved(UserRole.MESERO)
             }
         })
@@ -271,9 +271,9 @@ class LoginViewModel @Inject constructor(
 
         userRef.setValue(userData).addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                println("✅ ViewModel: Rol de usuario guardado en Firebase: ${role.name} para $email")
+                timber.log.Timber.d("✅ ViewModel: Rol de usuario guardado en Firebase: ${role.name} para $email")
             } else {
-                println("❌ ViewModel: Error guardando rol: ${task.exception?.message}")
+                timber.log.Timber.d("❌ ViewModel: Error guardando rol: ${task.exception?.message}")
             }
         }
     }
@@ -282,7 +282,7 @@ class LoginViewModel @Inject constructor(
     fun checkAuthentication() {
         viewModelScope.launch {
             if (_isLoading.value) {
-                println("🔄 ViewModel: Ya estamos verificando autenticación")
+                timber.log.Timber.d("🔄 ViewModel: Ya estamos verificando autenticación")
                 return@launch
             }
             checkCurrentUser()
@@ -293,7 +293,7 @@ class LoginViewModel @Inject constructor(
     fun clearError() {
         viewModelScope.launch {
             if (_uiState.value is LoginUiState.Error) {
-                println("🔄 ViewModel: Limpiando error")
+                timber.log.Timber.d("🔄 ViewModel: Limpiando error")
                 _uiState.value = LoginUiState.NoRoleSelected
             }
         }
@@ -312,7 +312,7 @@ class LoginViewModel @Inject constructor(
     // ✅ NUEVO: Método para marcar que ya se navegó (usado por AppNavigation)
     fun markAsNavigated() {
         hasNavigated = true
-        println("📍 ViewModel: Navegación marcada como completada")
+        timber.log.Timber.d("📍 ViewModel: Navegación marcada como completada")
     }
 
     // ✅ NUEVO: Verificar si ya se navegó

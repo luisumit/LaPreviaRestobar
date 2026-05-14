@@ -37,6 +37,19 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
         awaitClose { ordersRef.removeEventListener(eventListener) }
     }
 
+    // ✅ NUEVO MÉTODO: getOrdersList (suspending)
+    override suspend fun getOrdersList(): List<Order> {
+        return try {
+            val snapshot = ordersRef.get().await()
+            val orders = snapshot.children.mapNotNull { it.toOrder() }
+            println("📦 FirebaseOrders: ${orders.size} órdenes obtenidas")
+            orders
+        } catch (e: Exception) {
+            println("❌ FirebaseOrders: Error getOrdersList: ${e.message}")
+            emptyList()
+        }
+    }
+
     override fun getActiveOrders(): Flow<List<Order>> = callbackFlow {
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -76,18 +89,17 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override fun getOrdersWithItems(): Flow<List<Order>> = getOrders()
 
-    // ✅ NUEVO MÉTODO: getPendingOrders
     override fun getPendingOrders(): Flow<List<Order>> = callbackFlow {
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val orders = snapshot.children.mapNotNull { it.toOrder() }
                     .filter { it.status == OrderStatus.PENDING }
-                println("⏳ FirebaseOrders: ${orders.size} órdenes pendientes")
+                timber.log.Timber.d("⏳ FirebaseOrders: ${orders.size} órdenes pendientes")
                 trySend(orders)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("❌ FirebaseOrders: Error en getPendingOrders: ${error.message}")
+                timber.log.Timber.d("❌ FirebaseOrders: Error en getPendingOrders: ${error.message}")
                 close(error.toException())
             }
         }
@@ -220,21 +232,21 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override suspend fun syncPendingOrders() {
         try {
-            println("🔄 FirebaseOrders: Sincronizando órdenes pendientes...")
+            timber.log.Timber.d("🔄 FirebaseOrders: Sincronizando órdenes pendientes...")
 
             val snapshot = ordersRef.orderByChild("status").equalTo("PENDING").get().await()
             val pendingOrders = snapshot.children.mapNotNull { it.toOrder() }
 
             if (pendingOrders.isNotEmpty()) {
-                println("📤 FirebaseOrders: ${pendingOrders.size} órdenes pendientes encontradas")
+                timber.log.Timber.d("📤 FirebaseOrders: ${pendingOrders.size} órdenes pendientes encontradas")
                 pendingOrders.forEach { order ->
-                    println("   - Orden ${order.id}: Mesa ${order.tableNumber}, Estado: ${order.status}")
+                    timber.log.Timber.d("   - Orden ${order.id}: Mesa ${order.tableNumber}, Estado: ${order.status}")
                 }
             } else {
-                println("✅ FirebaseOrders: No hay órdenes pendientes")
+                timber.log.Timber.d("✅ FirebaseOrders: No hay órdenes pendientes")
             }
         } catch (e: Exception) {
-            println("❌ FirebaseOrders: Error en syncPendingOrders: ${e.message}")
+            timber.log.Timber.d("❌ FirebaseOrders: Error en syncPendingOrders: ${e.message}")
             throw e
         }
     }
@@ -244,13 +256,30 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
     private fun DataSnapshot.toOrder(): Order? {
         return try {
             val id = key ?: return null
-            val tableId = child("tableId").getValue(Int::class.java) ?: 0
+            // ✅ CORREGIDO: tableId como var para poder modificarlo
+            var tableId = child("tableId").getValue(Int::class.java) ?: 0
             val tableNumber = child("tableNumber").getValue(Int::class.java) ?: 0
+
+            // ✅ CORREGIDO: Si tableId es 0, usar tableNumber (mesas del 1 al 8)
+            if (tableId == 0 && tableNumber in 1..8) {
+                println("⚠️ FirebaseOrders: tableId era 0, corrigiendo a $tableNumber")
+                tableId = tableNumber
+            }
+
             val statusStr = child("status").getValue(String::class.java) ?: "PENDING"
             val status = try {
                 OrderStatus.valueOf(statusStr)
             } catch (e: IllegalArgumentException) {
-                OrderStatus.PENDING
+                when (statusStr) {
+                    "ENVIADO" -> OrderStatus.ENVIADO
+                    "ACEPTADO" -> OrderStatus.ACEPTADO
+                    "EN_PREPARACION" -> OrderStatus.EN_PREPARACION
+                    "LISTO" -> OrderStatus.LISTO
+                    "ENTREGADO" -> OrderStatus.ENTREGADO
+                    "COMPLETED" -> OrderStatus.COMPLETED
+                    "CANCELLED" -> OrderStatus.CANCELLED
+                    else -> OrderStatus.PENDING
+                }
             }
             val waiterId = child("waiterId").getValue(String::class.java)
             val waiterName = child("waiterName").getValue(String::class.java)
@@ -287,7 +316,7 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
                         items.add(orderItem)
                     } catch (e: Exception) {
-                        println("❌ Error leyendo item: ${e.message}")
+                        timber.log.Timber.d("❌ Error leyendo item: ${e.message}")
                     }
                 }
             }
@@ -306,7 +335,7 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
                 notes = notes
             )
         } catch (e: Exception) {
-            println("❌ Error convirtiendo DataSnapshot a Order: ${e.message}")
+            timber.log.Timber.d("❌ Error convirtiendo DataSnapshot a Order: ${e.message}")
             null
         }
     }

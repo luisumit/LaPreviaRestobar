@@ -1,4 +1,4 @@
-// OrdersScreen.kt - VERSIÓN CORREGIDA
+// OrdersScreen.kt - VERSIÓN CORREGIDA CON COMIDA ENTREGADA
 package com.laprevia.restobar.presentation.screens.chef
 
 import androidx.compose.foundation.layout.*
@@ -48,7 +48,7 @@ fun OrdersScreen(
 
     LaunchedEffect(notifications) {
         if (notifications.isNotEmpty()) {
-            println("📢 Notificaciones del chef: ${notifications.size}")
+            timber.log.Timber.d("📢 Notificaciones del chef: ${notifications.size}")
         }
     }
 
@@ -61,7 +61,7 @@ fun OrdersScreen(
             isFirebaseConnected = isFirebaseConnected,
             isLoading = isLoading,
             connectionMessage = connectionMessage,
-            onManualSync = { viewModel.manualSync() }  // ✅ Pasar la función
+            onManualSync = { viewModel.manualSync() }
         )
 
         // Agrupar órdenes por estado
@@ -70,6 +70,7 @@ fun OrdersScreen(
         val acceptedOrders = ordersByStatus[OrderStatus.ACEPTADO] ?: emptyList()
         val inPreparationOrders = ordersByStatus[OrderStatus.EN_PREPARACION] ?: emptyList()
         val readyOrders = ordersByStatus[OrderStatus.LISTO] ?: emptyList()
+        val deliveredOrders = ordersByStatus[OrderStatus.ENTREGADO] ?: emptyList()  // ✅ NUEVO
 
         if (isLoading && orders.isEmpty()) {
             LoadingState(isInternetAvailable = isInternetAvailable)
@@ -77,7 +78,7 @@ fun OrdersScreen(
             EmptyChefOrdersState(
                 isFirebaseConnected = isFirebaseConnected,
                 isInternetAvailable = isInternetAvailable,
-                onManualSync = { viewModel.manualSync() }  // ✅ Pasar la función
+                onManualSync = { viewModel.manualSync() }
             )
         } else {
             OrdersList(
@@ -85,6 +86,7 @@ fun OrdersScreen(
                 acceptedOrders = acceptedOrders,
                 inPreparationOrders = inPreparationOrders,
                 readyOrders = readyOrders,
+                deliveredOrders = deliveredOrders,  // ✅ NUEVO
                 viewModel = viewModel
             )
         }
@@ -97,7 +99,7 @@ fun ConnectionStatusBannerOrders(
     isFirebaseConnected: Boolean,
     isLoading: Boolean,
     connectionMessage: String?,
-    onManualSync: () -> Unit  // ✅ Nuevo parámetro
+    onManualSync: () -> Unit
 ) {
     if (isLoading) return
 
@@ -209,6 +211,7 @@ fun OrdersList(
     acceptedOrders: List<Order>,
     inPreparationOrders: List<Order>,
     readyOrders: List<Order>,
+    deliveredOrders: List<Order>,  // ✅ NUEVO PARÁMETRO
     viewModel: ChefViewModel
 ) {
     LazyColumn(
@@ -221,11 +224,12 @@ fun OrdersList(
                 newCount = sentOrders.size,
                 acceptedCount = acceptedOrders.size,
                 inProgressCount = inPreparationOrders.size,
-                readyCount = readyOrders.size
+                readyCount = readyOrders.size,
+                deliveredCount = deliveredOrders.size  // ✅ NUEVO
             )
         }
 
-        // Órdenes ENVIADAS (Nuevas) - PRIORIDAD ALTA
+        // 🆕 Órdenes ENVIADAS (Nuevas) - PRIORIDAD ALTA
         if (sentOrders.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -262,7 +266,7 @@ fun OrdersList(
             }
         }
 
-        // Órdenes ACEPTADAS
+        // ✅ Órdenes ACEPTADAS
         if (acceptedOrders.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -293,7 +297,7 @@ fun OrdersList(
             }
         }
 
-        // Órdenes EN PREPARACIÓN
+        // 👨‍🍳 Órdenes EN PREPARACIÓN
         if (inPreparationOrders.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -323,7 +327,7 @@ fun OrdersList(
             }
         }
 
-        // Órdenes LISTAS
+        // 🎉 Órdenes LISTAS
         if (readyOrders.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -346,6 +350,34 @@ fun OrdersList(
                 )
             }
         }
+
+        // 🍽️ NUEVA SECCIÓN: COMIDA ENTREGADA
+        if (deliveredOrders.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = "🍽️ Comida Entregada",
+                    count = deliveredOrders.size,
+                    color = Color(0xFFFF9800),
+                    description = "El cliente está comiendo. La mesa se liberará cuando terminen."
+                )
+            }
+            items(deliveredOrders) { order ->
+                OrderCard(
+                    order = order,
+                    onUpdateStatus = { status ->
+                        // El chef no debería cambiar el estado de una orden entregada
+                        // pero si lo hace, solo permitimos COMPLETED
+                        if (status == OrderStatus.COMPLETED) {
+                            viewModel.updateOrderStatus(order.id, OrderStatus.COMPLETED)
+                        }
+                    },
+                    showCompletionOption = true,
+                    onMarkAsCompleted = {
+                        viewModel.updateOrderStatus(order.id, OrderStatus.COMPLETED)
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -354,7 +386,8 @@ fun OrdersSummary(
     newCount: Int,
     acceptedCount: Int,
     inProgressCount: Int,
-    readyCount: Int
+    readyCount: Int,
+    deliveredCount: Int = 0  // ✅ NUEVO PARÁMETRO con valor por defecto
 ) {
     Card(
         modifier = Modifier
@@ -384,6 +417,7 @@ fun OrdersSummary(
                 SummaryItem(count = acceptedCount, label = "Aceptados", color = Color(0xFFFF9800))
                 SummaryItem(count = inProgressCount, label = "En Prep.", color = Color(0xFFFF5722))
                 SummaryItem(count = readyCount, label = "Listos", color = Color(0xFF4CAF50))
+                SummaryItem(count = deliveredCount, label = "Entregados", color = Color(0xFFFF9800))  // ✅ NUEVO
             }
         }
     }
@@ -492,7 +526,7 @@ fun LoadingState(isInternetAvailable: Boolean) {
 fun EmptyChefOrdersState(
     isFirebaseConnected: Boolean,
     isInternetAvailable: Boolean,
-    onManualSync: () -> Unit  // ✅ Nuevo parámetro
+    onManualSync: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -534,7 +568,7 @@ fun EmptyChefOrdersState(
 
             if (!isInternetAvailable) {
                 Button(
-                    onClick = onManualSync,  // ✅ Usar el parámetro recibido
+                    onClick = onManualSync,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
                 ) {
                     Text("Reintentar conexión")

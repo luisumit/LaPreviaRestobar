@@ -23,8 +23,9 @@ fun ChefNotificationCard(
         ChefViewModel.ChefNotificationType.ORDER_ACCEPTED -> Color(0xFF2196F3).copy(alpha = 0.1f)
         ChefViewModel.ChefNotificationType.ORDER_IN_PREPARATION -> Color(0xFFFF9800).copy(alpha = 0.1f)
         ChefViewModel.ChefNotificationType.ORDER_READY -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+        ChefViewModel.ChefNotificationType.ORDER_DELIVERED -> Color(0xFFFF9800).copy(alpha = 0.15f)  // ✅ NUEVO
         ChefViewModel.ChefNotificationType.ORDER_CANCELLED -> Color(0xFFF44336).copy(alpha = 0.1f)
-        ChefViewModel.ChefNotificationType.INVENTORY_UPDATED -> Color(0xFF9C27B0).copy(alpha = 0.1f)  // ✅ NUEVO
+        ChefViewModel.ChefNotificationType.INVENTORY_UPDATED -> Color(0xFF9C27B0).copy(alpha = 0.1f)
     }
 
     val icon = when (notification.type) {
@@ -32,8 +33,9 @@ fun ChefNotificationCard(
         ChefViewModel.ChefNotificationType.ORDER_ACCEPTED -> Icons.Default.Restaurant
         ChefViewModel.ChefNotificationType.ORDER_IN_PREPARATION -> Icons.Default.LocalBar
         ChefViewModel.ChefNotificationType.ORDER_READY -> Icons.Default.CheckCircle
+        ChefViewModel.ChefNotificationType.ORDER_DELIVERED -> Icons.Default.Restaurant  // ✅ NUEVO (o Icons.Default.LocalDining)
         ChefViewModel.ChefNotificationType.ORDER_CANCELLED -> Icons.Default.Close
-        ChefViewModel.ChefNotificationType.INVENTORY_UPDATED -> Icons.Default.Inventory  // ✅ NUEVO
+        ChefViewModel.ChefNotificationType.INVENTORY_UPDATED -> Icons.Default.Inventory
     }
 
     Card(

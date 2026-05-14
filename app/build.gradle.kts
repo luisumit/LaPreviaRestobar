@@ -74,8 +74,16 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // Fix for 16KB page alignment error in Android 15
             useLegacyPackaging = true
+        }
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.jvmArgs("-Dnet.bytebuddy.experimental=true")
+            }
         }
     }
 }
@@ -142,7 +150,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.jakewharton.timber:timber:5.0.1")
     implementation("com.google.code.gson:gson:2.11.0")
-
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
@@ -155,4 +163,18 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("junit:junit:4.13.2")
+testImplementation("androidx.arch.core:core-testing:2.2.0")
+testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+testImplementation("org.mockito:mockito-core:5.12.0")
+testImplementation("androidx.test:core:1.5.0")
+testImplementation("org.robolectric:robolectric:4.13")  // ✅ tu cambio
+kapt("androidx.hilt:hilt-compiler:1.2.0")              // ✅ cambio de tu compañero
+}
+
+detekt {
+    toolVersion = "1.23.6"
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
 }
