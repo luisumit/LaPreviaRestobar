@@ -25,6 +25,7 @@ class FakeOrderRepository : FirebaseOrderRepository {
 
     override suspend fun getOrderById(orderId: String): Order? = orders.find { it.id == orderId }
     override suspend fun getOrdersByTable(tableId: Int): List<Order> = orders.filter { it.tableId == tableId }
+    override suspend fun getOrdersList(): List<Order> = orders  // ✅ agregado
 
     override suspend fun createOrder(order: Order) { orders.add(order) }
     override suspend fun updateOrder(order: Order) {
