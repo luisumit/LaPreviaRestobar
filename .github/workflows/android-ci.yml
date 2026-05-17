@@ -28,14 +28,15 @@ jobs:
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
             echo "Warning: GOOGLE_SERVICES_JSON secret is missing"
+            echo "{}" > app/google-services.json
           else
             mkdir -p app/src/debug
             mkdir -p app/src/staging
             mkdir -p app/src/release
-            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/src/debug/google-services.json
-            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/src/staging/google-services.json
-            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/src/release/google-services.json
             echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
+            cp app/google-services.json app/src/debug/google-services.json
+            cp app/google-services.json app/src/staging/google-services.json
+            cp app/google-services.json app/src/release/google-services.json
           fi
 
       - name: Crear archivo local.properties
@@ -59,11 +60,11 @@ jobs:
       - name: Ejecutar Tests Unitarios
         run: ./gradlew testDebugUnitTest
 
-      # BUILD
+      # BUILD DEBUG
       - name: Compilar APK de depuración
         run: ./gradlew assembleDebug
 
-      # SUBIR APK
+      # SUBIR APK DEBUG
       - name: Subir APK generado
         uses: actions/upload-artifact@v4
         with:
@@ -81,3 +82,19 @@ jobs:
             app/build/reports/lint-results-debug.html
             app/build/reports/lint-results-debug.xml
             app/build/reports/tests/
+
+      # BUILD RELEASE
+      - name: Compilar APK Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: ./gradlew assembleRelease
+
+      # CD - FIREBASE APP DISTRIBUTION
+      - name: Distribuir APK con Firebase App Distribution
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          token: ${{ secrets.FIREBASE_TOKEN }}
+          groups: testers
+          file: app/build/outputs/apk/release/app-release.apk
+          releaseNotes: "Build automático desde rama ${{ github.ref_name }} - ${{ github.run_number }}"
