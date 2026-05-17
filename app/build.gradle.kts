@@ -40,7 +40,6 @@ android {
             isDebuggable = true
             isMinifyEnabled = false
             buildConfigField("String", "ENVIRONMENT", "\"DEBUG\"")
-            // URLs locales para desarrollo
             buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/\"")
             buildConfigField("String", "PHYSICAL_BASE_URL", "\"http://192.168.0.104:8080/\"")
             buildConfigField("String", "WS_URL", "\"ws://10.0.2.2:8080/ws\"")
@@ -58,7 +57,6 @@ android {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "ENVIRONMENT", "\"STAGING\"")
-            // URLs del servidor de pruebas
             buildConfigField("String", "BASE_URL", "\"http://192.168.0.104:8080/\"")
             buildConfigField("String", "PHYSICAL_BASE_URL", "\"http://192.168.0.104:8080/\"")
             buildConfigField("String", "WS_URL", "\"ws://192.168.0.104:8080/ws\"")
@@ -73,8 +71,8 @@ android {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("debug") // ← agregado
             buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
-            // URLs de producción — reemplazar con las reales cuando estén listas
             buildConfigField("String", "BASE_URL", "\"https://api.laprevia.com/\"")
             buildConfigField("String", "PHYSICAL_BASE_URL", "\"https://api.laprevia.com/\"")
             buildConfigField("String", "WS_URL", "\"wss://api.laprevia.com/ws\"")
@@ -170,6 +168,7 @@ dependencies {
     kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
+    kapt("androidx.hilt:hilt-compiler:1.2.0")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
@@ -187,27 +186,21 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.jakewharton.timber:timber:5.0.1")
     implementation("com.google.code.gson:gson:2.11.0")
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("app.cash.turbine:turbine:1.1.0")
     testImplementation("org.mockito:mockito-core:5.12.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("androidx.test:core:1.5.0")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    testImplementation("junit:junit:4.13.2")
-testImplementation("androidx.arch.core:core-testing:2.2.0")
-testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
-testImplementation("org.mockito:mockito-core:5.12.0")
-testImplementation("androidx.test:core:1.5.0")
-testImplementation("org.robolectric:robolectric:4.13")  // ✅ tu cambio
-kapt("androidx.hilt:hilt-compiler:1.2.0")              // ✅ cambio de tu compañero
 }
 
 detekt {
