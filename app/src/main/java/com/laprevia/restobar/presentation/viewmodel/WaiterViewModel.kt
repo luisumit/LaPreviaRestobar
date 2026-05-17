@@ -163,6 +163,38 @@ class WaiterViewModel @Inject constructor(
             delay(1000)
             loadInitialData()
             setupFirebaseRealtimeUpdates()
+            listenToProductChanges()  // ✅ NUEVO: Escuchar cambios en productos
+        }
+    }
+
+    // ✅ NUEVO: Escuchar cambios en productos en tiempo real
+    private fun listenToProductChanges() {
+        viewModelScope.launch {
+            try {
+                firebaseProductRepository.listenToProductChanges().collect { updatedProduct ->
+                    println("🔄 Waiter: Producto actualizado - ${updatedProduct.name}")
+                    println("   - Stock anterior: ${_products.value.find { it.id == updatedProduct.id }?.stock}")
+                    println("   - Stock nuevo: ${updatedProduct.stock}")
+
+                    // Actualizar en Room
+                    db.productDao().insert(updatedProduct.toEntity().copy(syncStatus = "SYNCED"))
+
+                    // Actualizar UI
+                    val currentProducts = _products.value.toMutableList()
+                    val index = currentProducts.indexOfFirst { it.id == updatedProduct.id }
+                    if (index != -1) {
+                        currentProducts[index] = updatedProduct
+                        _products.value = currentProducts
+                        println("✅ Waiter: Producto actualizado en UI - ${updatedProduct.name} → stock: ${updatedProduct.stock}")
+                    } else {
+                        // Si es un producto nuevo, agregarlo a la lista
+                        _products.value = (currentProducts + updatedProduct).sortedBy { it.name }
+                        println("✅ Waiter: Nuevo producto agregado - ${updatedProduct.name}")
+                    }
+                }
+            } catch (e: Exception) {
+                println("❌ Waiter: Error escuchando productos: ${e.message}")
+            }
         }
     }
 
@@ -345,10 +377,20 @@ class WaiterViewModel @Inject constructor(
         }
     }
 
+    // ✅ CORREGIDO: Cargar productos y guardar en Room
     private suspend fun loadProductsOnce() {
         try {
             val productsList = firebaseProductRepository.getSellableProducts().first()
             _products.value = productsList.distinctBy { it.id }.sortedBy { it.name }
+
+            // ✅ Guardar en Room también
+            productsList.forEach { product ->
+                val existing = db.productDao().getById(product.id)
+                if (existing == null || existing.stock != product.stock) {
+                    db.productDao().insert(product.toEntity().copy(syncStatus = "SYNCED"))
+                }
+            }
+
             println("✅ Waiter: ${_products.value.size} productos cargados")
         } catch (e: Exception) {
             println("❌ Waiter: Error cargando productos: ${e.message}")
