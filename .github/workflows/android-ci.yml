@@ -64,12 +64,25 @@ jobs:
       - name: Compilar APK de depuración
         run: ./gradlew assembleDebug
 
+      # BUILD RELEASE
+      - name: Compilar APK Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: ./gradlew assembleRelease
+
       # SUBIR APK DEBUG
       - name: Subir APK generado
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # SUBIR APK RELEASE
+      - name: Subir APK Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
 
       # SUBIR REPORTES
       - name: Subir reportes de análisis y tests
@@ -83,11 +96,6 @@ jobs:
             app/build/reports/lint-results-debug.xml
             app/build/reports/tests/
 
-      # BUILD RELEASE
-      - name: Compilar APK Release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        run: ./gradlew assembleRelease
-
       # CD - FIREBASE APP DISTRIBUTION
       - name: Distribuir APK con Firebase App Distribution
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -96,5 +104,5 @@ jobs:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           token: ${{ secrets.FIREBASE_TOKEN }}
           groups: testers
-          file: app/build/outputs/apk/release/app-release.apk
+          file: app/build/outputs/apk/debug/app-debug.apk
           releaseNotes: "Build automático desde rama ${{ github.ref_name }} - ${{ github.run_number }}"
