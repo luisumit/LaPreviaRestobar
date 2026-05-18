@@ -25,8 +25,8 @@ android {
         applicationId = "com.laprevia.restobar"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toInt() ?: 1
+        versionName = "1.0.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
