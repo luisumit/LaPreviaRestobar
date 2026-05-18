@@ -60,11 +60,11 @@ jobs:
       - name: Ejecutar Tests Unitarios
         run: ./gradlew testDebugUnitTest
 
-      # BUILD
+      # BUILD DEBUG
       - name: Compilar APK de depuración
         run: ./gradlew assembleDebug
 
-      # SUBIR APK
+      # SUBIR APK DEBUG
       - name: Subir APK generado
         uses: actions/upload-artifact@v4
         with:
@@ -83,7 +83,12 @@ jobs:
             app/build/reports/lint-results-debug.xml
             app/build/reports/tests/
 
-      # CD - DISTRIBUIR CON FIREBASE APP DISTRIBUTION
+      # BUILD RELEASE
+      - name: Compilar APK Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: ./gradlew assembleRelease
+
+      # CD - FIREBASE APP DISTRIBUTION
       - name: Distribuir APK con Firebase App Distribution
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: wzieba/Firebase-Distribution-Github-Action@v1
@@ -91,5 +96,5 @@ jobs:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           token: ${{ secrets.FIREBASE_TOKEN }}
           groups: testers
-          file: app/build/outputs/apk/debug/app-debug.apk
+          file: app/build/outputs/apk/release/app-release.apk
           releaseNotes: "Build automático desde rama ${{ github.ref_name }} - ${{ github.run_number }}"
