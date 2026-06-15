@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.ProductItem
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 
 @Composable
@@ -44,9 +45,9 @@ fun ProductsScreen(
 
     // Texto de estado de conexión
     val connectionStatusText = when {
-        !isInternetAvailable -> "🔴 SIN INTERNET - Productos locales disponibles"
-        !isFirebaseConnected -> "🟡 Reconectando con el servidor..."
-        else -> "🟢 Conectado"
+        !isInternetAvailable -> "SIN INTERNET - Productos locales disponibles"
+        !isFirebaseConnected -> "Reconectando con el servidor..."
+        else -> "Conectado"
     }
 
     Column(
@@ -61,7 +62,7 @@ fun ProductsScreen(
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFF44336).copy(alpha = 0.15f)
+                    containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
                 )
             ) {
                 Row(
@@ -74,12 +75,12 @@ fun ProductsScreen(
                     Icon(
                         imageVector = Icons.Default.WifiOff,
                         contentDescription = "Sin conexión",
-                        tint = Color(0xFFF44336),
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = connectionStatusText,
-                        color = Color(0xFFF44336),
+                        color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f)
@@ -88,7 +89,7 @@ fun ProductsScreen(
                         onClick = { viewModel.syncWithFirebase() },
                         modifier = Modifier.height(32.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9800)
+                            containerColor = WarningOrange
                         )
                     ) {
                         Text("Reconectar", fontSize = MaterialTheme.typography.labelSmall.fontSize)
@@ -103,7 +104,7 @@ fun ProductsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.9f))
+                colors = CardDefaults.cardColors(containerColor = WarningOrange.copy(alpha = 0.9f))
             ) {
                 Text(
                     text = currentConnectionMessage,
@@ -140,7 +141,7 @@ fun ProductsScreen(
                     CircularProgressIndicator()
                     Text(
                         if (!isInternetAvailable) "Sin conexión - Mostrando productos locales..." else "Cargando productos...",
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -156,7 +157,7 @@ fun ProductsScreen(
                     Text(
                         text = if (!isInternetAvailable) "Sin conexión a internet" else "No hay productos disponibles",
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Text(
                         text = if (!isInternetAvailable)
@@ -164,14 +165,14 @@ fun ProductsScreen(
                         else
                             "Los productos aparecerán aquí cuando estén configurados",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 32.dp)
                     )
                     if (!isInternetAvailable) {
                         Button(
                             onClick = { viewModel.syncWithFirebase() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560)),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                             modifier = Modifier.padding(top = 16.dp)
                         ) {
                             Text("Reintentar")
@@ -195,12 +196,12 @@ fun ProductsScreen(
                         Text(
                             text = "No hay productos activos",
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
                             text = "Todos los productos están inactivos",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.4f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                             textAlign = TextAlign.Center
                         )
                     }
@@ -208,12 +209,23 @@ fun ProductsScreen(
             } else {
                 // Mostrar mensaje de modo offline si corresponde
                 if (!isInternetAvailable) {
-                    Text(
-                        text = "📱 Modo offline - Mostrando productos guardados localmente",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFFF9800),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WifiOff,
+                            contentDescription = "Sin conexion",
+                            tint = WarningOrange,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Modo offline - Mostrando productos guardados localmente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = WarningOrange
+                        )
+                    }
                 }
 
                 LazyColumn(
@@ -250,7 +262,7 @@ fun CurrentOrderMiniSummary(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1a1a2e).copy(alpha = 0.6f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
         )
     ) {
         Row(
@@ -278,7 +290,7 @@ fun CurrentOrderMiniSummary(
                 Text(
                     text = "Ver pedido",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFe94560),
+                    color = MaterialTheme.colorScheme.secondary,
                     fontWeight = FontWeight.Medium
                 )
             }

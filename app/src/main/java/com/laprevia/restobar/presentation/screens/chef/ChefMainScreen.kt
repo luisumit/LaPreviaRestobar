@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laprevia.restobar.presentation.screens.chef.components.ChefNotificationPanel
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.ChefViewModel
 import com.laprevia.restobar.presentation.viewmodel.InventoryViewModel
 import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
@@ -37,11 +39,9 @@ fun ChefMainScreen(
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
-    // Estados
     var selectedTab by remember { mutableStateOf(0) }
     var showNotifications by remember { mutableStateOf(false) }
 
-    // Estados del ViewModel actualizados
     val notifications by remember { chefViewModel.notifications }.collectAsState()
     val orders by remember { chefViewModel.orders }.collectAsState()
     val successMessage by remember { chefViewModel.successMessage }.collectAsState()
@@ -50,14 +50,12 @@ fun ChefMainScreen(
     val isFirebaseConnected by remember { chefViewModel.isFirebaseConnected }.collectAsState()
     val isInternetAvailable by remember { chefViewModel.isInternetAvailable }.collectAsState()
 
-    // Texto de estado de conexión
     val connectionStatusText = when {
-        !isInternetAvailable -> "🔴 SIN INTERNET - Modo offline"
-        isFirebaseConnected -> "🟢 Conectado a Firebase"
-        else -> "🟡 Conectando..."
+        !isInternetAvailable -> "SIN INTERNET - Modo offline"
+        isFirebaseConnected -> "Conectado a Firebase"
+        else -> "Conectando..."
     }
 
-    // Auto-clear mensajes después de 3 segundos
     LaunchedEffect(successMessage, errorMessage, connectionMessage) {
         if (successMessage != null || errorMessage != null || connectionMessage != null) {
             delay(3000)
@@ -67,15 +65,9 @@ fun ChefMainScreen(
         }
     }
 
-    // Contadores
     val newOrdersCount = orders.count { it.status == com.laprevia.restobar.data.model.OrderStatus.ENVIADO }
     val activeOrdersCount = orders.size
 
-    val backgroundColor = Color(0xFF0f3460)
-    val surfaceColor = Color(0xFF1a1a2e)
-    val accentColor = Color(0xFFe94560)
-
-    // Cargar órdenes al iniciar
     LaunchedEffect(Unit) {
         chefViewModel.refreshOrders()
     }
@@ -89,8 +81,8 @@ fun ChefMainScreen(
                         elevation = 4.dp,
                         shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                     ),
-                color = Color(0xFF1a1a2e),
-                contentColor = Color.White
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
                 Column(
                     modifier = Modifier
@@ -107,7 +99,7 @@ fun ChefMainScreen(
                                 text = buildAnnotatedString {
                                     withStyle(
                                         SpanStyle(
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             fontWeight = FontWeight.Black,
                                             fontSize = 24.sp,
                                             letterSpacing = 2.sp
@@ -117,7 +109,7 @@ fun ChefMainScreen(
                                     }
                                     withStyle(
                                         SpanStyle(
-                                            color = Color(0xFFe94560),
+                                            color = MaterialTheme.colorScheme.secondary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 16.sp,
                                             letterSpacing = 3.sp
@@ -142,12 +134,12 @@ fun ChefMainScreen(
                                     modifier = Modifier
                                         .size(44.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF16213e))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Notifications,
                                         contentDescription = "Notificaciones",
-                                        tint = Color.White,
+                                        tint = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -157,26 +149,25 @@ fun ChefMainScreen(
 
                             IconButton(
                                 onClick = {
-                                    timber.log.Timber.d("🔄 ChefScreen: Cerrando sesión...")
+                                    timber.log.Timber.d("ChefScreen: Cerrando sesion...")
                                     loginViewModel.signOut()
                                     onLogout()
                                 },
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFe94560))
+                                    .background(MaterialTheme.colorScheme.secondary)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Logout,
-                                    contentDescription = "Cerrar sesión",
-                                    tint = Color.White,
+                                    contentDescription = "Cerrar sesion",
+                                    tint = MaterialTheme.colorScheme.onSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
                     }
 
-                    // ✅ BANNER DE ESTADO DE CONEXIÓN
                     ConnectionStatusBannerChefMain(
                         isInternetAvailable = isInternetAvailable,
                         isFirebaseConnected = isFirebaseConnected,
@@ -194,14 +185,14 @@ fun ChefMainScreen(
                         Text(
                             text = "SISTEMA COCINERO",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             fontWeight = FontWeight.Medium,
                             letterSpacing = 3.sp
                         )
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (newOrdersCount > 0) {
-                                Badge(containerColor = Color(0xFFe94560)) {
+                                Badge(containerColor = MaterialTheme.colorScheme.secondary) {
                                     Text(text = "$newOrdersCount nuevas")
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -209,27 +200,22 @@ fun ChefMainScreen(
                             Text(
                                 text = "$activeOrdersCount activas",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                         }
                     }
                 }
             }
         },
-        containerColor = Color(0xFF0f3460)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(backgroundColor, surfaceColor)
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // ✅ MENSAJES TEMPORALES
                 MessageBannerChefMain(
                     error = errorMessage,
                     warning = connectionMessage,
@@ -239,14 +225,13 @@ fun ChefMainScreen(
                     onClearSuccess = { chefViewModel.clearSuccessMessage() }
                 )
 
-                // Panel de bienvenida
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .shadow(4.dp, RoundedCornerShape(16.dp)),
                     colors = CardDefaults.cardColors(
-                        containerColor = surfaceColor.copy(alpha = 0.8f)
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
                     )
                 ) {
                     Row(
@@ -261,7 +246,7 @@ fun ChefMainScreen(
                                 .clip(CircleShape)
                                 .background(
                                     Brush.radialGradient(
-                                        colors = listOf(accentColor, surfaceColor)
+                                        colors = listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.surface)
                                     )
                                 ),
                             contentAlignment = Alignment.Center
@@ -269,7 +254,7 @@ fun ChefMainScreen(
                             Icon(
                                 imageVector = Icons.Default.RestaurantMenu,
                                 contentDescription = "Chef",
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -278,14 +263,14 @@ fun ChefMainScreen(
 
                         Column {
                             Text(
-                                text = "¡Bienvenido, Chef!",
-                                color = Color.White,
+                                text = "Bienvenido, Chef!",
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
                             Text(
                                 text = "Controla pedidos e inventario conectado al sistema",
-                                color = Color.White.copy(alpha = 0.7f),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 fontSize = 12.sp
                             )
 
@@ -293,34 +278,46 @@ fun ChefMainScreen(
                                 modifier = Modifier.padding(top = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
+                                val statusColor = when {
+                                    !isInternetAvailable -> MaterialTheme.colorScheme.error
+                                    isFirebaseConnected -> SuccessGreen
+                                    else -> WarningOrange
+                                }
+                                val statusIcon = when {
+                                    !isInternetAvailable -> Icons.Default.WifiOff
+                                    isFirebaseConnected -> Icons.Default.Wifi
+                                    else -> Icons.Default.Sync
+                                }
+                                Icon(
+                                    imageVector = statusIcon,
+                                    contentDescription = null,
+                                    tint = statusColor,
+                                    modifier = Modifier.size(12.dp)
+                                )
                                 Text(
                                     text = connectionStatusText,
-                                    color = when {
-                                        !isInternetAvailable -> Color(0xFFF44336)
-                                        isFirebaseConnected -> Color(0xFF4CAF50)
-                                        else -> Color(0xFFFF9800)
-                                    },
+                                    color = statusColor,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium
                                 )
 
                                 Text(
-                                    text = "•",
-                                    color = Color.White.copy(alpha = 0.5f),
+                                    text = "\u2022",
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                     fontSize = 10.sp
                                 )
 
                                 Text(
                                     text = "$activeOrdersCount activas",
-                                    color = Color.White.copy(alpha = 0.8f),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                     fontSize = 10.sp
                                 )
                             }
 
                             if (newOrdersCount > 0) {
                                 Text(
-                                    text = "$newOrdersCount nuevas órdenes pendientes",
-                                    color = Color(0xFFe94560),
+                                    text = "$newOrdersCount nuevas ordenes pendientes",
+                                    color = MaterialTheme.colorScheme.secondary,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 2.dp)
@@ -330,7 +327,6 @@ fun ChefMainScreen(
                     }
                 }
 
-                // Panel de notificaciones
                 if (showNotifications && notifications.isNotEmpty()) {
                     ChefNotificationPanel(
                         notifications = notifications,
@@ -347,12 +343,11 @@ fun ChefMainScreen(
                     )
                 }
 
-                // Tabs principales
                 Column(modifier = Modifier.fillMaxSize()) {
                     TabRow(
                         selectedTabIndex = selectedTab,
-                        containerColor = surfaceColor.copy(alpha = 0.6f),
-                        contentColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
                         Tab(
@@ -361,7 +356,7 @@ fun ChefMainScreen(
                                 selectedTab = 0
                                 showNotifications = false
                             },
-                            text = { Text(text = "ÓRDENES") }
+                            text = { Text(text = "ORDENES") }
                         )
                         Tab(
                             selected = selectedTab == 1,
@@ -397,9 +392,15 @@ fun ConnectionStatusBannerChefMain(
     onManualSync: () -> Unit
 ) {
     val backgroundColor = when {
-        !isInternetAvailable -> Color(0xFFF44336).copy(alpha = 0.9f)
-        !isFirebaseConnected -> Color(0xFFFF9800).copy(alpha = 0.9f)
-        else -> Color(0xFF4CAF50).copy(alpha = 0.9f)
+        !isInternetAvailable -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+        !isFirebaseConnected -> WarningOrange.copy(alpha = 0.9f)
+        else -> SuccessGreen.copy(alpha = 0.9f)
+    }
+
+    val statusIcon = when {
+        !isInternetAvailable -> Icons.Default.WifiOff
+        !isFirebaseConnected -> Icons.Default.Sync
+        else -> Icons.Default.Wifi
     }
 
     Card(
@@ -417,11 +418,7 @@ fun ConnectionStatusBannerChefMain(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = when {
-                        !isInternetAvailable -> Icons.Default.WifiOff
-                        !isFirebaseConnected -> Icons.Default.Sync
-                        else -> Icons.Default.Wifi
-                    },
+                    imageVector = statusIcon,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
@@ -457,13 +454,12 @@ fun MessageBannerChefMain(
     onClearWarning: () -> Unit,
     onClearSuccess: () -> Unit
 ) {
-    // Mensaje de ERROR (rojo)
     if (error != null) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier
@@ -481,13 +477,12 @@ fun MessageBannerChefMain(
         }
     }
 
-    // Mensaje de ADVERTENCIA (naranja)
     if (warning != null) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = WarningOrange.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier
@@ -505,13 +500,12 @@ fun MessageBannerChefMain(
         }
     }
 
-    // Mensaje de ÉXITO (verde)
     if (success != null) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = SuccessGreen.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier

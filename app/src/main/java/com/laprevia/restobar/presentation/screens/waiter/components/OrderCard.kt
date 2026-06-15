@@ -17,6 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.presentation.theme.InfoBlue
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 
 @Composable
 fun OrderCard(
@@ -99,7 +102,7 @@ fun OrderCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Text(
-                        text = "🕒 ${getDetailedTimeAgo(order.createdAt)}",
+                        text = "${getDetailedTimeAgo(order.createdAt)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -158,7 +161,7 @@ fun OrderCard(
                         .fillMaxWidth()
                         .padding(top = 8.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFFF9C4)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 ) {
                     Row(
@@ -166,9 +169,9 @@ fun OrderCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📝 Nota: $notes",
+                            text = "Nota: $notes",
                             style = if (isTablet) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8D6E63),
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -183,7 +186,7 @@ fun OrderCard(
                         .padding(top = if (isTablet) 16.dp else 12.dp)
                 ) {
                     Text(
-                        text = "📦 Items del pedido (${order.items.size})",
+                        text = "Items del pedido (${order.items.size})",
                         style = if (isTablet) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -220,7 +223,7 @@ fun OrderCard(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                            containerColor = SuccessGreen.copy(alpha = 0.1f)
                         )
                     ) {
                         Row(
@@ -233,14 +236,14 @@ fun OrderCard(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Listo",
-                                tint = Color(0xFF4CAF50),
+                                tint = SuccessGreen,
                                 modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
                             )
                             Text(
-                                text = "✅ PEDIDO LISTO - Entregar al cliente",
+                                text = "PEDIDO LISTO - Entregar al cliente",
                                 style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4CAF50)
+                                color = SuccessGreen
                             )
                         }
                     }
@@ -255,7 +258,7 @@ fun OrderCard(
                         Button(
                             onClick = { showCancelDialog = true },
                             modifier = Modifier.weight(1f).height(buttonHeight),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                             contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
                         ) {
                             Row(
@@ -268,8 +271,7 @@ fun OrderCard(
                                     modifier = Modifier.size(iconSize)
                                 )
                                 Text(
-                                    if (isTablet) "❌ CANCELAR PEDIDO" else "CANCELAR",
-                                    color = Color.White,
+                                    if (isTablet) "CANCELAR PEDIDO" else "CANCELAR",
                                     fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                                 )
                             }
@@ -277,11 +279,11 @@ fun OrderCard(
                         // Botón ENTREGAR
                         Button(
                             onClick = {
-                                println("🍽️ OrderCard: Entregando comida - Orden ${order.id}")
+                                println("OrderCard: Entregando comida - Orden ${order.id}")
                                 onMarkAsDelivered()
                             },
                             modifier = Modifier.weight(1f).height(buttonHeight),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                            colors = ButtonDefaults.buttonColors(containerColor = InfoBlue),
                             contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
                         ) {
                             Row(
@@ -294,8 +296,7 @@ fun OrderCard(
                                     modifier = Modifier.size(iconSize)
                                 )
                                 Text(
-                                    if (isTablet) "🍽️ ENTREGAR COMIDA" else "ENTREGAR",
-                                    color = Color.White,
+                                    if (isTablet) "ENTREGAR COMIDA" else "ENTREGAR",
                                     fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                                 )
                             }
@@ -314,7 +315,7 @@ fun OrderCard(
                         Button(
                             onClick = { showCancelDialog = true },
                             modifier = Modifier.weight(1f).height(buttonHeight),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                             contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
                         ) {
                             Row(
@@ -327,8 +328,7 @@ fun OrderCard(
                                     modifier = Modifier.size(iconSize)
                                 )
                                 Text(
-                                    if (isTablet) "❌ CANCELAR" else "CANCELAR",
-                                    color = Color.White,
+                                    if (isTablet) "CANCELAR" else "CANCELAR",
                                     fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                                 )
                             }
@@ -336,11 +336,11 @@ fun OrderCard(
                         // Botón LIBERAR MESA
                         Button(
                             onClick = {
-                                println("🧹 OrderCard: Liberando mesa - Orden ${order.id}")
+                                println("OrderCard: Liberando mesa - Orden ${order.id}")
                                 onMarkAsServed()
                             },
                             modifier = Modifier.weight(1f).height(buttonHeight),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                            colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                             contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
                         ) {
                             Row(
@@ -353,8 +353,7 @@ fun OrderCard(
                                     modifier = Modifier.size(iconSize)
                                 )
                                 Text(
-                                    if (isTablet) "🧹 LIBERAR MESA" else "LIBERAR",
-                                    color = Color.White,
+                                    if (isTablet) "LIBERAR MESA" else "LIBERAR",
                                     fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                                 )
                             }
@@ -367,7 +366,7 @@ fun OrderCard(
                     Button(
                         onClick = { showCancelDialog = true },
                         modifier = Modifier.fillMaxWidth().height(buttonHeight),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                         contentPadding = PaddingValues(horizontal = if (isTablet) 16.dp else 8.dp, vertical = if (isTablet) 8.dp else 4.dp)
                     ) {
                         Row(
@@ -380,8 +379,7 @@ fun OrderCard(
                                 modifier = Modifier.size(iconSize)
                             )
                             Text(
-                                if (isTablet) "❌ CANCELAR PEDIDO" else "CANCELAR",
-                                color = Color.White,
+                                if (isTablet) "CANCELAR PEDIDO" else "CANCELAR",
                                 fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                             )
                         }
@@ -391,7 +389,7 @@ fun OrderCard(
 
             // Indicador de última actualización
             Text(
-                text = "🔄 Actualizado ${getDetailedTimeAgo(order.updatedAt)}",
+                text = "Actualizado ${getDetailedTimeAgo(order.updatedAt)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                 modifier = Modifier
@@ -556,29 +554,31 @@ private fun getDetailedTimeAgo(timestamp: Long): String {
     }
 }
 
+@Composable
 private fun getStatusColors(status: OrderStatus): Pair<Color, Color> {
     return when (status) {
-        OrderStatus.ENVIADO -> Color(0xFF2196F3) to Color.White
-        OrderStatus.ACEPTADO -> Color(0xFFFF9800) to Color.White
-        OrderStatus.EN_PREPARACION -> Color(0xFFFF5722) to Color.White
-        OrderStatus.LISTO -> Color(0xFF4CAF50) to Color.White
-        OrderStatus.ENTREGADO -> Color(0xFF9C27B0) to Color.White
-        OrderStatus.COMPLETED -> Color(0xFF9E9E9E) to Color.White
-        OrderStatus.CANCELLED -> Color(0xFFF44336) to Color.White
-        else -> Color.Gray to Color.White
+        OrderStatus.ENVIADO -> InfoBlue to MaterialTheme.colorScheme.onPrimary
+        OrderStatus.ACEPTADO -> WarningOrange to MaterialTheme.colorScheme.onSecondary
+        OrderStatus.EN_PREPARACION -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
+        OrderStatus.LISTO -> SuccessGreen to MaterialTheme.colorScheme.onPrimary
+        OrderStatus.ENTREGADO -> MaterialTheme.colorScheme.tertiary to MaterialTheme.colorScheme.onTertiary
+        OrderStatus.COMPLETED -> MaterialTheme.colorScheme.outline to MaterialTheme.colorScheme.onSurface
+        OrderStatus.CANCELLED -> MaterialTheme.colorScheme.error to MaterialTheme.colorScheme.onError
+        else -> MaterialTheme.colorScheme.outline to MaterialTheme.colorScheme.onSurface
     }
 }
 
+@Composable
 private fun getStatusColor(status: OrderStatus): Color {
     return when (status) {
-        OrderStatus.ENVIADO -> Color(0xFF2196F3)
-        OrderStatus.ACEPTADO -> Color(0xFFFF9800)
-        OrderStatus.EN_PREPARACION -> Color(0xFFFF5722)
-        OrderStatus.LISTO -> Color(0xFF4CAF50)
-        OrderStatus.ENTREGADO -> Color(0xFF9C27B0)
-        OrderStatus.COMPLETED -> Color(0xFF9E9E9E)
-        OrderStatus.CANCELLED -> Color(0xFFF44336)
-        else -> Color.Gray
+        OrderStatus.ENVIADO -> InfoBlue
+        OrderStatus.ACEPTADO -> WarningOrange
+        OrderStatus.EN_PREPARACION -> MaterialTheme.colorScheme.secondary
+        OrderStatus.LISTO -> SuccessGreen
+        OrderStatus.ENTREGADO -> MaterialTheme.colorScheme.tertiary
+        OrderStatus.COMPLETED -> MaterialTheme.colorScheme.outline
+        OrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.outline
     }
 }
 

@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.TableCard
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
+import com.laprevia.restobar.presentation.theme.InfoBlue
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 
 @Composable
@@ -39,22 +42,20 @@ fun TablesScreen(
         viewModel.refreshData()
     }
 
-    // Texto de estado de conexión
     val connectionStatusText = when {
-        !isInternetAvailable -> "🔴 SIN INTERNET - Mesas locales disponibles"
-        !isFirebaseConnected -> "🟡 Reconectando con el servidor..."
-        else -> "🟢 Conectado"
+        !isInternetAvailable -> "SIN INTERNET - Mesas locales disponibles"
+        !isFirebaseConnected -> "Reconectando con el servidor..."
+        else -> "Conectado"
     }
 
-    // ✅ Variable local para usar en condiciones
     val currentConnectionMessage = connectionMessage
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF121212))
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Banner de estado de conexión
+        // Banner de estado de conexion
         if (!isInternetAvailable || !isFirebaseConnected) {
             Card(
                 modifier = Modifier
@@ -62,9 +63,9 @@ fun TablesScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (!isInternetAvailable)
-                        Color(0xFFF44336).copy(alpha = 0.15f)
+                        MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
                     else
-                        Color(0xFFFF9800).copy(alpha = 0.15f)
+                        WarningOrange.copy(alpha = 0.15f)
                 )
             ) {
                 Row(
@@ -76,13 +77,13 @@ fun TablesScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.WifiOff,
-                        contentDescription = "Sin conexión",
-                        tint = if (!isInternetAvailable) Color(0xFFF44336) else Color(0xFFFF9800),
+                        contentDescription = "Sin conexion",
+                        tint = if (!isInternetAvailable) MaterialTheme.colorScheme.error else WarningOrange,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = connectionStatusText,
-                        color = if (!isInternetAvailable) Color(0xFFF44336) else Color(0xFFFF9800),
+                        color = if (!isInternetAvailable) MaterialTheme.colorScheme.error else WarningOrange,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f)
@@ -92,7 +93,7 @@ fun TablesScreen(
                             onClick = { viewModel.syncWithFirebase() },
                             modifier = Modifier.height(32.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFF9800)
+                                containerColor = WarningOrange
                             )
                         ) {
                             Text("Reconectar", fontSize = MaterialTheme.typography.labelSmall.fontSize)
@@ -102,17 +103,16 @@ fun TablesScreen(
             }
         }
 
-        // ✅ Mensaje temporal de conexión - CORREGIDO
         if (currentConnectionMessage != null && currentConnectionMessage.contains("SIN INTERNET")) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.9f))
+                colors = CardDefaults.cardColors(containerColor = WarningOrange.copy(alpha = 0.9f))
             ) {
                 Text(
                     text = currentConnectionMessage,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(12.dp),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -130,8 +130,8 @@ fun TablesScreen(
                 ) {
                     CircularProgressIndicator()
                     Text(
-                        if (!isInternetAvailable) "Sin conexión - Mostrando datos locales..." else "Cargando mesas...",
-                        color = Color.White
+                        if (!isInternetAvailable) "Sin conexion - Mostrando datos locales..." else "Cargando mesas...",
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
@@ -147,28 +147,28 @@ fun TablesScreen(
                     Icon(
                         imageVector = Icons.Default.WifiOff,
                         contentDescription = "Sin mesas",
-                        tint = Color.White.copy(alpha = 0.5f),
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         modifier = Modifier.size(64.dp)
                     )
                     Text(
-                        text = if (!isInternetAvailable) "Sin conexión a internet" else "No hay mesas disponibles",
+                        text = if (!isInternetAvailable) "Sin conexion a internet" else "No hay mesas disponibles",
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                     Text(
                         text = if (!isInternetAvailable)
-                            "Las mesas se sincronizarán cuando vuelva internet"
+                            "Las mesas se sincronizaran cuando vuelva internet"
                         else
-                            "Las mesas aparecerán aquí cuando estén configuradas",
+                            "Las mesas apareceran aqui cuando esten configuradas",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 32.dp)
                     )
                     if (!isInternetAvailable) {
                         Button(
                             onClick = { viewModel.syncWithFirebase() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                         ) {
                             Text("Reintentar")
                         }
@@ -217,7 +217,7 @@ fun TablesSummary(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1a1a2e).copy(alpha = 0.8f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -230,7 +230,7 @@ fun TablesSummary(
                 text = "Resumen del Restaurante",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
@@ -241,22 +241,22 @@ fun TablesSummary(
                 TableStatItem(
                     count = totalTables,
                     label = "Total Mesas",
-                    color = Color(0xFF2196F3)
+                    color = InfoBlue
                 )
                 TableStatItem(
                     count = occupiedTables,
                     label = "Ocupadas",
-                    color = Color(0xFFFF9800)
+                    color = WarningOrange
                 )
                 TableStatItem(
                     count = freeTables,
                     label = "Libres",
-                    color = Color(0xFF4CAF50)
+                    color = SuccessGreen
                 )
                 TableStatItem(
                     count = totalOrders,
-                    label = "Órdenes",
-                    color = Color(0xFF9C27B0)
+                    label = "Ordenes",
+                    color = MaterialTheme.colorScheme.tertiary
                 )
             }
         }
@@ -281,7 +281,7 @@ fun TableStatItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             fontWeight = FontWeight.Medium
         )
     }

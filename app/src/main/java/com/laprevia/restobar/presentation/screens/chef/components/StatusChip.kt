@@ -10,9 +10,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.laprevia.restobar.data.model.OrderStatus
-import com.laprevia.restobar.presentation.theme.GreenSuccess
-import com.laprevia.restobar.presentation.theme.OrangeWarning
-import com.laprevia.restobar.presentation.theme.RedError
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 
 @Composable
 fun StatusChip(status: OrderStatus) {
@@ -32,13 +31,14 @@ fun StatusChip(status: OrderStatus) {
     }
 }
 
+@Composable
 private fun getStatusColorsAndText(status: OrderStatus): Triple<Color, Color, String> {
     return when (status) {
-        OrderStatus.ENVIADO -> Triple(OrangeWarning, Color.White, "Enviado")
-        OrderStatus.ACEPTADO -> Triple(RedError, Color.White, "Aceptado")
-        OrderStatus.EN_PREPARACION -> Triple(OrangeWarning, Color.White, "En Prep.")
-        OrderStatus.LISTO -> Triple(GreenSuccess, Color.White, "Listo")
-        else -> Triple(Color.Gray, Color.White, "Desconocido")
+        OrderStatus.ENVIADO -> Triple(WarningOrange, MaterialTheme.colorScheme.onSecondary, "Enviado")
+        OrderStatus.ACEPTADO -> Triple(MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.onError, "Aceptado")
+        OrderStatus.EN_PREPARACION -> Triple(WarningOrange, MaterialTheme.colorScheme.onSecondary, "En Prep.")
+        OrderStatus.LISTO -> Triple(SuccessGreen, MaterialTheme.colorScheme.onPrimary, "Listo")
+        else -> Triple(MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.onSurface, "Desconocido")
     }
 }
 
