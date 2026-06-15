@@ -7,6 +7,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.data.model.Product
+import com.laprevia.restobar.presentation.theme.InfoBlue
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 import kotlinx.coroutines.delay
 
@@ -49,9 +56,9 @@ fun InventoryScreen(
 
     // Texto de estado de conexión
     val connectionStatusText = when {
-        !isInternetAvailable -> "🔴 SIN INTERNET - Inventario local"
-        isFirebaseConnected -> "🟢 Conectado"
-        else -> "🟡 Reconectando..."
+        !isInternetAvailable -> "SIN INTERNET - Inventario local"
+        isFirebaseConnected -> "Conectado"
+        else -> "Reconectando..."
     }
 
     Scaffold(
@@ -73,14 +80,14 @@ fun InventoryScreen(
                             Icon(
                                 imageVector = Icons.Default.WifiOff,
                                 contentDescription = "Sin conexión",
-                                tint = Color(0xFFF44336),
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(18.dp)
                             )
                         } else if (!isFirebaseConnected) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = "Reconectando",
-                                tint = Color(0xFFFF9800),
+                                tint = WarningOrange,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -108,7 +115,7 @@ fun InventoryScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.15f))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.15f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -120,18 +127,18 @@ fun InventoryScreen(
                         Icon(
                             imageVector = Icons.Default.WifiOff,
                             contentDescription = "Sin conexión",
-                            tint = Color(0xFFF44336)
+                            tint = MaterialTheme.colorScheme.error
                         )
                         Column {
                             Text(
                                 text = connectionStatusText,
-                                color = Color(0xFFF44336),
+                                color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = "Mostrando inventario local. Conéctate para sincronizar.",
-                                color = Color(0xFFF44336),
+                                text = "Mostrando inventario local. Conectate para sincronizar.",
+                                color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -145,11 +152,11 @@ fun InventoryScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.9f))
+                    colors = CardDefaults.cardColors(containerColor = WarningOrange.copy(alpha = 0.9f))
                 ) {
                     Text(
                         text = currentConnectionMessage,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -178,7 +185,7 @@ fun InventoryScreen(
                         CircularProgressIndicator()
                         Text(
                             text = if (!isInternetAvailable) "Cargando inventario local..." else "Cargando inventario...",
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -195,13 +202,13 @@ fun InventoryScreen(
                         Icon(
                             imageVector = Icons.Default.Warning,
                             contentDescription = "Sin inventario",
-                            tint = Color.White.copy(alpha = 0.5f),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             modifier = Modifier.size(48.dp)
                         )
                         Text(
                             text = if (!isInternetAvailable) "Sin conexión a internet" else "No hay productos en inventario",
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
                             text = if (!isInternetAvailable)
@@ -209,13 +216,13 @@ fun InventoryScreen(
                             else
                                 "Agrega productos con control de inventario desde el panel de administración",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.4f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                         if (!isInternetAvailable) {
                             Button(
                                 onClick = { viewModel.syncWithFirebase() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                             ) {
                                 Text("Reintentar Conexión")
                             }
@@ -224,12 +231,23 @@ fun InventoryScreen(
                 }
             } else {
                 if (!isInternetAvailable) {
-                    Text(
-                        text = "📱 Modo offline - Mostrando inventario local",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFFF9800),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WifiOff,
+                            contentDescription = "Sin conexion",
+                            tint = WarningOrange,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Modo offline - Mostrando inventario local",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = WarningOrange
+                        )
+                    }
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -272,7 +290,7 @@ fun InventorySummary(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1a1a2e).copy(alpha = 0.8f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
         )
     ) {
         Column(
@@ -289,14 +307,25 @@ fun InventorySummary(
                     text = "Resumen de Inventario",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (isOffline) {
-                    Text(
-                        text = "📱 Modo local",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFFF9800)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WifiOff,
+                            contentDescription = "Modo local",
+                            tint = WarningOrange,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "Modo local",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = WarningOrange
+                        )
+                    }
                 }
             }
 
@@ -309,17 +338,17 @@ fun InventorySummary(
                 InventoryStatItem(
                     count = totalProducts,
                     label = "Total",
-                    color = Color(0xFF2196F3)
+                    color = InfoBlue
                 )
                 InventoryStatItem(
                     count = lowStockProducts,
                     label = "Stock Bajo",
-                    color = Color(0xFFFFA000)
+                    color = WarningOrange
                 )
                 InventoryStatItem(
                     count = outOfStockProducts,
                     label = "Agotados",
-                    color = Color(0xFFF44336)
+                    color = MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -344,7 +373,7 @@ fun InventoryStatItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
     }
 }
@@ -357,9 +386,9 @@ fun InventoryProductCard(
     val currentStock = product.stock
     val minStock = product.minStock
     val stockColor = when {
-        currentStock == 0.0 -> Color(0xFFF44336)
-        currentStock <= minStock -> Color(0xFFFFA000)
-        else -> Color(0xFF4CAF50)
+        currentStock == 0.0 -> MaterialTheme.colorScheme.error
+        currentStock <= minStock -> WarningOrange
+        else -> SuccessGreen
     }
 
     val stockStatus = when {
@@ -373,7 +402,7 @@ fun InventoryProductCard(
             .fillMaxWidth()
             .padding(horizontal = 8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1a1a2e).copy(alpha = 0.6f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -394,17 +423,17 @@ fun InventoryProductCard(
                         text = product.name,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Categoría: ${product.category}",
+                        text = "Categoria: ${product.category}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Text(
                         text = "Precio: S/. ${product.salePrice ?: 0.0}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
 
@@ -436,15 +465,15 @@ fun InventoryProductCard(
                         .fillMaxWidth()
                         .height(6.dp),
                     color = stockColor,
-                    trackColor = Color.White.copy(alpha = 0.1f)
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                 )
 
                 if (minStock > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Stock mínimo: $minStock unidades",
+                        text = "Stock minimo: $minStock unidades",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }
             }
@@ -454,16 +483,38 @@ fun InventoryProductCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = if (product.isActive) "🟢 Activo" else "🔴 Inactivo",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (product.isActive) Color(0xFF4CAF50) else Color(0xFFF44336)
-                )
-                Text(
-                    text = if (product.trackInventory) "📦 Controla inventario" else "📋 Sin control",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.5f)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (product.isActive) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                        contentDescription = if (product.isActive) "Activo" else "Inactivo",
+                        tint = if (product.isActive) SuccessGreen else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = if (product.isActive) "Activo" else "Inactivo",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (product.isActive) SuccessGreen else MaterialTheme.colorScheme.error
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (product.trackInventory) Icons.Default.Inventory else Icons.Default.Description,
+                        contentDescription = "Control",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = if (product.trackInventory) "Controla inventario" else "Sin control",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
             }
 
             if (isOffline) {

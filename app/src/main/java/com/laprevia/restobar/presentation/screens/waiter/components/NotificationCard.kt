@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.laprevia.restobar.presentation.theme.InfoBlue
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 
 @Composable
@@ -23,12 +26,12 @@ fun NotificationCard(
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = when (notification.type) {
-        WaiterViewModel.NotificationType.ORDER_READY -> Color(0xFF4CAF50).copy(alpha = 0.1f)
-        WaiterViewModel.NotificationType.ORDER_ACCEPTED -> Color(0xFF2196F3).copy(alpha = 0.1f)
-        WaiterViewModel.NotificationType.ORDER_IN_PREPARATION -> Color(0xFFFF9800).copy(alpha = 0.1f)
-        WaiterViewModel.NotificationType.ORDER_SENT -> Color(0xFF9C27B0).copy(alpha = 0.1f)
-        WaiterViewModel.NotificationType.ORDER_CANCELLED -> Color(0xFFF44336).copy(alpha = 0.1f)
-        WaiterViewModel.NotificationType.ORDER_DELIVERED -> Color(0xFF9C27B0).copy(alpha = 0.1f)  // ✅ NUEVO
+        WaiterViewModel.NotificationType.ORDER_READY -> SuccessGreen.copy(alpha = 0.1f)
+        WaiterViewModel.NotificationType.ORDER_ACCEPTED -> InfoBlue.copy(alpha = 0.1f)
+        WaiterViewModel.NotificationType.ORDER_IN_PREPARATION -> WarningOrange.copy(alpha = 0.1f)
+        WaiterViewModel.NotificationType.ORDER_SENT -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
+        WaiterViewModel.NotificationType.ORDER_CANCELLED -> MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+        WaiterViewModel.NotificationType.ORDER_DELIVERED -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
     }
 
     val icon = when (notification.type) {

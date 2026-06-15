@@ -13,6 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 
 @Composable
 fun OrderCard(
@@ -57,15 +59,21 @@ fun OrderCard(
                     )
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(
-                            text = "👤 ${order.waiterName ?: order.waiterId ?: "Mesero"}",
+                            text = "${order.waiterName ?: order.waiterId ?: "Mesero"}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
                         Text(
-                            text = "🕒 ${getTimeAgo(order.createdAt)}",
+                            text = getTimeAgo(order.createdAt),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
@@ -105,7 +113,7 @@ fun OrderCard(
                         .fillMaxWidth()
                         .padding(top = 8.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFFF9C4)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 ) {
                     Row(
@@ -113,9 +121,9 @@ fun OrderCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📝 $notes",
+                            text = "Nota: $notes",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8D6E63),
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -130,12 +138,23 @@ fun OrderCard(
                         .padding(top = 12.dp)
                 ) {
                     if (order.items.isNotEmpty()) {
-                        Text(
-                            text = "📦 Items del pedido (${order.items.size})",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.padding(bottom = 8.dp)
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Items del pedido (${order.items.size})",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
 
                         order.items.forEach { item ->
                             OrderItemRow(item = item)
@@ -160,12 +179,23 @@ fun OrderCard(
                             )
                         }
                     } else {
-                        Text(
-                            text = "⚠️ No hay items en esta orden",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Red,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "No hay items en esta orden",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }
@@ -222,7 +252,7 @@ fun OrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
                 ) {
                     if (!item.productCategory.isNullOrBlank()) {
                         Text(
-                            text = "📁 ${item.productCategory}",
+                            text = "${item.productCategory}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
@@ -230,9 +260,9 @@ fun OrderItemRow(item: com.laprevia.restobar.data.model.OrderItem) {
 
                     if (item.trackInventory) {
                         Text(
-                            text = "📦 Control Stock",
+                            text = "Control Stock",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFFF9800)
+                            color = WarningOrange
                         )
                     }
 
@@ -298,10 +328,10 @@ fun OrderActionButtons(
                         onClick = { onUpdateStatus(OrderStatus.ACEPTADO) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9800)
+                            containerColor = WarningOrange
                         )
                     ) {
-                        Text("✅ Aceptar Pedido")
+                        Text("Aceptar Pedido")
                     }
                 }
                 OrderStatus.ACEPTADO -> {
@@ -309,10 +339,10 @@ fun OrderActionButtons(
                         onClick = { onUpdateStatus(OrderStatus.EN_PREPARACION) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF5722)
+                            containerColor = MaterialTheme.colorScheme.secondary
                         )
                     ) {
-                        Text("👨‍🍳 Comenzar Preparación")
+                        Text("Comenzar Preparacion")
                     }
                 }
                 OrderStatus.EN_PREPARACION -> {
@@ -320,16 +350,16 @@ fun OrderActionButtons(
                         onClick = { onUpdateStatus(OrderStatus.LISTO) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
+                            containerColor = SuccessGreen
                         )
                     ) {
-                        Text("🎉 Marcar como Listo")
+                        Text("Marcar como Listo")
                     }
                 }
                 OrderStatus.LISTO -> {
                     Column {
                         Text(
-                            text = "✅ PEDIDO LISTO PARA SERVIR",
+                            text = "PEDIDO LISTO PARA SERVIR",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -346,17 +376,17 @@ fun OrderActionButtons(
                                     contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
                             ) {
-                                Text("🗑️ Marcar como Completado")
+                                Text("Marcar como Completado")
                             }
                         }
                     }
                 }
                 OrderStatus.ENTREGADO -> {
                     Text(
-                        text = "🍽️ COMIDA ENTREGADA - Esperando liberar mesa",
+                        text = "COMIDA ENTREGADA - Esperando liberar mesa",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF9C27B0),
+                        color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
@@ -364,10 +394,10 @@ fun OrderActionButtons(
                 }
                 OrderStatus.COMPLETED -> {
                     Text(
-                        text = "✅ PEDIDO COMPLETADO",
+                        text = "PEDIDO COMPLETADO",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF9E9E9E),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)

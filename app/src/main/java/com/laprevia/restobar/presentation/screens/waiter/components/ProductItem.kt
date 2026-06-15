@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laprevia.restobar.data.model.Product
+import com.laprevia.restobar.presentation.theme.WarningOrange
 
 @Composable
 fun ProductItem(
@@ -92,7 +93,7 @@ fun ProductItem(
                             style = MaterialTheme.typography.bodyMedium,
                             color = when {
                                 currentStock == 0.0 -> MaterialTheme.colorScheme.error
-                                currentStock <= 5 -> Color(0xFFFFA000)
+                                currentStock <= 5 -> WarningOrange
                                 else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             }
                         )
@@ -102,7 +103,7 @@ fun ProductItem(
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = "Stock bajo",
-                                tint = Color(0xFFFFA000),
+                                tint = WarningOrange,
                                 modifier = Modifier.padding(start = 4.dp)
                             )
                         }
@@ -145,12 +146,23 @@ fun ProductItem(
 
             // Mensaje de stock bajo
             if (product.trackInventory && currentStock <= 5 && currentStock > 0) {
-                Text(
-                    text = "⚠️ Stock bajo",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFFFFA000),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.padding(top = 4.dp)
-                )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Stock bajo",
+                        tint = WarningOrange,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "Stock bajo",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = WarningOrange
+                    )
+                }
             }
         }
     }

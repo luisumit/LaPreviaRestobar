@@ -2,10 +2,10 @@ package com.laprevia.restobar.presentation.screens.waiter.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EventSeat
+import androidx.compose.material.icons.filled.TableBar
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.laprevia.restobar.data.model.Table
 import com.laprevia.restobar.data.model.TableStatus
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
+import com.laprevia.restobar.presentation.theme.InfoBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,15 +26,12 @@ fun TableCard(
     table: Table,
     onClick: () -> Unit
 ) {
-    val backgroundColor = when (table.status) {
-        TableStatus.LIBRE -> Color(0xFF4CAF50) // Verde
-        TableStatus.OCUPADA -> Color(0xFFFF9800) // Naranja
-        TableStatus.RESERVADA -> Color(0xFF2196F3) // Azul
-
-        else -> Color(0xFF9E9E9E) // Gris por defecto
+    val (backgroundColor, contentColor, statusIcon) = when (table.status) {
+        TableStatus.LIBRE -> Triple(SuccessGreen, MaterialTheme.colorScheme.onPrimary, Icons.Default.TableBar)
+        TableStatus.OCUPADA -> Triple(WarningOrange, MaterialTheme.colorScheme.onSecondary, Icons.Default.EventSeat)
+        TableStatus.RESERVADA -> Triple(InfoBlue, MaterialTheme.colorScheme.onSurface, Icons.Default.EventSeat)
+        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, Icons.Default.TableBar)
     }
-
-    val textColor = Color.White
 
     Card(
         onClick = onClick,
@@ -47,34 +47,40 @@ fun TableCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Icon(
+                imageVector = statusIcon,
+                contentDescription = null,
+                tint = contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Mesa ${table.number}",
-                color = textColor,
+                color = contentColor,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = table.status.name.lowercase().replaceFirstChar { it.uppercase() },
-                color = textColor,
-                fontSize = 14.sp,
+                color = contentColor.copy(alpha = 0.9f),
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center
             )
 
             if (table.capacity > 0) {
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${table.capacity} personas",
-                    color = textColor.copy(alpha = 0.8f),
-                    fontSize = 12.sp,
+                    text = "${table.capacity} pers.",
+                    color = contentColor.copy(alpha = 0.7f),
+                    fontSize = 10.sp,
                     textAlign = TextAlign.Center
                 )
             }

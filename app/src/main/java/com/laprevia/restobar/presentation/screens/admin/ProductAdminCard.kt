@@ -143,7 +143,7 @@ fun ProductAdminCard(
                     else MaterialTheme.colorScheme.errorContainer
                 ) {
                     Text(
-                        text = if (product.isActive) "✅ Activo" else "❌ Inactivo",
+                        text = if (product.isActive) "Activo" else "Inactivo",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (product.isActive) MaterialTheme.colorScheme.onPrimaryContainer
                         else MaterialTheme.colorScheme.onErrorContainer,

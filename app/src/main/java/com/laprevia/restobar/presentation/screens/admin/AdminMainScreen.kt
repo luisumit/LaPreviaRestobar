@@ -1,4 +1,3 @@
-// AdminMainScreen.kt - VERSIÓN CON NOTIFICACIONES DE STOCK
 package com.laprevia.restobar.presentation.screens.admin
 
 import androidx.compose.foundation.background
@@ -24,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laprevia.restobar.presentation.notifications.AdminStockScheduler
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.AdminViewModel
 import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
 import kotlinx.coroutines.delay
@@ -39,16 +40,13 @@ fun AdminMainScreen(
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
 
-    // Detectar tamaño de pantalla
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
 
-    // ✅ Iniciar verificación de stock al abrir Admin
     LaunchedEffect(Unit) {
         AdminStockScheduler.schedulePeriodicCheck(context)
     }
 
-    // Auto-clear para mensajes después de 3 segundos
     LaunchedEffect(uiState.success, uiState.warning, uiState.error) {
         if (uiState.success != null || uiState.warning != null || uiState.error != null) {
             delay(3000)
@@ -67,11 +65,10 @@ fun AdminMainScreen(
                         elevation = if (isTablet) 12.dp else 8.dp,
                         shape = RoundedCornerShape(bottomStart = if (isTablet) 32.dp else 24.dp, bottomEnd = if (isTablet) 32.dp else 24.dp)
                     ),
-                color = Color(0xFF1a1a2e),
-                contentColor = Color.White
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
                 Column {
-                    // Top bar principal
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -82,18 +79,17 @@ fun AdminMainScreen(
                         Column {
                             Text(
                                 "LA PREVIA RESTOBAR",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium
                             )
                             Text(
                                 "Panel Administrativo",
-                                color = Color.White.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
 
-                        // ✅ Botón de prueba de notificación (opcional - puedes eliminarlo después)
                         IconButton(
                             onClick = {
                                 AdminStockScheduler.triggerImmediateCheck(context)
@@ -101,11 +97,11 @@ fun AdminMainScreen(
                             modifier = Modifier
                                 .size(if (isTablet) 48.dp else 44.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFF9800))
+                                .background(WarningOrange)
                         ) {
                             Icon(
                                 Icons.Default.Notifications,
-                                contentDescription = "Probar notificación",
+                                contentDescription = "Probar notificacion",
                                 tint = Color.White,
                                 modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
                             )
@@ -115,25 +111,24 @@ fun AdminMainScreen(
 
                         IconButton(
                             onClick = {
-                                timber.log.Timber.d("🔄 AdminScreen: Cerrando sesión...")
+                                timber.log.Timber.d("AdminScreen: Cerrando sesion...")
                                 loginViewModel.signOut()
                                 onLogout()
                             },
                             modifier = Modifier
                                 .size(if (isTablet) 48.dp else 44.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFe94560))
+                                .background(MaterialTheme.colorScheme.secondary)
                         ) {
                             Icon(
                                 Icons.Default.Logout,
-                                contentDescription = "Cerrar sesión",
-                                tint = Color.White,
+                                contentDescription = "Cerrar sesion",
+                                tint = MaterialTheme.colorScheme.onSecondary,
                                 modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
                             )
                         }
                     }
 
-                    // ✅ BANNER DE ESTADO DE CONEXIÓN
                     ConnectionStatusBanner(
                         isOffline = uiState.isOffline,
                         pendingSyncCount = uiState.pendingSyncCount,
@@ -146,29 +141,21 @@ fun AdminMainScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.showProductForm() },
-                containerColor = Color(0xFFe94560),
-                contentColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary,
                 modifier = Modifier.shadow(if (isTablet) 12.dp else 8.dp, CircleShape)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar Producto")
             }
         },
-        containerColor = Color(0xFF0f3460)
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF0f3460),
-                            Color(0xFF1a1a2e)
-                        )
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // ✅ MENSAJES TEMPORALES (error, warning, success)
             MessageBanner(
                 error = uiState.error,
                 warning = uiState.warning,
@@ -178,14 +165,13 @@ fun AdminMainScreen(
                 onClearSuccess = { viewModel.clearSuccess() }
             )
 
-            // Header de bienvenida
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(if (isTablet) 24.dp else 16.dp)
                     .shadow(if (isTablet) 8.dp else 4.dp, RoundedCornerShape(if (isTablet) 24.dp else 16.dp)),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1a1a2e).copy(alpha = 0.8f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
                 )
             ) {
                 Row(
@@ -201,8 +187,8 @@ fun AdminMainScreen(
                             .background(
                                 Brush.radialGradient(
                                     colors = listOf(
-                                        Color(0xFFe94560),
-                                        Color(0xFF1a1a2e)
+                                        MaterialTheme.colorScheme.secondary,
+                                        MaterialTheme.colorScheme.surface
                                     )
                                 )
                             ),
@@ -211,7 +197,7 @@ fun AdminMainScreen(
                         Icon(
                             Icons.Default.Inventory,
                             contentDescription = "Admin",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(if (isTablet) 36.dp else 28.dp)
                         )
                     }
@@ -220,23 +206,24 @@ fun AdminMainScreen(
 
                     Column {
                         Text(
-                            "Panel de Administración",
-                            color = Color.White,
+                            "Panel de Administracion",
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             style = if (isTablet) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge
                         )
                         Text(
                             viewModel.connectionStatusText,
-                            color = if (uiState.isOffline) Color(0xFFF44336)
-                            else if (uiState.pendingSyncCount > 0) Color(0xFFFF9800)
-                            else Color(0xFF4CAF50),
+                            color = when {
+                                uiState.isOffline -> MaterialTheme.colorScheme.error
+                                uiState.pendingSyncCount > 0 -> WarningOrange
+                                else -> SuccessGreen
+                            },
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
             }
 
-            // Estadísticas rápidas
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -246,14 +233,14 @@ fun AdminMainScreen(
                 ProductStatCard(
                     title = "Total Productos",
                     value = uiState.products.size.toString(),
-                    gradientColors = listOf(Color(0xFF4facfe), Color(0xFF00f2fe)),
+                    gradientColors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary),
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
                 ProductStatCard(
                     title = "Activos",
                     value = uiState.products.count { it.isActive }.toString(),
-                    gradientColors = listOf(Color(0xFF43e97b), Color(0xFF38f9d7)),
+                    gradientColors = listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -268,28 +255,27 @@ fun AdminMainScreen(
                 ProductStatCard(
                     title = "Con Inventario",
                     value = uiState.products.count { it.trackInventory }.toString(),
-                    gradientColors = listOf(Color(0xFFfa709a), Color(0xFFfee140)),
+                    gradientColors = listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary),
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
                 ProductStatCard(
-                    title = "Categorías",
+                    title = "Categorias",
                     value = uiState.categories.size.toString(),
-                    gradientColors = listOf(Color(0xFFa8edea), Color(0xFFfed6e3)),
+                    gradientColors = listOf(MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.primaryContainer),
                     modifier = Modifier.weight(1f)
                 )
             }
 
             Spacer(modifier = Modifier.height(if (isTablet) 24.dp else 20.dp))
 
-            // Lista de productos
             Card(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = if (isTablet) 12.dp else 8.dp)
                     .shadow(if (isTablet) 8.dp else 4.dp, RoundedCornerShape(if (isTablet) 24.dp else 16.dp)),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
                 Column(
@@ -301,7 +287,7 @@ fun AdminMainScreen(
                         text = "Productos Registrados",
                         style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1a1a2e),
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = if (isTablet) 20.dp else 16.dp)
                     )
 
@@ -319,18 +305,18 @@ fun AdminMainScreen(
                                     Icons.Default.Inventory,
                                     contentDescription = "Sin productos",
                                     modifier = Modifier.size(if (isTablet) 80.dp else 64.dp),
-                                    tint = Color(0xFF1a1a2e).copy(alpha = 0.5f)
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                                 )
                                 Spacer(modifier = Modifier.height(if (isTablet) 20.dp else 16.dp))
                                 Text(
                                     text = "No hay productos registrados",
                                     style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge,
-                                    color = Color(0xFF1a1a2e).copy(alpha = 0.7f)
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = "Presiona el botón + para agregar uno",
+                                    text = "Presiona el boton + para agregar uno",
                                     style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF1a1a2e).copy(alpha = 0.5f),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                     modifier = Modifier.padding(top = 8.dp)
                                 )
                             }
@@ -354,7 +340,6 @@ fun AdminMainScreen(
         }
     }
 
-    // Diálogos
     if (uiState.showProductForm) {
         ProductFormDialog(
             product = uiState.selectedProduct,
@@ -375,7 +360,7 @@ fun AdminMainScreen(
             onDismissRequest = { viewModel.hideDeleteDialog() },
             title = { Text("Eliminar Producto") },
             text = {
-                Text("¿Estás seguro de que quieres eliminar \"${uiState.selectedProduct?.name}\"?")
+                Text("Estas seguro de que quieres eliminar \"${uiState.selectedProduct?.name}\"?")
             },
             confirmButton = {
                 TextButton(
@@ -401,9 +386,15 @@ fun ConnectionStatusBanner(
     onManualSync: () -> Unit
 ) {
     val backgroundColor = when {
-        isOffline -> Color(0xFFF44336).copy(alpha = 0.9f)
-        pendingSyncCount > 0 -> Color(0xFFFF9800).copy(alpha = 0.9f)
-        else -> Color(0xFF4CAF50).copy(alpha = 0.9f)
+        isOffline -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+        pendingSyncCount > 0 -> WarningOrange.copy(alpha = 0.9f)
+        else -> SuccessGreen.copy(alpha = 0.9f)
+    }
+
+    val statusIcon = when {
+        isOffline -> Icons.Default.WifiOff
+        pendingSyncCount > 0 -> Icons.Default.Sync
+        else -> Icons.Default.Wifi
     }
 
     Card(
@@ -421,11 +412,7 @@ fun ConnectionStatusBanner(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = when {
-                        isOffline -> Icons.Default.WifiOff
-                        pendingSyncCount > 0 -> Icons.Default.Sync
-                        else -> Icons.Default.Wifi
-                    },
+                    imageVector = statusIcon,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
@@ -463,13 +450,12 @@ fun MessageBanner(
     onClearWarning: () -> Unit,
     onClearSuccess: () -> Unit
 ) {
-    // Mensaje de ERROR (rojo)
     if (error != null) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier
@@ -487,13 +473,12 @@ fun MessageBanner(
         }
     }
 
-    // Mensaje de ADVERTENCIA (naranja)
     if (warning != null) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = WarningOrange.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier
@@ -511,13 +496,12 @@ fun MessageBanner(
         }
     }
 
-    // Mensaje de ÉXITO (verde)
     if (success != null) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = SuccessGreen.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier

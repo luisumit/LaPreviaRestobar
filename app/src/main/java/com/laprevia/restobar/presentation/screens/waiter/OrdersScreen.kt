@@ -1,22 +1,49 @@
 package com.laprevia.restobar.presentation.screens.waiter
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.OutdoorGrill
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -24,8 +51,37 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.presentation.screens.waiter.components.OrderCard
+import com.laprevia.restobar.presentation.theme.CoralSecondary
+import com.laprevia.restobar.presentation.theme.ErrorRed
+import com.laprevia.restobar.presentation.theme.InfoBlue
+import com.laprevia.restobar.presentation.theme.NightBackground
+import com.laprevia.restobar.presentation.theme.NightSurface
+import com.laprevia.restobar.presentation.theme.SmokeWhite
+import com.laprevia.restobar.presentation.theme.SmokeWhiteDisabled
+import com.laprevia.restobar.presentation.theme.SmokeWhiteSecondary
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 import kotlinx.coroutines.delay
+import timber.log.Timber
+
+// ────────────────────────────────────────────────────────────
+// Indicador de estado (punto de color con texto)
+// ────────────────────────────────────────────────────────────
+
+@Composable
+private fun StatusDot(color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(10.dp)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+// ────────────────────────────────────────────────────────────
+// Pantalla principal de Órdenes (Waiter)
+// ────────────────────────────────────────────────────────────
 
 @Composable
 fun OrdersScreen(
@@ -37,7 +93,6 @@ fun OrdersScreen(
     val isFirebaseConnected by viewModel.isFirebaseConnected.collectAsState()
     val isInternetAvailable by viewModel.isInternetAvailable.collectAsState()
     val connectionMessage by viewModel.connectionMessage.collectAsState()
-    val connectionStatus by viewModel.connectionStatus.collectAsState()
 
     val currentConnectionMessage = connectionMessage
 
@@ -52,40 +107,48 @@ fun OrdersScreen(
         viewModel.refreshData()
     }
 
+    val connectionStatusColor = when {
+        !isInternetAvailable -> ErrorRed
+        isFirebaseConnected -> SuccessGreen
+        else -> WarningOrange
+    }
+
     val connectionStatusText = when {
-        !isInternetAvailable -> "🔴 SIN INTERNET - Modo offline"
-        isFirebaseConnected -> "🟢 Conectado a cocina"
-        else -> "🟡 Reconectando..."
+        !isInternetAvailable -> "Sin internet — Modo offline"
+        isFirebaseConnected -> "Conectado a cocina"
+        else -> "Reconectando..."
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0f3460))
+            .background(NightBackground)
     ) {
         FirebaseConnectionBanner(
             isConnected = isFirebaseConnected,
             isInternetAvailable = isInternetAvailable,
-            connectionStatus = connectionStatusText,
+            connectionStatusText = connectionStatusText,
+            connectionStatusColor = connectionStatusColor,
             isLoading = isLoading,
             onSyncClick = { viewModel.syncWithFirebase() }
         )
 
         if (currentConnectionMessage != null) {
+            val isError = currentConnectionMessage.contains("SIN INTERNET")
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (currentConnectionMessage.contains("SIN INTERNET"))
-                        Color(0xFFFF9800).copy(alpha = 0.9f)
+                    containerColor = if (isError)
+                        WarningOrange.copy(alpha = 0.9f)
                     else
-                        Color(0xFF4CAF50).copy(alpha = 0.9f)
+                        SuccessGreen.copy(alpha = 0.9f)
                 )
             ) {
                 Text(
                     text = currentConnectionMessage,
-                    color = Color.White,
+                    color = SmokeWhite,
                     modifier = Modifier.padding(12.dp),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -112,12 +175,23 @@ fun OrdersScreen(
             )
         } else {
             if (!isInternetAvailable) {
-                Text(
-                    text = "📱 Modo offline - Mostrando órdenes guardadas localmente",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFFF9800),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PhoneAndroid,
+                        contentDescription = null,
+                        tint = WarningOrange,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Modo offline — Mostrando órdenes guardadas localmente",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WarningOrange
+                    )
+                }
             }
             OrdersListContent(
                 orders = orders,
@@ -127,26 +201,25 @@ fun OrdersScreen(
     }
 }
 
+// ────────────────────────────────────────────────────────────
+// Banner de conexión Firebase
+// ────────────────────────────────────────────────────────────
+
 @Composable
 fun FirebaseConnectionBanner(
     isConnected: Boolean,
     isInternetAvailable: Boolean,
-    connectionStatus: String,
+    connectionStatusText: String,
+    connectionStatusColor: Color,
     isLoading: Boolean,
     onSyncClick: () -> Unit
 ) {
     if (isLoading) return
 
     val backgroundColor = when {
-        !isInternetAvailable -> Color(0xFFF44336).copy(alpha = 0.15f)
-        !isConnected -> Color(0xFFFF9800).copy(alpha = 0.15f)
-        else -> Color(0xFF4CAF50).copy(alpha = 0.15f)
-    }
-
-    val textColor = when {
-        !isInternetAvailable -> Color(0xFFF44336)
-        !isConnected -> Color(0xFFFF9800)
-        else -> Color(0xFF4CAF50)
+        !isInternetAvailable -> ErrorRed.copy(alpha = 0.15f)
+        !isConnected -> WarningOrange.copy(alpha = 0.15f)
+        else -> SuccessGreen.copy(alpha = 0.15f)
     }
 
     Card(
@@ -166,20 +239,21 @@ fun FirebaseConnectionBanner(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                StatusDot(color = connectionStatusColor)
                 Icon(
                     imageVector = when {
                         !isInternetAvailable -> Icons.Default.WifiOff
-                        !isConnected -> Icons.Default.Wifi
                         else -> Icons.Default.Wifi
                     },
                     contentDescription = "Estado de conexión",
-                    tint = textColor
+                    tint = connectionStatusColor,
+                    modifier = Modifier.size(20.dp)
                 )
                 Column {
                     Text(
-                        text = connectionStatus,
+                        text = connectionStatusText,
                         style = MaterialTheme.typography.labelMedium,
-                        color = textColor,
+                        color = connectionStatusColor,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
@@ -189,7 +263,7 @@ fun FirebaseConnectionBanner(
                             else -> "Comunicación en tiempo real con cocina"
                         },
                         style = MaterialTheme.typography.labelSmall,
-                        color = textColor,
+                        color = connectionStatusColor
                     )
                 }
             }
@@ -197,7 +271,7 @@ fun FirebaseConnectionBanner(
             if (!isConnected && isInternetAvailable) {
                 TextButton(
                     onClick = onSyncClick,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF9800))
+                    colors = ButtonDefaults.textButtonColors(contentColor = WarningOrange)
                 ) {
                     Text("Reconectar")
                 }
@@ -205,6 +279,10 @@ fun FirebaseConnectionBanner(
         }
     }
 }
+
+// ────────────────────────────────────────────────────────────
+// Resumen de órdenes
+// ────────────────────────────────────────────────────────────
 
 @Composable
 fun OrdersSummary(
@@ -219,7 +297,7 @@ fun OrdersSummary(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1a1a2e).copy(alpha = 0.6f)
+            containerColor = NightSurface.copy(alpha = 0.6f)
         )
     ) {
         Column(
@@ -236,22 +314,34 @@ fun OrdersSummary(
                     text = "Resumen de Órdenes",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = SmokeWhite
                 )
 
-                Text(
-                    text = when {
-                        !isInternetAvailable -> "🔴 Modo offline"
-                        isFirebaseConnected -> "🟢 En vivo"
-                        else -> "🟡 Conectando..."
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = when {
-                        !isInternetAvailable -> Color(0xFFF44336)
-                        isFirebaseConnected -> Color(0xFF4CAF50)
-                        else -> Color(0xFFFF9800)
-                    }
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    StatusDot(
+                        color = when {
+                            !isInternetAvailable -> ErrorRed
+                            isFirebaseConnected -> SuccessGreen
+                            else -> WarningOrange
+                        }
+                    )
+                    Text(
+                        text = when {
+                            !isInternetAvailable -> "Modo offline"
+                            isFirebaseConnected -> "En vivo"
+                            else -> "Conectando..."
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = when {
+                            !isInternetAvailable -> ErrorRed
+                            isFirebaseConnected -> SuccessGreen
+                            else -> WarningOrange
+                        }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -260,30 +350,18 @@ fun OrdersSummary(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                OrdersStatItem(
-                    count = totalOrders,
-                    label = "Total",
-                    color = Color(0xFF2196F3)
-                )
-                OrdersStatItem(
-                    count = pendingOrders,
-                    label = "Pendientes",
-                    color = Color(0xFFFF9800)
-                )
-                OrdersStatItem(
-                    count = inProgressOrders,
-                    label = "En Prep.",
-                    color = Color(0xFFFF5722)
-                )
-                OrdersStatItem(
-                    count = readyOrders,
-                    label = "Listas",
-                    color = Color(0xFF4CAF50)
-                )
+                OrdersStatItem(count = totalOrders, label = "Total", color = InfoBlue)
+                OrdersStatItem(count = pendingOrders, label = "Pendientes", color = WarningOrange)
+                OrdersStatItem(count = inProgressOrders, label = "En Prep.", color = CoralSecondary)
+                OrdersStatItem(count = readyOrders, label = "Listas", color = SuccessGreen)
             }
         }
     }
 }
+
+// ────────────────────────────────────────────────────────────
+// Ítem individual de estadística
+// ────────────────────────────────────────────────────────────
 
 @Composable
 fun OrdersStatItem(
@@ -291,9 +369,7 @@ fun OrdersStatItem(
     label: String,
     color: Color
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = count.toString(),
             style = MaterialTheme.typography.headlineSmall,
@@ -303,13 +379,16 @@ fun OrdersStatItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.7f),
+            color = SmokeWhiteSecondary,
             fontWeight = FontWeight.Medium
         )
     }
 }
 
-// ✅ ACTUALIZADO: OrdersListContent con botón de CANCELAR
+// ────────────────────────────────────────────────────────────
+// Lista de órdenes agrupadas por estado
+// ────────────────────────────────────────────────────────────
+
 @Composable
 fun OrdersListContent(
     orders: List<com.laprevia.restobar.data.model.Order>,
@@ -322,26 +401,27 @@ fun OrdersListContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(8.dp)
     ) {
-        // 🎉 SECCIÓN 1: Órdenes LISTAS (comida lista para llevar)
+        // Sección 1: LISTAS PARA SERVIR
         ordersByStatus[OrderStatus.LISTO]?.let { readyOrders ->
             if (readyOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "🎉 LISTAS PARA SERVIR",
+                        title = "Listas para servir",
+                        icon = Icons.Default.Celebration,
                         count = readyOrders.size,
-                        color = Color(0xFF2196F3),
-                        description = "Comida lista - Presiona ENTREGAR para llevar al cliente"
+                        color = InfoBlue,
+                        description = "Comida lista — Presiona ENTREGAR para llevar al cliente"
                     )
                 }
                 items(readyOrders.sortedBy { it.createdAt }) { order ->
                     OrderCard(
                         order = order,
                         onMarkAsDelivered = {
-                            timber.log.Timber.d("🍽️ Entregando comida orden: ${order.id}")
+                            Timber.d("🍽️ Entregando comida orden: ${order.id}")
                             viewModel.markOrderAsDelivered(order.id)
                         },
                         onCancel = {
-                            println("❌ Cancelando orden: ${order.id}")
+                            Timber.d("❌ Cancelando orden: ${order.id}")
                             viewModel.cancelOrder(order.id)
                         }
                     )
@@ -349,26 +429,27 @@ fun OrdersListContent(
             }
         }
 
-        // 🍽️ SECCIÓN 2: Órdenes ENTREGADAS (cliente comiendo)
+        // Sección 2: ENTREGADAS
         ordersByStatus[OrderStatus.ENTREGADO]?.let { deliveredOrders ->
             if (deliveredOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "🍽️ COMIDA ENTREGADA",
+                        title = "Comida entregada",
+                        icon = Icons.Default.RestaurantMenu,
                         count = deliveredOrders.size,
-                        color = Color(0xFFFF9800),
-                        description = "Cliente comiendo - Presiona LIBERAR cuando se vayan"
+                        color = WarningOrange,
+                        description = "Cliente comiendo — Presiona LIBERAR cuando se vayan"
                     )
                 }
                 items(deliveredOrders.sortedBy { it.createdAt }) { order ->
                     OrderCard(
                         order = order,
                         onMarkAsServed = {
-                            timber.log.Timber.d("🧹 Liberando mesa orden: ${order.id}")
+                            Timber.d("🧹 Liberando mesa orden: ${order.id}")
                             viewModel.markTableAsFree(order.id)
                         },
                         onCancel = {
-                            println("❌ Cancelando orden: ${order.id}")
+                            Timber.d("❌ Cancelando orden: ${order.id}")
                             viewModel.cancelOrder(order.id)
                         }
                     )
@@ -376,14 +457,15 @@ fun OrdersListContent(
             }
         }
 
-        // 👨‍🍳 SECCIÓN 3: Órdenes EN PREPARACIÓN
+        // Sección 3: EN PREPARACIÓN
         ordersByStatus[OrderStatus.EN_PREPARACION]?.let { inProgressOrders ->
             if (inProgressOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "👨‍🍳 EN PREPARACIÓN",
+                        title = "En preparación",
+                        icon = Icons.Default.OutdoorGrill,
                         count = inProgressOrders.size,
-                        color = Color(0xFFFF5722),
+                        color = CoralSecondary,
                         description = "La cocina está preparando"
                     )
                 }
@@ -391,7 +473,7 @@ fun OrdersListContent(
                     OrderCard(
                         order = order,
                         onCancel = {
-                            println("❌ Cancelando orden: ${order.id}")
+                            Timber.d("❌ Cancelando orden: ${order.id}")
                             viewModel.cancelOrder(order.id)
                         }
                     )
@@ -399,14 +481,15 @@ fun OrdersListContent(
             }
         }
 
-        // ✅ SECCIÓN 4: Órdenes ACEPTADAS
+        // Sección 4: ACEPTADAS
         ordersByStatus[OrderStatus.ACEPTADO]?.let { acceptedOrders ->
             if (acceptedOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "✅ ACEPTADAS",
+                        title = "Aceptadas",
+                        icon = Icons.Default.CheckCircle,
                         count = acceptedOrders.size,
-                        color = Color(0xFF9C27B0),
+                        color = CoralSecondary.copy(alpha = 0.8f),
                         description = "Cocina aceptó, próximamente en preparación"
                     )
                 }
@@ -414,7 +497,7 @@ fun OrdersListContent(
                     OrderCard(
                         order = order,
                         onCancel = {
-                            println("❌ Cancelando orden: ${order.id}")
+                            Timber.d("❌ Cancelando orden: ${order.id}")
                             viewModel.cancelOrder(order.id)
                         }
                     )
@@ -422,14 +505,15 @@ fun OrdersListContent(
             }
         }
 
-        // 📤 SECCIÓN 5: Órdenes ENVIADAS
+        // Sección 5: ENVIADAS A COCINA
         ordersByStatus[OrderStatus.ENVIADO]?.let { sentOrders ->
             if (sentOrders.isNotEmpty()) {
                 item {
                     OrdersSectionHeader(
-                        title = "📤 ENVIADAS A COCINA",
+                        title = "Enviadas a cocina",
+                        icon = Icons.Default.Send,
                         count = sentOrders.size,
-                        color = Color(0xFF2196F3),
+                        color = InfoBlue,
                         description = "Esperando confirmación de la cocina"
                     )
                 }
@@ -437,7 +521,7 @@ fun OrdersListContent(
                     OrderCard(
                         order = order,
                         onCancel = {
-                            println("❌ Cancelando orden: ${order.id}")
+                            Timber.d("❌ Cancelando orden: ${order.id}")
                             viewModel.cancelOrder(order.id)
                         }
                     )
@@ -447,9 +531,14 @@ fun OrdersListContent(
     }
 }
 
+// ────────────────────────────────────────────────────────────
+// Encabezado de sección con ícono vectorial
+// ────────────────────────────────────────────────────────────
+
 @Composable
 fun OrdersSectionHeader(
     title: String,
+    icon: ImageVector,
     count: Int,
     color: Color,
     description: String = ""
@@ -462,28 +551,37 @@ fun OrdersSectionHeader(
             containerColor = color.copy(alpha = 0.1f)
         )
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = color
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = color
+                    )
+                }
 
                 Surface(
                     color = color,
-                    shape = MaterialTheme.shapes.small,
+                    shape = MaterialTheme.shapes.small
                 ) {
                     Text(
                         text = count.toString(),
-                        color = Color.White,
+                        color = SmokeWhite,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -502,6 +600,10 @@ fun OrdersSectionHeader(
     }
 }
 
+// ────────────────────────────────────────────────────────────
+// Estado de carga
+// ────────────────────────────────────────────────────────────
+
 @Composable
 fun LoadingState(isInternetAvailable: Boolean) {
     Box(
@@ -512,14 +614,18 @@ fun LoadingState(isInternetAvailable: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CircularProgressIndicator(color = Color.White)
+            CircularProgressIndicator(color = CoralSecondary)
             Text(
-                text = if (!isInternetAvailable) "Sin conexión - Cargando datos locales..." else "Conectando con cocina...",
-                color = Color.White
+                text = if (!isInternetAvailable) "Sin conexión — Cargando datos locales..." else "Conectando con cocina...",
+                color = SmokeWhite
             )
         }
     }
 }
+
+// ────────────────────────────────────────────────────────────
+// Estado vacío (sin órdenes)
+// ────────────────────────────────────────────────────────────
 
 @Composable
 fun EmptyOrdersState(
@@ -539,10 +645,10 @@ fun EmptyOrdersState(
             Icon(
                 imageVector = when {
                     !isInternetAvailable -> Icons.Default.WifiOff
-                    else -> Icons.Default.Restaurant
+                    else -> Icons.Default.RestaurantMenu
                 },
                 contentDescription = "Sin órdenes",
-                tint = Color.White.copy(alpha = 0.5f),
+                tint = SmokeWhiteDisabled,
                 modifier = Modifier.size(64.dp)
             )
             Text(
@@ -552,7 +658,7 @@ fun EmptyOrdersState(
                     else -> "Conectando con el servidor"
                 },
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White.copy(alpha = 0.6f)
+                color = SmokeWhiteSecondary
             )
             Text(
                 text = when {
@@ -561,13 +667,13 @@ fun EmptyOrdersState(
                     else -> "Esperando conexión con el servidor"
                 },
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.4f),
+                color = SmokeWhiteDisabled,
                 textAlign = TextAlign.Center
             )
             if (!isInternetAvailable) {
                 Button(
                     onClick = onRetry,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                    colors = ButtonDefaults.buttonColors(containerColor = CoralSecondary)
                 ) {
                     Text("Reintentar Conexión")
                 }

@@ -73,8 +73,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.laprevia.restobar.data.model.UserRole
-import com.laprevia.restobar.presentation.theme.PrimaryRed
-import com.laprevia.restobar.presentation.theme.SecondaryAmber
 import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
 import com.laprevia.restobar.presentation.viewmodel.LoginUiState
 import kotlinx.coroutines.delay
@@ -90,30 +88,22 @@ fun LoginScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     var showAnimation by remember { mutableStateOf(false) }
 
-    // ✅ ELIMINADO: lastProcessedState - ya no es necesario
-    // var lastProcessedState by remember { mutableStateOf<LoginUiState?>(null) }
-
     LaunchedEffect(Unit) {
         delay(500)
         showAnimation = true
     }
 
-    // ✅ LAUNCHED EFFECT SIMPLIFICADO: Solo para logs, NO para navegación
     LaunchedEffect(uiState) {
         when (uiState) {
             is LoginUiState.Authenticated -> {
                 val role = (uiState as LoginUiState.Authenticated).role
-                timber.log.Timber.d("🔍 LoginScreen: Usuario autenticado como $role")
-                // ✅ NO navegar aquí - la navegación se maneja en AppNavigation
+                timber.log.Timber.d("LoginScreen: Usuario autenticado como $role")
             }
             is LoginUiState.RoleSelected -> {
                 val role = (uiState as LoginUiState.RoleSelected).role
-                timber.log.Timber.d("🔍 LoginScreen: Rol seleccionado $role")
-                // ✅ NO navegar aquí - la navegación se maneja en AppNavigation
+                timber.log.Timber.d("LoginScreen: Rol seleccionado $role")
             }
-            else -> {
-                // No hacer nada para otros estados
-            }
+            else -> {}
         }
     }
 
@@ -124,9 +114,9 @@ fun LoginScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1a1a2e),
-                        Color(0xFF16213e),
-                        Color(0xFF0f3460)
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.surfaceVariant
                     )
                 )
             )
@@ -146,7 +136,6 @@ fun LoginScreen(
                         showAnimation = showAnimation,
                         onRoleSelected = { role ->
                             if (!isLoading) {
-                                // ✅ SOLO llamar al ViewModel, NO navegar
                                 viewModel.selectRole(role)
                             }
                         },
@@ -163,23 +152,20 @@ fun LoginScreen(
                                 viewModel.navigateBack()
                             }
                         },
-                        onAuthenticationSuccess = {
-                            // ✅ VACÍO - la navegación se maneja en AppNavigation
-                        }
+                        onAuthenticationSuccess = {}
                     )
                 }
                 is LoginUiState.Authenticated -> {
-                    // ✅ CONTENIDO MEJORADO: Sin mensaje de "Redirigiendo..."
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        CircularProgressIndicator(color = PrimaryRed)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Iniciando sesión...",
-                            color = Color.White
+                            text = "Iniciando sesion...",
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -205,7 +191,7 @@ fun LoginScreen(
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
-                    color = PrimaryRed,
+                    color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 2.dp
                 )
             }
@@ -226,7 +212,6 @@ private fun ErrorContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Botón para volver
         IconButton(
             onClick = onBack,
             modifier = Modifier.align(Alignment.Start)
@@ -234,7 +219,7 @@ private fun ErrorContent(
             Icon(
                 imageVector = Icons.Default.ArrowBack,
                 contentDescription = "Volver",
-                tint = Color.White
+                tint = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -244,13 +229,13 @@ private fun ErrorContent(
             modifier = Modifier
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(PrimaryRed.copy(alpha = 0.2f))
+                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "!",
-                color = PrimaryRed,
+                color = MaterialTheme.colorScheme.error,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -259,9 +244,9 @@ private fun ErrorContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Error de Autenticación",
+            text = "Error de Autenticacion",
             style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -271,7 +256,7 @@ private fun ErrorContent(
         Text(
             text = errorMessage,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.8f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
@@ -300,7 +285,7 @@ private fun ErrorContent(
         ) {
             Text(
                 text = "Volver al inicio",
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -308,13 +293,11 @@ private fun ErrorContent(
 
 @Composable
 private fun BackgroundElements() {
-    // Burbujas decorativas
     Box(
         modifier = Modifier
             .fillMaxSize()
             .blur(40.dp, edgeTreatment = BlurredEdgeTreatment.Rectangle)
     ) {
-        // Burbuja 1
         Box(
             modifier = Modifier
                 .size(200.dp)
@@ -322,8 +305,8 @@ private fun BackgroundElements() {
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            PrimaryRed.copy(alpha = 0.3f),
-                            PrimaryRed.copy(alpha = 0.1f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                             Color.Transparent
                         )
                     ),
@@ -331,7 +314,6 @@ private fun BackgroundElements() {
                 )
         )
 
-        // Burbuja 2
         Box(
             modifier = Modifier
                 .size(150.dp)
@@ -339,8 +321,8 @@ private fun BackgroundElements() {
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            SecondaryAmber.copy(alpha = 0.2f),
-                            SecondaryAmber.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f),
                             Color.Transparent
                         )
                     ),
@@ -348,7 +330,6 @@ private fun BackgroundElements() {
                 )
         )
 
-        // Burbuja 3
         Box(
             modifier = Modifier
                 .size(180.dp)
@@ -356,8 +337,8 @@ private fun BackgroundElements() {
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color(0xFF388E3C).copy(alpha = 0.15f),
-                            Color(0xFF388E3C).copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f),
                             Color.Transparent
                         )
                     ),
@@ -374,14 +355,13 @@ private fun LoadingContent() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo animado
         Box(
             modifier = Modifier
                 .size(120.dp)
                 .clip(RoundedCornerShape(30.dp))
                 .background(
                     brush = Brush.linearGradient(
-                        colors = listOf(PrimaryRed, SecondaryAmber)
+                        colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
                     )
                 )
                 .padding(24.dp),
@@ -390,7 +370,7 @@ private fun LoadingContent() {
             Icon(
                 imageVector = Icons.Default.Restaurant,
                 contentDescription = "Cargando",
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(48.dp)
             )
         }
@@ -398,7 +378,7 @@ private fun LoadingContent() {
         Spacer(modifier = Modifier.height(32.dp))
 
         CircularProgressIndicator(
-            color = PrimaryRed,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(48.dp),
             strokeWidth = 4.dp
         )
@@ -408,7 +388,7 @@ private fun LoadingContent() {
         Text(
             text = "Iniciando La Previa",
             style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 20.sp,
             fontWeight = FontWeight.Medium
         )
@@ -418,7 +398,7 @@ private fun LoadingContent() {
         Text(
             text = "Preparando tu experiencia...",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             fontSize = 14.sp
         )
     }
@@ -489,7 +469,7 @@ private fun AnimatedRoleSelectionContent(
             AnimatedRoleSelectionButton(
                 showAnimation = showAnimation,
                 role = UserRole.ADMIN,
-                description = "Gestionar productos, precios, inventario y configuración",
+                description = "Gestionar productos, precios, inventario y configuracion",
                 icon = Icons.Default.Settings,
                 delay = 700,
                 onClick = {
@@ -501,7 +481,6 @@ private fun AnimatedRoleSelectionContent(
             )
         }
 
-        // Nueva sección para login tradicional
         item {
             Spacer(modifier = Modifier.height(32.dp))
             TraditionalLoginOption(showAnimation = showAnimation)
@@ -527,18 +506,18 @@ private fun TraditionalLoginOption(showAnimation: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "¿Ya tienes una cuenta?",
+            text = "Ya tienes una cuenta?",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             fontSize = 14.sp
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Inicia sesión con email y contraseña",
+            text = "Inicia sesion con email y contrasena",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.5f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             fontSize = 12.sp
         )
     }
@@ -567,7 +546,6 @@ private fun AnimatedHeaderSection(showAnimation: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo con efecto glassmorphism
         Box(
             modifier = Modifier
                 .size(100.dp)
@@ -595,7 +573,7 @@ private fun AnimatedHeaderSection(showAnimation: Boolean) {
                 .clip(CircleShape)
                 .background(
                     brush = Brush.linearGradient(
-                        colors = listOf(PrimaryRed, SecondaryAmber),
+                        colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary),
                         start = Offset(0f, 0f),
                         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                     )
@@ -606,18 +584,17 @@ private fun AnimatedHeaderSection(showAnimation: Boolean) {
             Icon(
                 imageVector = Icons.Default.Restaurant,
                 contentDescription = "Logo La Previa",
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(36.dp)
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Nombre del restaurante
         Text(
-            text = "EL PATIO DE LA CASA",
+            text = "LA PREVIA",
             style = MaterialTheme.typography.displaySmall,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 28.sp,
             fontWeight = FontWeight.Black,
             textAlign = TextAlign.Center,
@@ -627,16 +604,15 @@ private fun AnimatedHeaderSection(showAnimation: Boolean) {
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "RESTAURANTE.",
+            text = "RESTOBAR",
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.White.copy(alpha = 0.8f),
+            color = MaterialTheme.colorScheme.secondary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             letterSpacing = 2.sp
         )
 
-        // Línea decorativa
         Spacer(modifier = Modifier.height(8.dp))
         Box(
             modifier = Modifier
@@ -645,7 +621,7 @@ private fun AnimatedHeaderSection(showAnimation: Boolean) {
                 .clip(RoundedCornerShape(2.dp))
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(PrimaryRed, SecondaryAmber)
+                        colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
                     )
                 )
         )
@@ -670,9 +646,9 @@ private fun AnimatedTitle(showAnimation: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "¿QUIÉN ERES?",
+            text = "QUIEN ERES?",
             style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -684,7 +660,7 @@ private fun AnimatedTitle(showAnimation: Boolean) {
         Text(
             text = "Selecciona tu rol para continuar",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             fontSize = 14.sp,
             textAlign = TextAlign.Center
         )
@@ -750,15 +726,14 @@ private fun AnimatedRoleSelectionButton(
                     )
                 )
         ) {
-            // Efecto de borde gradiente
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                PrimaryRed.copy(alpha = 0.3f),
-                                SecondaryAmber.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f),
                                 Color.Transparent
                             ),
                             start = Offset(0f, 0f),
@@ -775,14 +750,13 @@ private fun AnimatedRoleSelectionButton(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Start
             ) {
-                // Icono con fondo gradiente
                 Box(
                     modifier = Modifier
                         .size(60.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(
                             brush = Brush.linearGradient(
-                                colors = listOf(PrimaryRed, SecondaryAmber),
+                                colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary),
                                 start = Offset(0f, 0f),
                                 end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                             )
@@ -793,14 +767,13 @@ private fun AnimatedRoleSelectionButton(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(26.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Texto
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center,
@@ -813,7 +786,7 @@ private fun AnimatedRoleSelectionButton(
                             UserRole.ADMIN -> "ADMINISTRADOR/A"
                         },
                         style = MaterialTheme.typography.titleLarge,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -823,7 +796,7 @@ private fun AnimatedRoleSelectionButton(
                     Text(
                         text = description,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         lineHeight = 18.sp,
                         textAlign = TextAlign.Start,
@@ -831,7 +804,6 @@ private fun AnimatedRoleSelectionButton(
                     )
                 }
 
-                // Flecha indicadora
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -878,7 +850,6 @@ fun EmailLoginForm(
             .fillMaxSize()
             .padding(24.dp)
     ) {
-        // Botón para volver
         IconButton(
             onClick = {
                 if (!isLoading) {
@@ -897,9 +868,8 @@ fun EmailLoginForm(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Título
         Text(
-            text = "Iniciar Sesión",
+            text = "Iniciar Sesion",
             style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
             fontSize = 24.sp,
@@ -939,7 +909,7 @@ fun EmailLoginForm(
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 containerColor = Color.White.copy(alpha = 0.1f),
                 unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                focusedBorderColor = PrimaryRed,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
                 focusedLabelColor = Color.White.copy(alpha = 0.9f),
                 cursorColor = Color.White
@@ -951,11 +921,11 @@ fun EmailLoginForm(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Contraseña") },
+            label = { Text("Contrasena") },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Lock,
-                    contentDescription = "Contraseña",
+                    contentDescription = "Contrasena",
                     tint = Color.White.copy(alpha = 0.7f)
                 )
             },
@@ -963,7 +933,7 @@ fun EmailLoginForm(
                 IconButton(onClick = { showPassword = !showPassword }) {
                     Icon(
                         imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = if (showPassword) "Ocultar contraseña" else "Mostrar contraseña",
+                        contentDescription = if (showPassword) "Ocultar contrasena" else "Mostrar contrasena",
                         tint = Color.White.copy(alpha = 0.7f)
                     )
                 }
@@ -973,7 +943,7 @@ fun EmailLoginForm(
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 containerColor = Color.White.copy(alpha = 0.1f),
                 unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                focusedBorderColor = PrimaryRed,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
                 focusedLabelColor = Color.White.copy(alpha = 0.9f),
                 cursorColor = Color.White
@@ -982,7 +952,6 @@ fun EmailLoginForm(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Botón de login
         Button(
             onClick = {
                 if (!isLoading && email.isNotBlank() && password.isNotBlank()) {
@@ -1006,14 +975,13 @@ fun EmailLoginForm(
                 )
             } else {
                 Text(
-                    text = "Iniciar Sesión",
+                    text = "Iniciar Sesion",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
         }
 
-        // Texto informativo
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "O selecciona otro rol si no tienes cuenta",

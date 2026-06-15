@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.NotificationPanel
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 import kotlinx.coroutines.delay
 
@@ -38,7 +40,7 @@ fun WaiterMainScreen(
     var selectedTab by remember { mutableStateOf(0) }
     var showNotifications by remember { mutableStateOf(false) }
 
-    // Detectar tamaño de pantalla para diseño responsivo
+    // Detectar tamano de pantalla para diseno responsivo
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
@@ -56,7 +58,7 @@ fun WaiterMainScreen(
     val successMessage by viewModel.successMessage.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    // Auto-clear mensajes después de 3 segundos
+    // Auto-clear mensajes despues de 3 segundos
     LaunchedEffect(successMessage, errorMessage, connectionMessage) {
         if (successMessage != null || errorMessage != null || connectionMessage != null) {
             delay(3000)
@@ -66,20 +68,15 @@ fun WaiterMainScreen(
         }
     }
 
-    // Colores responsivos según tamaño
-    val backgroundColor = Color(0xFF0f3460)
-    val surfaceColor = Color(0xFF1a1a2e)
-    val accentColor = Color(0xFFe94560)
-
     val readyOrdersCount = orders.count { it.status == com.laprevia.restobar.data.model.OrderStatus.LISTO }
     val occupiedTablesCount = tables.count { it.status == com.laprevia.restobar.data.model.TableStatus.OCUPADA }
     val totalItemsInCart = currentOrderItems.sumOf { it.quantity }
 
-    // Texto de estado de conexión mejorado
+    // Texto de estado de conexion mejorado con iconos SVG (sin emojis)
     val connectionStatusText = when {
-        !isInternetAvailable -> "🔴 SIN INTERNET - Modo offline"
-        isFirebaseConnected -> "🟢 Conectado a cocina"
-        else -> "🟡 Conectando..."
+        !isInternetAvailable -> "SIN INTERNET - Modo offline"
+        isFirebaseConnected -> "Conectado a cocina"
+        else -> "Conectando..."
     }
 
     LaunchedEffect(Unit) {
@@ -99,8 +96,8 @@ fun WaiterMainScreen(
                         elevation = if (isTablet) 8.dp else 4.dp,
                         shape = RoundedCornerShape(bottomStart = if (isTablet) 32.dp else 24.dp, bottomEnd = if (isTablet) 32.dp else 24.dp)
                     ),
-                color = Color(0xFF1a1a2e),
-                contentColor = Color.White
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
                 Column(
                     modifier = Modifier
@@ -117,7 +114,7 @@ fun WaiterMainScreen(
                                 text = buildAnnotatedString {
                                     withStyle(
                                         SpanStyle(
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             fontWeight = FontWeight.Black,
                                             fontSize = if (isTablet) 32.sp else 24.sp,
                                             letterSpacing = 2.sp
@@ -127,7 +124,7 @@ fun WaiterMainScreen(
                                     }
                                     withStyle(
                                         SpanStyle(
-                                            color = Color(0xFFe94560),
+                                            color = MaterialTheme.colorScheme.secondary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = if (isTablet) 20.sp else 16.sp,
                                             letterSpacing = 3.sp
@@ -146,12 +143,12 @@ fun WaiterMainScreen(
                                     modifier = Modifier
                                         .size(if (isTablet) 52.dp else 44.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF16213e))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Notifications,
                                         contentDescription = "Notificaciones",
-                                        tint = Color.White,
+                                        tint = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
                                     )
                                 }
@@ -162,12 +159,12 @@ fun WaiterMainScreen(
                                             .size(if (isTablet) 22.dp else 18.dp)
                                             .align(Alignment.TopEnd)
                                             .clip(CircleShape)
-                                            .background(Color(0xFFe94560)),
+                                            .background(MaterialTheme.colorScheme.secondary),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             text = if (notifications.size > 9) "9+" else notifications.size.toString(),
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onSecondary,
                                             fontSize = if (isTablet) 11.sp else 10.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -182,19 +179,19 @@ fun WaiterMainScreen(
                                 modifier = Modifier
                                     .size(if (isTablet) 52.dp else 44.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFe94560))
+                                    .background(MaterialTheme.colorScheme.secondary)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Logout,
-                                    contentDescription = "Cerrar sesión",
-                                    tint = Color.White,
+                                    contentDescription = "Cerrar sesion",
+                                    tint = MaterialTheme.colorScheme.onSecondary,
                                     modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
                                 )
                             }
                         }
                     }
 
-                    // Banner de estado de conexión
+                    // Banner de estado de conexion
                     ConnectionStatusBannerWaiter(
                         isInternetAvailable = isInternetAvailable,
                         isFirebaseConnected = isFirebaseConnected,
@@ -213,7 +210,7 @@ fun WaiterMainScreen(
                         Text(
                             text = "SISTEMA MESERO",
                             style = if (isTablet) MaterialTheme.typography.bodySmall else MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             fontWeight = FontWeight.Medium,
                             letterSpacing = 3.sp
                         )
@@ -221,12 +218,12 @@ fun WaiterMainScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (readyOrdersCount > 0) {
                                 Badge(
-                                    containerColor = Color(0xFFe94560),
+                                    containerColor = MaterialTheme.colorScheme.secondary,
                                     modifier = Modifier.height(if (isTablet) 24.dp else 20.dp)
                                 ) {
                                     Text(
                                         text = "$readyOrdersCount listas",
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onSecondary,
                                         fontSize = if (isTablet) 11.sp else 9.sp
                                     )
                                 }
@@ -235,24 +232,20 @@ fun WaiterMainScreen(
                             Text(
                                 text = "${tables.size} mesas | $occupiedTablesCount ocup.",
                                 style = if (isTablet) MaterialTheme.typography.bodySmall else MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                         }
                     }
                 }
             }
         },
-        containerColor = Color(0xFF0f3460)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(backgroundColor, surfaceColor)
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Mensajes temporales
@@ -275,74 +268,40 @@ fun WaiterMainScreen(
                     occupiedTablesCount = occupiedTablesCount,
                     readyOrdersCount = readyOrdersCount,
                     isTablet = isTablet,
-                    accentColor = accentColor,
-                    surfaceColor = surfaceColor
+                    accentColor = MaterialTheme.colorScheme.secondary,
+                    surfaceColor = MaterialTheme.colorScheme.surface
                 )
 
-                // Panel de notificaciones
-                if (showNotifications && notifications.isNotEmpty()) {
-                    NotificationPanel(
-                        notifications = notifications,
-                        onDismissNotification = { notification ->
-                            viewModel.removeNotification(notification)
-                        },
-                        onClearAll = {
-                            viewModel.clearAllNotifications()
-                            showNotifications = false
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = 8.dp)
-                    )
-                }
-
-                // Tabs principales
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Carrito flotante - Solo visible en móvil
-                    if (totalItemsInCart > 0 && !isTablet) {
-                        CartFloatingButton(
-                            itemCount = totalItemsInCart,
-                            onClick = {
-                                viewModel.currentTableId.value?.let { tableId ->
-                                    navController.navigate("table_details/$tableId")
-                                }
-                            }
-                        )
-                    }
-
-                    // Tabs responsivos
+                // Contenido principal
+                Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     if (isTablet && isLandscape) {
-                        // En tablet landscape: mostrar tabs a la izquierda y contenido a la derecha
                         Row(modifier = Modifier.fillMaxSize()) {
                             NavigationRail(
-                                modifier = Modifier.width(80.dp),
-                                containerColor = surfaceColor.copy(alpha = 0.8f)
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(80.dp),
+                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                                contentColor = MaterialTheme.colorScheme.onSurface
                             ) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    NavigationRailItem(
-                                        selected = selectedTab == 0,
-                                        onClick = { selectedTab = 0; showNotifications = false },
-                                        icon = { Icon(Icons.Default.TableRestaurant, contentDescription = "Mesas") },
-                                        label = { Text("Mesas", fontSize = 10.sp) }
-                                    )
-                                    NavigationRailItem(
-                                        selected = selectedTab == 1,
-                                        onClick = { selectedTab = 1; showNotifications = false },
-                                        icon = { Icon(Icons.Default.RestaurantMenu, contentDescription = "Productos") },
-                                        label = { Text("Productos", fontSize = 10.sp) }
-                                    )
-                                    NavigationRailItem(
-                                        selected = selectedTab == 2,
-                                        onClick = { selectedTab = 2; showNotifications = false },
-                                        icon = { Icon(Icons.Default.ListAlt, contentDescription = "Órdenes") },
-                                        label = { Text("Órdenes", fontSize = 10.sp) }
-                                    )
-                                }
+                                Spacer(modifier = Modifier.weight(1f))
+                                NavigationRailItem(
+                                    selected = selectedTab == 0,
+                                    onClick = { selectedTab = 0; showNotifications = false },
+                                    icon = { Icon(Icons.Default.TableBar, contentDescription = "Mesas") },
+                                    label = { Text("Mesas", fontSize = 10.sp) }
+                                )
+                                NavigationRailItem(
+                                    selected = selectedTab == 1,
+                                    onClick = { selectedTab = 1; showNotifications = false },
+                                    icon = { Icon(Icons.Default.RestaurantMenu, contentDescription = "Productos") },
+                                    label = { Text("Productos", fontSize = 10.sp) }
+                                )
+                                NavigationRailItem(
+                                    selected = selectedTab == 2,
+                                    onClick = { selectedTab = 2; showNotifications = false },
+                                    icon = { Icon(Icons.Default.ListAlt, contentDescription = "Ordenes") },
+                                    label = { Text("Ordenes", fontSize = 10.sp) }
+                                )
                             }
 
                             Box(
@@ -365,8 +324,8 @@ fun WaiterMainScreen(
 
                         ScrollableTabRow(
                             selectedTabIndex = selectedTab,
-                            containerColor = surfaceColor.copy(alpha = 0.6f),
-                            contentColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                            contentColor = MaterialTheme.colorScheme.onSurface,
                             edgePadding = if (isTablet) 32.dp else 16.dp,
                             modifier = Modifier.padding(horizontal = if (isTablet) 24.dp else 16.dp)
                         ) {
@@ -406,7 +365,7 @@ fun WaiterMainScreen(
                                 },
                                 text = {
                                     Text(
-                                        "ÓRDENES",
+                                        "ORDENES",
                                         fontWeight = FontWeight.Medium,
                                         fontSize = if (isTablet) 16.sp else 14.sp
                                     )
@@ -460,24 +419,22 @@ fun WelcomeCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = 4.dp)  // ← Reducido vertical
-            .shadow(if (isTablet) 4.dp else 2.dp, RoundedCornerShape(if (isTablet) 16.dp else 12.dp)),  // ← Sombra más pequeña
+            .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = 4.dp)
+            .shadow(if (isTablet) 4.dp else 2.dp, RoundedCornerShape(if (isTablet) 16.dp else 12.dp)),
         colors = CardDefaults.cardColors(
             containerColor = surfaceColor.copy(alpha = 0.9f)
         )
     ) {
-        // Layout HORIZONTAL para ocupar menos espacio
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(if (isTablet) 16.dp else 12.dp),  // ← Padding reducido
+                .padding(if (isTablet) 16.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(if (isTablet) 12.dp else 8.dp)
         ) {
-            // Icono más compacto
             Box(
                 modifier = Modifier
-                    .size(if (isTablet) 48.dp else 40.dp)  // ← Reducido
+                    .size(if (isTablet) 48.dp else 40.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
@@ -489,68 +446,76 @@ fun WelcomeCard(
                 Icon(
                     imageVector = Icons.Default.RestaurantMenu,
                     contentDescription = "Mesero",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
                 )
             }
 
-            // Contenido compacto en columna
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // Fila 1: Saludo
                 Text(
-                    text = "¡Bienvenido, Mesero!",
-                    color = Color.White,
+                    text = "Bienvenido, Mesero!",
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = if (isTablet) 16.sp else 14.sp,
                     maxLines = 1
                 )
 
-                // Fila 2: Toda la información en UNA SOLA LÍNEA (esto soluciona el problema)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(if (isTablet) 12.dp else 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Estado de conexión simplificado
+                    val statusColor = when {
+                        !isInternetAvailable -> MaterialTheme.colorScheme.error
+                        isFirebaseConnected -> SuccessGreen
+                        else -> WarningOrange
+                    }
+                    val statusIcon = when {
+                        !isInternetAvailable -> Icons.Default.WifiOff
+                        isFirebaseConnected -> Icons.Default.Wifi
+                        else -> Icons.Default.Sync
+                    }
+                    Icon(
+                        imageVector = statusIcon,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(if (isTablet) 14.dp else 12.dp)
+                    )
                     Text(
                         text = when {
-                            !isInternetAvailable -> "🔴 Offline"
-                            isFirebaseConnected -> "🟢 Online"
-                            else -> "🟡 Conectando..."
+                            !isInternetAvailable -> "Offline"
+                            isFirebaseConnected -> "Online"
+                            else -> "Conectando..."
                         },
-                        color = when {
-                            !isInternetAvailable -> Color(0xFFF44336)
-                            isFirebaseConnected -> Color(0xFF4CAF50)
-                            else -> Color(0xFFFF9800)
-                        },
+                        color = statusColor,
                         fontSize = if (isTablet) 12.sp else 10.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1
                     )
 
                     Text(
-                        text = "•",
-                        color = Color.White.copy(alpha = 0.3f),
+                        text = "\u2022",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                         fontSize = if (isTablet) 12.sp else 10.sp
                     )
 
                     Text(
                         text = "$tablesCount mesas",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                         fontSize = if (isTablet) 12.sp else 10.sp,
                         maxLines = 1
                     )
 
                     Text(
-                        text = "•",
-                        color = Color.White.copy(alpha = 0.3f),
+                        text = "\u2022",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                         fontSize = if (isTablet) 12.sp else 10.sp
                     )
 
                     Text(
                         text = "$occupiedTablesCount ocup.",
-                        color = if (occupiedTablesCount > 0) Color(0xFFFFA000) else Color.White.copy(alpha = 0.6f),
+                        color = if (occupiedTablesCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = if (isTablet) 12.sp else 10.sp,
                         fontWeight = if (occupiedTablesCount > 0) FontWeight.Bold else FontWeight.Normal,
                         maxLines = 1
@@ -558,13 +523,13 @@ fun WelcomeCard(
 
                     if (readyOrdersCount > 0) {
                         Text(
-                            text = "•",
-                            color = Color.White.copy(alpha = 0.3f),
+                            text = "\u2022",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                             fontSize = if (isTablet) 12.sp else 10.sp
                         )
                         Text(
                             text = "$readyOrdersCount listas",
-                            color = Color(0xFFe94560),
+                            color = MaterialTheme.colorScheme.secondary,
                             fontSize = if (isTablet) 12.sp else 10.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -586,19 +551,19 @@ fun CartFloatingButton(
         modifier = Modifier
             .size(56.dp)
             .padding(4.dp),
-        containerColor = Color(0xFFe94560)
+        containerColor = MaterialTheme.colorScheme.secondary
     ) {
         BadgedBox(
             badge = {
                 Badge(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFFe94560)
+                    containerColor = MaterialTheme.colorScheme.onSecondary,
+                    contentColor = MaterialTheme.colorScheme.secondary
                 ) {
                     Text(itemCount.toString(), fontSize = 11.sp)
                 }
             }
         ) {
-            Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito", tint = Color.White)
+            Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito", tint = MaterialTheme.colorScheme.onSecondary)
         }
     }
 }
@@ -613,7 +578,7 @@ fun CartBar(
             .fillMaxWidth()
             .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
+            containerColor = SuccessGreen.copy(alpha = 0.2f)
         )
     ) {
         Row(
@@ -623,11 +588,11 @@ fun CartBar(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito", tint = Color.White, modifier = Modifier.size(if (isTablet) 24.dp else 20.dp))
+            Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(if (isTablet) 24.dp else 20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "$itemCount items en carrito",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
                 fontSize = if (isTablet) 16.sp else 14.sp
             )
@@ -644,9 +609,15 @@ fun ConnectionStatusBannerWaiter(
     isTablet: Boolean
 ) {
     val backgroundColor = when {
-        !isInternetAvailable -> Color(0xFFF44336).copy(alpha = 0.9f)
-        !isFirebaseConnected -> Color(0xFFFF9800).copy(alpha = 0.9f)
-        else -> Color(0xFF4CAF50).copy(alpha = 0.9f)
+        !isInternetAvailable -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+        !isFirebaseConnected -> WarningOrange.copy(alpha = 0.9f)
+        else -> SuccessGreen.copy(alpha = 0.9f)
+    }
+
+    val statusIcon = when {
+        !isInternetAvailable -> Icons.Default.WifiOff
+        !isFirebaseConnected -> Icons.Default.Sync
+        else -> Icons.Default.Wifi
     }
 
     Card(
@@ -665,11 +636,7 @@ fun ConnectionStatusBannerWaiter(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = when {
-                        !isInternetAvailable -> Icons.Default.WifiOff
-                        !isFirebaseConnected -> Icons.Default.Sync
-                        else -> Icons.Default.Wifi
-                    },
+                    imageVector = statusIcon,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(if (isTablet) 22.dp else 18.dp)
@@ -713,7 +680,7 @@ fun MessageBannerWaiter(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = paddingHorizontal, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier
@@ -736,7 +703,7 @@ fun MessageBannerWaiter(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = paddingHorizontal, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = WarningOrange.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier
@@ -759,7 +726,7 @@ fun MessageBannerWaiter(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = paddingHorizontal, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.95f))
+            colors = CardDefaults.cardColors(containerColor = SuccessGreen.copy(alpha = 0.95f))
         ) {
             Row(
                 modifier = Modifier

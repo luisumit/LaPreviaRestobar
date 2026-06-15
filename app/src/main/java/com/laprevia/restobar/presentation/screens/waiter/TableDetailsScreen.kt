@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +19,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.data.model.TableStatus
 import com.laprevia.restobar.presentation.screens.waiter.components.ProductItem
+import com.laprevia.restobar.presentation.theme.SuccessGreen
+import com.laprevia.restobar.presentation.theme.WarningOrange
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 import kotlinx.coroutines.delay
 
@@ -84,19 +87,25 @@ fun TableDetailsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Mesa no encontrada",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
                 Text(
-                    text = "⚠️ Mesa no encontrada",
+                    text = "Mesa no encontrada",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "ID de mesa: $tableId (válido del 1 al 8)",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
                 Button(
                     onClick = { navController.popBackStack() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) {
                     Text("Volver")
                 }
@@ -111,15 +120,28 @@ fun TableDetailsScreen(
                 title = {
                     Column {
                         Text("Mesa ${table.number}")
-                        Text(
-                            text = when {
-                                !isInternetAvailable -> "🔴 Sin conexión"
-                                table.status == TableStatus.LIBRE -> "Libre"
-                                else -> "Ocupada"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (!isInternetAvailable) Color(0xFFF44336) else Color.White.copy(alpha = 0.7f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (!isInternetAvailable) {
+                                Icon(
+                                    imageVector = Icons.Default.WifiOff,
+                                    contentDescription = "Sin conexion",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Text(
+                                text = when {
+                                    !isInternetAvailable -> "Sin conexion"
+                                    table.status == TableStatus.LIBRE -> "Libre"
+                                    else -> "Ocupada"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (!isInternetAvailable) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -159,7 +181,7 @@ fun TableDetailsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.15f))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.15f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -171,12 +193,12 @@ fun TableDetailsScreen(
                         Icon(
                             Icons.Default.Warning,
                             contentDescription = "Sin internet",
-                            tint = Color(0xFFF44336),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "📱 SIN INTERNET - Los pedidos se guardarán localmente y se enviarán cuando vuelva la conexión",
-                            color = Color(0xFFF44336),
+                            text = "SIN INTERNET - Los pedidos se guardaran localmente y se enviaran cuando vuelva la conexion",
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f)
                         )
@@ -192,14 +214,14 @@ fun TableDetailsScreen(
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (currentConnectionMessage.contains("SIN INTERNET"))
-                            Color(0xFFFF9800).copy(alpha = 0.9f)
+                            WarningOrange.copy(alpha = 0.9f)
                         else
-                            Color(0xFF4CAF50).copy(alpha = 0.9f)
+                            SuccessGreen.copy(alpha = 0.9f)
                     )
                 ) {
                     Text(
                         text = currentConnectionMessage,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -293,12 +315,23 @@ fun CurrentOrderSummary(
             }
 
             if (isOffline) {
-                Text(
-                    "📱 Modo offline - El pedido se guardará localmente",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFFF9800),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.padding(bottom = 8.dp)
-                )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WifiOff,
+                        contentDescription = "Sin conexion",
+                        tint = WarningOrange,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        "Modo offline - El pedido se guardara localmente",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WarningOrange
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -333,7 +366,8 @@ fun CurrentOrderSummary(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = cartItems.isNotEmpty(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isOffline) Color(0xFFFF9800) else MaterialTheme.colorScheme.primary
+                    containerColor = if (isOffline) WarningOrange else MaterialTheme.colorScheme.primary,
+                    contentColor = if (isOffline) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(if (isOffline) "Enviar Pedido (Modo offline)" else "Enviar Pedido a Cocina")
@@ -341,9 +375,9 @@ fun CurrentOrderSummary(
 
             if (isOffline) {
                 Text(
-                    text = "⚠️ Sin internet. El pedido se guardará y se enviará automáticamente cuando vuelva la conexión.",
+                    text = "Sin internet. El pedido se guardara y se enviara automaticamente cuando vuelva la conexion.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFFF9800),
+                    color = WarningOrange,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -468,8 +502,8 @@ fun ConfirmOrderDialog(
             Column {
                 if (isOffline) {
                     Text(
-                        "📱 SIN INTERNET - El pedido se guardará localmente y se enviará cuando vuelva la conexión",
-                        color = Color(0xFFFF9800),
+                        "SIN INTERNET - El pedido se guardara localmente y se enviara cuando vuelva la conexion",
+                        color = WarningOrange,
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -508,7 +542,8 @@ fun ConfirmOrderDialog(
                 onClick = onConfirm,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isOffline) Color(0xFFFF9800) else MaterialTheme.colorScheme.primary
+                    containerColor = if (isOffline) WarningOrange else MaterialTheme.colorScheme.primary,
+                    contentColor = if (isOffline) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(if (isOffline) "Guardar Pedido Localmente" else "Enviar a Cocina")
