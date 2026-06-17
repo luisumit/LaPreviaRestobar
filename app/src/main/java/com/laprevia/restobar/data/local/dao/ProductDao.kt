@@ -30,5 +30,8 @@ interface ProductDao {
     @Query("DELETE FROM products WHERE id = :id")
     suspend fun deleteProduct(id: String)
 
+    @Query("DELETE FROM products WHERE syncStatus != 'PENDING' AND id NOT IN (:remoteIds)")
+    suspend fun deleteSyncedProductsNotIn(remoteIds: List<String>)
+
 
 }

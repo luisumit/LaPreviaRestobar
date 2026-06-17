@@ -1,0 +1,144 @@
+:root {
+  color-scheme: light;
+  --ink: #171724;
+  --muted: #686a78;
+  --brand: #e94560;
+  --surface: #ffffff;
+  --bg: #f4f6f8;
+  --line: #e6e8ee;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.topbar {
+  min-height: 148px;
+  padding: 28px 18px 22px;
+  background: #1a1a2e;
+  color: white;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.table-badge {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.filter-button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.filter-button.active {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+
+.status {
+  color: var(--muted);
+  padding: 12px 2px;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.product-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 160px;
+}
+
+.product-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.product-body {
+  padding: 14px;
+}
+
+.product-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.product-description {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.category {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.price {
+  color: var(--brand);
+  font-size: 18px;
+  font-weight: 800;
+}

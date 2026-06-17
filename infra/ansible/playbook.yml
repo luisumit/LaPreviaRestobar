@@ -1,0 +1,22 @@
+---
+- name: Verificar entorno de despliegue de La Previa Restobar
+  hosts: local
+  gather_facts: false
+
+  tasks:
+    - name: Verificar Node.js
+      ansible.builtin.command: node --version
+      changed_when: false
+
+    - name: Verificar Firebase CLI
+      ansible.builtin.command: firebase --version
+      changed_when: false
+
+    - name: Verificar Gradle Wrapper del proyecto
+      ansible.builtin.stat:
+        path: ../../gradlew.bat
+      register: gradle_wrapper
+
+    - name: Mostrar estado del Gradle Wrapper
+      ansible.builtin.debug:
+        msg: "gradlew.bat existe: {{ gradle_wrapper.stat.exists }}"

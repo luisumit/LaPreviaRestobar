@@ -1,0 +1,37 @@
+---
+- name: Desplegar carta digital de La Previa Restobar
+  hosts: local
+  gather_facts: false
+
+  vars:
+    project_root: ../..
+
+  tasks:
+    - name: Verificar Firebase CLI
+      ansible.builtin.command: firebase --version
+      changed_when: false
+
+    - name: Verificar configuracion de Firebase
+      ansible.builtin.stat:
+        path: "{{ project_root }}/firebase.json"
+      register: firebase_config
+
+    - name: Detener si falta firebase.json
+      ansible.builtin.fail:
+        msg: "No existe firebase.json. No se puede desplegar Firebase Hosting."
+      when: not firebase_config.stat.exists
+
+    - name: Verificar carta digital
+      ansible.builtin.stat:
+        path: "{{ project_root }}/public-menu/index.html"
+      register: public_menu
+
+    - name: Detener si falta public-menu/index.html
+      ansible.builtin.fail:
+        msg: "No existe public-menu/index.html. No se puede desplegar la carta digital."
+      when: not public_menu.stat.exists
+
+    - name: Desplegar carta digital en Firebase Hosting
+      ansible.builtin.command: firebase deploy --only hosting
+      args:
+        chdir: "{{ project_root }}"

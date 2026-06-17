@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "products": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "tables": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "orders": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    ".read": false,
+    ".write": false
+  }
+}

@@ -294,7 +294,8 @@ fun AppNavigation() {
                         loginViewModel.signOut()
                         isAuthenticated = false
                         navController.navigate("login") {
-                            popUpTo("admin_main") { inclusive = true }
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
                 )

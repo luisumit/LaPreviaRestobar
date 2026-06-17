@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>La Previa Restobar - Carta</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">La Previa Restobar</p>
+      <h1>Carta digital</h1>
+    </div>
+    <div id="tableBadge" class="table-badge">Mesa</div>
+  </header>
+
+  <main>
+    <section class="filters" id="categoryFilters"></section>
+    <section class="status" id="status">Cargando carta...</section>
+    <section class="menu-grid" id="menuGrid"></section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

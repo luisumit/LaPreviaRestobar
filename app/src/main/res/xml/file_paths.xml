@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Para reportes guardados en Documents/reportes/ -->
+    <external-files-path name="reports" path="Documents/reportes/" />
+
+    <!-- Para archivos temporales en caché -->
+    <cache-path name="cache" path="/" />
+
+    <!-- Para archivos en la carpeta de descargas -->
+    <external-path name="downloads" path="Download/" />
+</paths>
