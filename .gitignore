@@ -22,6 +22,19 @@ app/src/release/google-services.json
 serviceAccountKey.json
 backend/serviceAccountKey.json
 
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Node.js
 node_modules/
 npm-debug.log*
