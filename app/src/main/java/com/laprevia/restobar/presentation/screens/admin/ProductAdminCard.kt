@@ -1,18 +1,37 @@
 package com.laprevia.restobar.presentation.screens.admin
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.laprevia.restobar.data.model.Product
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProductAdminCard(
     product: Product,
@@ -21,9 +40,7 @@ fun ProductAdminCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -36,107 +53,60 @@ fun ProductAdminCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = product.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
 
-                    // Descripción - usando description que es String, no String?
-                    Spacer(modifier = Modifier.height(4.dp))
-                    if (product.description.isNotEmpty()) {
+                    if (product.description.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = product.description,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Información del producto - CORREGIDO
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Precio de venta
-                        ProductInfoChip(
-                            label = "Precio: S/. ${product.salePrice ?: 0.0}"
-                        )
-
-                        // Estado de inventario
-                        ProductInfoChip(
-                            label = if (product.trackInventory) "Con inventario" else "Sin inventario"
-                        )
-                    }
-
-                    // Información adicional en segunda fila
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Stock si tiene inventario
-                        if (product.trackInventory) {
-                            ProductInfoChip(
-                                label = "Stock: ${product.stock}"
-                            )
-                        } else {
-                            ProductInfoChip(
-                                label = "Stock: N/A"
-                            )
-                        }
-
-                        // Precio de costo si existe
-                        product.costPrice?.let { costPrice ->
-                            ProductInfoChip(
-                                label = "Costo: S/. $costPrice"
-                            )
-                        } ?: run {
-                            ProductInfoChip(
-                                label = "Sin costo"
-                            )
-                        }
+                        ProductInfoChip(label = "Precio: S/ ${money(product.salePrice ?: 0.0)}")
+                        ProductInfoChip(label = if (product.trackInventory) "Con inventario" else "Sin inventario")
+                        ProductInfoChip(label = if (product.trackInventory) "Stock: ${product.stock}" else "Stock: N/A")
+                        ProductInfoChip(label = product.costPrice?.let { "Costo: S/ ${money(it)}" } ?: "Sin costo")
                     }
                 }
 
-                // Botones de acción
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Row {
-                    IconButton(
-                        onClick = onEdit,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Editar",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    IconButton(onClick = onEdit, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
                     }
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Eliminar",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                    IconButton(onClick = onDelete, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }
 
-            // Estado del producto y categoría
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Estado activo/inactivo
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = if (product.isActive) MaterialTheme.colorScheme.primaryContainer
@@ -151,11 +121,15 @@ fun ProductAdminCard(
                     )
                 }
 
-                // Categoría
                 Text(
                     text = product.category,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
                 )
             }
         }
@@ -173,7 +147,11 @@ fun ProductInfoChip(label: String) {
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }
 }
+
+private fun money(value: Double): String = String.format(Locale.US, "%.2f", value)

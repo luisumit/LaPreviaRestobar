@@ -1,33 +1,108 @@
 package com.laprevia.restobar.presentation.screens.admin
 
+import android.graphics.Bitmap
+import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.EventSeat
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.PointOfSale
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Summarize
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import com.laprevia.restobar.presentation.notifications.AdminStockScheduler
 import com.laprevia.restobar.presentation.theme.SuccessGreen
 import com.laprevia.restobar.presentation.theme.WarningOrange
+import com.laprevia.restobar.presentation.viewmodel.AdminDashboardMetrics
+import com.laprevia.restobar.presentation.viewmodel.AdminReportFilter
 import com.laprevia.restobar.presentation.viewmodel.AdminViewModel
 import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
+import com.laprevia.restobar.presentation.viewmodel.PUBLIC_MENU_URL
+import com.laprevia.restobar.presentation.viewmodel.SalesReport
 import kotlinx.coroutines.delay
+import java.util.Locale
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,9 +114,8 @@ fun AdminMainScreen(
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
-
-    val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
+    val isTablet = isTabletScreen()
+    var selectedAdminTab by rememberSaveable { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         AdminStockScheduler.schedulePeriodicCheck(context)
@@ -76,7 +150,7 @@ fun AdminMainScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 "LA PREVIA RESTOBAR",
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -84,35 +158,26 @@ fun AdminMainScreen(
                                 style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                "Panel Administrativo",
+                                "Panel administrativo",
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
 
                         IconButton(
-                            onClick = {
-                                AdminStockScheduler.triggerImmediateCheck(context)
-                            },
+                            onClick = { AdminStockScheduler.triggerImmediateCheck(context) },
                             modifier = Modifier
                                 .size(if (isTablet) 48.dp else 44.dp)
                                 .clip(CircleShape)
                                 .background(WarningOrange)
                         ) {
-                            Icon(
-                                Icons.Default.Notifications,
-                                contentDescription = "Probar notificacion",
-                                tint = Color.White,
-                                modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
-                            )
+                            Icon(Icons.Default.Notifications, contentDescription = "Probar notificacion", tint = Color.White)
                         }
 
                         Spacer(modifier = Modifier.width(if (isTablet) 8.dp else 4.dp))
 
                         IconButton(
                             onClick = {
-                                timber.log.Timber.d("AdminScreen: Cerrando sesion...")
-                                loginViewModel.signOut()
                                 onLogout()
                             },
                             modifier = Modifier
@@ -120,12 +185,7 @@ fun AdminMainScreen(
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.secondary)
                         ) {
-                            Icon(
-                                Icons.Default.Logout,
-                                contentDescription = "Cerrar sesion",
-                                tint = MaterialTheme.colorScheme.onSecondary,
-                                modifier = Modifier.size(if (isTablet) 22.dp else 20.dp)
-                            )
+                            Icon(Icons.Default.Logout, contentDescription = "Cerrar sesion", tint = MaterialTheme.colorScheme.onSecondary)
                         }
                     }
 
@@ -139,13 +199,15 @@ fun AdminMainScreen(
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { viewModel.showProductForm() },
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary,
-                modifier = Modifier.shadow(if (isTablet) 12.dp else 8.dp, CircleShape)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar Producto")
+            if (selectedAdminTab == 2) {
+                FloatingActionButton(
+                    onClick = { viewModel.showProductForm() },
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                    modifier = Modifier.shadow(if (isTablet) 12.dp else 8.dp, CircleShape)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Agregar producto")
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -165,177 +227,38 @@ fun AdminMainScreen(
                 onClearSuccess = { viewModel.clearSuccess() }
             )
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(if (isTablet) 24.dp else 16.dp)
-                    .shadow(if (isTablet) 8.dp else 4.dp, RoundedCornerShape(if (isTablet) 24.dp else 16.dp)),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(if (isTablet) 24.dp else 20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(if (isTablet) 80.dp else 60.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.secondary,
-                                        MaterialTheme.colorScheme.surface
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Inventory,
-                            contentDescription = "Admin",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(if (isTablet) 36.dp else 28.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(if (isTablet) 20.dp else 16.dp))
-
-                    Column {
-                        Text(
-                            "Panel de Administracion",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold,
-                            style = if (isTablet) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            viewModel.connectionStatusText,
-                            color = when {
-                                uiState.isOffline -> MaterialTheme.colorScheme.error
-                                uiState.pendingSyncCount > 0 -> WarningOrange
-                                else -> SuccessGreen
-                            },
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = if (isTablet) 24.dp else 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                ProductStatCard(
-                    title = "Total Productos",
-                    value = uiState.products.size.toString(),
-                    gradientColors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary),
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
-                ProductStatCard(
-                    title = "Activos",
-                    value = uiState.products.count { it.isActive }.toString(),
-                    gradientColors = listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Row(
+            AdminSectionTabs(
+                selectedTab = selectedAdminTab,
+                onTabSelected = { selectedAdminTab = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = if (isTablet) 24.dp else 16.dp)
-                    .padding(top = if (isTablet) 16.dp else 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                ProductStatCard(
-                    title = "Con Inventario",
-                    value = uiState.products.count { it.trackInventory }.toString(),
-                    gradientColors = listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 12.dp))
-                ProductStatCard(
-                    title = "Categorias",
-                    value = uiState.categories.size.toString(),
-                    gradientColors = listOf(MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.primaryContainer),
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                    .padding(top = if (isTablet) 20.dp else 16.dp)
+            )
 
-            Spacer(modifier = Modifier.height(if (isTablet) 24.dp else 20.dp))
-
-            Card(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = if (isTablet) 24.dp else 16.dp, vertical = if (isTablet) 12.dp else 8.dp)
-                    .shadow(if (isTablet) 8.dp else 4.dp, RoundedCornerShape(if (isTablet) 24.dp else 16.dp)),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+            when (selectedAdminTab) {
+                0 -> AdminDashboardSection(uiState.dashboardMetrics, isTablet, Modifier.fillMaxSize())
+                1 -> SalesReportSection(
+                    report = uiState.report,
+                    selectedFilter = uiState.reportFilter,
+                    onFilterSelected = { viewModel.selectReportFilter(it) },
+                    onExportPdf = { viewModel.exportReportToPdf() },
+                    onExportExcel = { viewModel.exportReportToExcel() },
+                    isTablet = isTablet,
+                    modifier = Modifier.fillMaxSize()
                 )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(if (isTablet) 24.dp else 16.dp)
-                ) {
-                    Text(
-                        text = "Productos Registrados",
-                        style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = if (isTablet) 20.dp else 16.dp)
-                    )
-
-                    if (uiState.products.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    Icons.Default.Inventory,
-                                    contentDescription = "Sin productos",
-                                    modifier = Modifier.size(if (isTablet) 80.dp else 64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                )
-                                Spacer(modifier = Modifier.height(if (isTablet) 20.dp else 16.dp))
-                                Text(
-                                    text = "No hay productos registrados",
-                                    style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
-                                Text(
-                                    text = "Presiona el boton + para agregar uno",
-                                    style = if (isTablet) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    modifier = Modifier.padding(top = 8.dp)
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)
-                        ) {
-                            items(uiState.products) { product ->
-                                ProductAdminCard(
-                                    product = product,
-                                    onEdit = { viewModel.showProductForm(product) },
-                                    onDelete = { viewModel.showDeleteDialog(product) }
-                                )
-                            }
-                        }
-                    }
-                }
+                2 -> ProductsAdminSection(
+                    products = uiState.products,
+                    categoriesCount = uiState.categories.size,
+                    isTablet = isTablet,
+                    connectionStatusText = viewModel.connectionStatusText,
+                    isOffline = uiState.isOffline,
+                    pendingSyncCount = uiState.pendingSyncCount,
+                    onEdit = { viewModel.showProductForm(it) },
+                    onDelete = { viewModel.showDeleteDialog(it) },
+                    modifier = Modifier.fillMaxSize()
+                )
+                else -> MenuQrSection(isTablet = isTablet, modifier = Modifier.fillMaxSize())
             }
         }
     }
@@ -345,11 +268,7 @@ fun AdminMainScreen(
             product = uiState.selectedProduct,
             categories = uiState.categories,
             onSave = { product ->
-                if (uiState.selectedProduct == null) {
-                    viewModel.createProduct(product)
-                } else {
-                    viewModel.updateProduct(product)
-                }
+                if (uiState.selectedProduct == null) viewModel.createProduct(product) else viewModel.updateProduct(product)
             },
             onDismiss = { viewModel.hideProductForm() }
         )
@@ -358,14 +277,10 @@ fun AdminMainScreen(
     if (uiState.showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.hideDeleteDialog() },
-            title = { Text("Eliminar Producto") },
-            text = {
-                Text("Estas seguro de que quieres eliminar \"${uiState.selectedProduct?.name}\"?")
-            },
+            title = { Text("Eliminar producto") },
+            text = { Text("Estas seguro de que quieres eliminar \"${uiState.selectedProduct?.name}\"?") },
             confirmButton = {
-                TextButton(
-                    onClick = { viewModel.deleteProduct() }
-                ) {
+                TextButton(onClick = { viewModel.deleteProduct() }) {
                     Text("Eliminar")
                 }
             },
@@ -379,61 +294,369 @@ fun AdminMainScreen(
 }
 
 @Composable
-fun ConnectionStatusBanner(
+fun AdminSectionTabs(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TabRow(
+        selectedTabIndex = selectedTab,
+        modifier = modifier.clip(RoundedCornerShape(16.dp)),
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        indicator = { tabPositions ->
+            TabRowDefaults.SecondaryIndicator(
+                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+    ) {
+        AdminTab(selected = selectedTab == 0, label = "Panel", icon = Icons.Default.Dashboard) { onTabSelected(0) }
+        AdminTab(selected = selectedTab == 1, label = "Reportes", icon = Icons.Default.Assessment) { onTabSelected(1) }
+        AdminTab(selected = selectedTab == 2, label = "Productos", icon = Icons.Default.Inventory) { onTabSelected(2) }
+        AdminTab(selected = selectedTab == 3, label = "QR", icon = Icons.Default.QrCode2) { onTabSelected(3) }
+    }
+}
+
+@Composable
+fun AdminTab(
+    selected: Boolean,
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Tab(
+        selected = selected,
+        onClick = onClick,
+        text = {
+            Text(label, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, fontSize = 11.sp)
+        },
+        icon = { Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp)) },
+        selectedContentColor = MaterialTheme.colorScheme.onSurface,
+        unselectedContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+    )
+}
+
+@Composable
+fun AdminDashboardSection(
+    metrics: AdminDashboardMetrics,
+    isTablet: Boolean,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(if (isTablet) 24.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)
+    ) {
+        item {
+            DashboardHeaderCard("Dashboard", "Ventas del dia, productos activos y alertas operativas", Icons.Default.Dashboard, isTablet)
+        }
+        item {
+            DashboardStatGrid(isTablet) {
+                DashboardMetricCard("Ventas del dia", "S/ ${formatMoney(metrics.salesToday)}", Icons.Default.Payments, listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Pedidos activos", metrics.activeOrders.toString(), Icons.Default.RestaurantMenu, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+            }
+        }
+        item {
+            DashboardStatGrid(isTablet) {
+                DashboardMetricCard("Productos activos", metrics.activeProducts.toString(), Icons.Default.Inventory, listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary), Modifier.weight(1f))
+                DashboardMetricCard("Producto top", metrics.bestSellingQuantity.toString(), Icons.Default.Star, listOf(WarningOrange, MaterialTheme.colorScheme.secondary), Modifier.weight(1f), metrics.bestSellingProduct)
+            }
+        }
+        item {
+            DashboardStatGrid(isTablet) {
+                DashboardMetricCard("Stock critico", (metrics.lowStockProducts + metrics.outOfStockProducts).toString(), Icons.Default.Warning, listOf(WarningOrange, MaterialTheme.colorScheme.primary), Modifier.weight(1f))
+                DashboardMetricCard("Mesas ocupadas", "${metrics.occupiedTables}/${metrics.totalTables}", Icons.Default.EventSeat, listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+            }
+        }
+        item {
+            DashboardInfoCard(
+                title = "Inventario",
+                icon = Icons.Default.Inventory2,
+                rows = listOf(
+                    "Productos con stock bajo" to metrics.lowStockProducts.toString(),
+                    "Productos agotados" to metrics.outOfStockProducts.toString()
+                ),
+                isTablet = isTablet
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun SalesReportSection(
+    report: SalesReport,
+    selectedFilter: AdminReportFilter,
+    onFilterSelected: (AdminReportFilter) -> Unit,
+    onExportPdf: () -> Unit,
+    onExportExcel: () -> Unit,
+    isTablet: Boolean,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(if (isTablet) 24.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)
+    ) {
+        item {
+            DashboardHeaderCard("Reporte y caja", "Filtra ventas, revisa cierre del turno y exporta el resumen", Icons.Default.PointOfSale, isTablet)
+        }
+        item {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                AdminReportFilter.values().forEachIndexed { index, filter ->
+                    SegmentedButton(
+                        selected = selectedFilter == filter,
+                        onClick = { onFilterSelected(filter) },
+                        shape = SegmentedButtonDefaults.itemShape(index, AdminReportFilter.values().size)
+                    ) {
+                        Text(filter.label)
+                    }
+                }
+            }
+        }
+        item {
+            DashboardStatGrid(isTablet) {
+                DashboardMetricCard("Total vendido", "S/ ${formatMoney(report.totalSales)}", Icons.Default.Payments, listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Pedidos", report.totalOrders.toString(), Icons.Default.ReceiptLong, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+            }
+        }
+        item {
+            DashboardInfoCard(
+                title = "Cierre del turno",
+                icon = Icons.Default.Summarize,
+                rows = listOf(
+                    "Pedidos cobrados" to report.chargedOrders.toString(),
+                    "Productos vendidos" to report.productsSold.toString(),
+                    "Pedidos cancelados" to report.cancelledOrders.toString(),
+                    "Producto mas vendido" to "${report.bestSellingProduct} (${report.bestSellingQuantity})"
+                ),
+                isTablet = isTablet
+            )
+        }
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)) {
+                Button(onClick = onExportPdf, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("PDF")
+                }
+                Button(onClick = onExportExcel, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)) {
+                    Icon(Icons.Default.TableChart, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Excel")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductsAdminSection(
+    products: List<com.laprevia.restobar.data.model.Product>,
+    categoriesCount: Int,
+    isTablet: Boolean,
+    connectionStatusText: String,
     isOffline: Boolean,
     pendingSyncCount: Int,
-    connectionStatusText: String,
-    onManualSync: () -> Unit
+    onEdit: (com.laprevia.restobar.data.model.Product) -> Unit,
+    onDelete: (com.laprevia.restobar.data.model.Product) -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(if (isTablet) 24.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)
+    ) {
+        item {
+            DashboardHeaderCard("Panel de administracion", connectionStatusText, Icons.Default.Inventory, isTablet)
+        }
+        item {
+            DashboardStatGrid(isTablet) {
+                DashboardMetricCard("Total productos", products.size.toString(), Icons.Default.Inventory, listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Activos", products.count { it.isActive }.toString(), Icons.Default.CheckCircle, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+            }
+        }
+        item {
+            DashboardStatGrid(isTablet) {
+                DashboardMetricCard("Con inventario", products.count { it.trackInventory }.toString(), Icons.Default.Inventory2, listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary), Modifier.weight(1f))
+                DashboardMetricCard("Categorias", categoriesCount.toString(), Icons.Default.Assessment, listOf(MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.primaryContainer), Modifier.weight(1f))
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(if (isTablet) 24.dp else 16.dp)) {
+                    Text("Productos registrados", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    if (products.isEmpty()) {
+                        Text("No hay productos registrados. Presiona el boton + para agregar uno.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)) {
+                            products.forEach { product ->
+                                ProductAdminCard(product = product, onEdit = { onEdit(product) }, onDelete = { onDelete(product) })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MenuQrSection(isTablet: Boolean, modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(if (isTablet) 24.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)
+    ) {
+        item {
+            DashboardHeaderCard("QR general de carta", "Imprime este QR y usalo en todas las mesas", Icons.Default.QrCode2, isTablet)
+        }
+        item {
+            MenuQrCard(menuUrl = PUBLIC_MENU_URL, isTablet = isTablet)
+        }
+    }
+}
+
+@Composable
+fun MenuQrCard(menuUrl: String, isTablet: Boolean) {
+    val qrBitmap = remember(menuUrl) { generateQrBitmap(menuUrl) }
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(if (isTablet) 24.dp else 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(if (isTablet) 18.dp else 14.dp)
+        ) {
+            if (qrBitmap != null) {
+                Image(
+                    bitmap = qrBitmap.asImageBitmap(),
+                    contentDescription = "QR general de carta",
+                    modifier = Modifier.size(if (isTablet) 260.dp else 220.dp).clip(RoundedCornerShape(8.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier.size(if (isTablet) 260.dp else 220.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.QrCode2, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(72.dp))
+                }
+            }
+            Text("Carta digital del restaurante", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+            Text(menuUrl, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+fun generateQrBitmap(text: String, size: Int = 512): Bitmap? {
+    return runCatching {
+        val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size)
+        Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565).also { bitmap ->
+            for (x in 0 until size) {
+                for (y in 0 until size) {
+                    bitmap.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+                }
+            }
+        }
+    }.getOrNull()
+}
+
+@Composable
+fun DashboardHeaderCard(title: String, subtitle: String, icon: ImageVector, isTablet: Boolean) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f))) {
+        Row(modifier = Modifier.fillMaxWidth().padding(if (isTablet) 24.dp else 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(if (isTablet) 76.dp else 60.dp).clip(CircleShape).background(Brush.radialGradient(listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.surface))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(if (isTablet) 34.dp else 28.dp))
+            }
+            Spacer(modifier = Modifier.width(if (isTablet) 20.dp else 16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = if (isTablet) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge)
+                Text(subtitle, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+fun DashboardStatGrid(isTablet: Boolean, content: @Composable RowScope.() -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp), content = content)
+}
+
+@Composable
+fun DashboardMetricCard(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    gradientColors: List<Color>,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
+) {
+    val isTablet = isTabletScreen()
+    Card(modifier = modifier.height(if (isTablet) 122.dp else 108.dp), shape = RoundedCornerShape(if (isTablet) 20.dp else 16.dp), colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
+        Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(gradientColors)).padding(if (isTablet) 18.dp else 14.dp)) {
+            Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.32f), modifier = Modifier.align(Alignment.TopEnd).size(if (isTablet) 38.dp else 32.dp))
+            Column(modifier = Modifier.align(Alignment.BottomStart)) {
+                Text(value, color = Color.White, fontWeight = FontWeight.Bold, style = if (isTablet) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge)
+                Text(title, color = Color.White.copy(alpha = 0.92f), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null) {
+                    Text(subtitle, color = Color.White.copy(alpha = 0.82f), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DashboardInfoCard(title: String, icon: ImageVector, rows: List<Pair<String, String>>, isTablet: Boolean) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(if (isTablet) 22.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = if (isTablet) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium)
+            }
+            rows.forEach { (label, value) ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f), modifier = Modifier.weight(1f))
+                    Text(value, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f", value)
+
+@Composable
+fun isTabletScreen(): Boolean {
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2 &&
+        LocalConfiguration.current.screenWidthDp >= 600
+}
+
+@Composable
+fun ConnectionStatusBanner(isOffline: Boolean, pendingSyncCount: Int, connectionStatusText: String, onManualSync: () -> Unit) {
     val backgroundColor = when {
         isOffline -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
         pendingSyncCount > 0 -> WarningOrange.copy(alpha = 0.9f)
         else -> SuccessGreen.copy(alpha = 0.9f)
     }
-
     val statusIcon = when {
         isOffline -> Icons.Default.WifiOff
         pendingSyncCount > 0 -> Icons.Default.Sync
         else -> Icons.Default.Wifi
     }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = statusIcon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), colors = CardDefaults.cardColors(containerColor = backgroundColor)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Icon(statusIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = connectionStatusText,
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(connectionStatusText, color = Color.White, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
             }
-
             if (pendingSyncCount > 0) {
-                TextButton(
-                    onClick = onManualSync,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.height(28.dp)
-                ) {
+                TextButton(onClick = onManualSync, colors = ButtonDefaults.textButtonColors(contentColor = Color.White), modifier = Modifier.height(28.dp)) {
                     Text("Sincronizar", fontSize = MaterialTheme.typography.labelSmall.fontSize)
                 }
             }
@@ -451,120 +674,25 @@ fun MessageBanner(
     onClearSuccess: () -> Unit
 ) {
     if (error != null) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.95f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Error, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(error, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                IconButton(onClick = onClearError, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
-                }
-            }
-        }
+        BannerRow(text = error, color = MaterialTheme.colorScheme.error.copy(alpha = 0.95f), icon = Icons.Default.Error, onClose = onClearError)
     }
-
     if (warning != null) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = WarningOrange.copy(alpha = 0.95f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(warning, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                IconButton(onClick = onClearWarning, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
-                }
-            }
-        }
+        BannerRow(text = warning, color = WarningOrange.copy(alpha = 0.95f), icon = Icons.Default.Warning, onClose = onClearWarning)
     }
-
     if (success != null) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = SuccessGreen.copy(alpha = 0.95f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(success, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                IconButton(onClick = onClearSuccess, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
-                }
-            }
-        }
+        BannerRow(text = success, color = SuccessGreen.copy(alpha = 0.95f), icon = Icons.Default.CheckCircle, onClose = onClearSuccess)
     }
 }
 
 @Composable
-fun ProductStatCard(
-    title: String,
-    value: String,
-    gradientColors: List<Color>,
-    modifier: Modifier = Modifier
-) {
-    val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
-
-    Card(
-        modifier = modifier
-            .height(if (isTablet) 120.dp else 100.dp)
-            .shadow(if (isTablet) 12.dp else 8.dp, RoundedCornerShape(if (isTablet) 20.dp else 16.dp)),
-        shape = RoundedCornerShape(if (isTablet) 20.dp else 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.linearGradient(gradientColors),
-                    shape = RoundedCornerShape(if (isTablet) 20.dp else 16.dp)
-                )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(if (isTablet) 20.dp else 16.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = value,
-                    style = if (isTablet) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = title,
-                    style = if (isTablet) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
+fun BannerRow(text: String, color: Color, icon: ImageVector, onClose: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), colors = CardDefaults.cardColors(containerColor = color)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
     }

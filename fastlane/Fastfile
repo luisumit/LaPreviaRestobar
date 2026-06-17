@@ -1,0 +1,27 @@
+default_platform(:android)
+
+platform :android do
+  desc "Valida que el codigo Kotlin de debug compile correctamente"
+  lane :validate do
+    gradle(
+      task: ":app:compileDebugKotlin",
+      project_dir: "."
+    )
+  end
+
+  desc "Genera un APK debug local"
+  lane :build_debug do
+    gradle(
+      task: ":app:assembleDebug",
+      project_dir: "."
+    )
+  end
+
+  desc "Limpia archivos de build del proyecto"
+  lane :clean do
+    gradle(
+      task: "clean",
+      project_dir: "."
+    )
+  end
+end
