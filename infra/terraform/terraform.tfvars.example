@@ -1,0 +1,32 @@
+# Copia este archivo como terraform.tfvars y ajusta los valores antes de ejecutar Terraform.
+
+project_id   = "laprevia-restobar"
+project_name = "La Previa Restobar"
+
+# Fase 1 recomendada para el proyecto actual: usar/importar el proyecto existente.
+create_project = false
+
+# Para crear un proyecto nuevo, cambia create_project a true y configura org_id o folder_id.
+# billing_account = "000000-000000-000000"
+# org_id          = "123456789012"
+# folder_id       = "123456789012"
+
+region                   = "us-central1"
+realtime_database_region = "us-central1"
+
+realtime_database_instance_id = "laprevia-restobar-default-rtdb"
+
+android_package_name  = "com.laprevia.restobar"
+android_display_name  = "La Previa Restobar Android"
+android_sha256_hashes = []
+
+create_staging_android_app      = true
+staging_android_package_name    = "com.laprevia.restobar.staging"
+staging_android_display_name    = "La Previa Restobar Android Staging"
+staging_android_sha256_hashes   = []
+
+authorized_domains = [
+  "localhost",
+  "laprevia-restobar.firebaseapp.com",
+  "laprevia-restobar.web.app"
+]
