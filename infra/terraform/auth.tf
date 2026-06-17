@@ -4,7 +4,6 @@ resource "google_identity_platform_config" "default" {
 
   autodelete_anonymous_users = true
   authorized_domains         = var.authorized_domains
-  deletion_policy            = "ABANDON"
 
   sign_in {
     allow_duplicate_emails = false
