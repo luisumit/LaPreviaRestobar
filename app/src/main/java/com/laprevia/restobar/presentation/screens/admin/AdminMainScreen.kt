@@ -1,5 +1,7 @@
 package com.laprevia.restobar.presentation.screens.admin
 
+import android.app.DatePickerDialog
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.foundation.Image
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Summarize
 import androidx.compose.material.icons.filled.Sync
@@ -56,6 +59,8 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -71,6 +76,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -101,8 +107,17 @@ import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
 import com.laprevia.restobar.presentation.viewmodel.PUBLIC_MENU_URL
 import com.laprevia.restobar.presentation.viewmodel.SalesReport
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+
+private enum class ProductQuickFilter(val label: String) {
+    ALL("Todos"),
+    ACTIVE("Activos"),
+    OUT_OF_STOCK("Agotados"),
+    LOW_STOCK("Stock bajo")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -241,7 +256,10 @@ fun AdminMainScreen(
                 1 -> SalesReportSection(
                     report = uiState.report,
                     selectedFilter = uiState.reportFilter,
+                    customStart = uiState.customReportStart,
+                    customEnd = uiState.customReportEnd,
                     onFilterSelected = { viewModel.selectReportFilter(it) },
+                    onCustomRangeSelected = { start, end -> viewModel.selectCustomReportRange(start, end) },
                     onExportPdf = { viewModel.exportReportToPdf() },
                     onExportExcel = { viewModel.exportReportToExcel() },
                     isTablet = isTablet,
@@ -354,20 +372,23 @@ fun AdminDashboardSection(
         item {
             DashboardStatGrid(isTablet) {
                 DashboardMetricCard("Ventas del dia", "S/ ${formatMoney(metrics.salesToday)}", Icons.Default.Payments, listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Ventas del año", "S/ ${formatMoney(metrics.salesYear)}", Icons.Default.Assessment, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+            }
+        }
+        item {
+            DashboardStatGrid(isTablet) {
                 DashboardMetricCard("Pedidos activos", metrics.activeOrders.toString(), Icons.Default.RestaurantMenu, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
-            }
-        }
-        item {
-            DashboardStatGrid(isTablet) {
                 DashboardMetricCard("Productos activos", metrics.activeProducts.toString(), Icons.Default.Inventory, listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary), Modifier.weight(1f))
-                DashboardMetricCard("Producto top", metrics.bestSellingQuantity.toString(), Icons.Default.Star, listOf(WarningOrange, MaterialTheme.colorScheme.secondary), Modifier.weight(1f), metrics.bestSellingProduct)
             }
         }
         item {
             DashboardStatGrid(isTablet) {
-                DashboardMetricCard("Stock critico", (metrics.lowStockProducts + metrics.outOfStockProducts).toString(), Icons.Default.Warning, listOf(WarningOrange, MaterialTheme.colorScheme.primary), Modifier.weight(1f))
+                DashboardMetricCard("Producto top", metrics.bestSellingQuantity.toString(), Icons.Default.Star, listOf(WarningOrange, MaterialTheme.colorScheme.secondary), Modifier.weight(1f), metrics.bestSellingProduct)
                 DashboardMetricCard("Mesas ocupadas", "${metrics.occupiedTables}/${metrics.totalTables}", Icons.Default.EventSeat, listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
             }
+        }
+        item {
+            StockAlertCard(metrics = metrics, isTablet = isTablet)
         }
         item {
             DashboardInfoCard(
@@ -384,11 +405,61 @@ fun AdminDashboardSection(
 }
 
 @Composable
+fun StockAlertCard(metrics: AdminDashboardMetrics, isTablet: Boolean) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (isTablet) 22.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = WarningOrange)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    "Productos con alerta de stock",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    style = if (isTablet) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium
+                )
+            }
+            StockAlertList(
+                title = "Stock bajo (${metrics.lowStockProducts})",
+                items = metrics.lowStockProductNames,
+                emptyText = "No hay productos con stock bajo"
+            )
+            StockAlertList(
+                title = "Agotados (${metrics.outOfStockProducts})",
+                items = metrics.outOfStockProductNames,
+                emptyText = "No hay productos agotados"
+            )
+        }
+    }
+}
+
+@Composable
+fun StockAlertList(title: String, items: List<String>, emptyText: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+        if (items.isEmpty()) {
+            Text(emptyText, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f))
+        } else {
+            items.forEach { productName ->
+                Text("• $productName", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f))
+            }
+        }
+    }
+}
+
+@Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun SalesReportSection(
     report: SalesReport,
     selectedFilter: AdminReportFilter,
+    customStart: Long,
+    customEnd: Long,
     onFilterSelected: (AdminReportFilter) -> Unit,
+    onCustomRangeSelected: (Long, Long) -> Unit,
     onExportPdf: () -> Unit,
     onExportExcel: () -> Unit,
     isTablet: Boolean,
@@ -416,9 +487,29 @@ fun SalesReportSection(
             }
         }
         item {
+            ReportRangeSelector(
+                start = customStart,
+                end = customEnd,
+                onRangeSelected = onCustomRangeSelected,
+                isTablet = isTablet
+            )
+        }
+        item {
             DashboardStatGrid(isTablet) {
                 DashboardMetricCard("Total vendido", "S/ ${formatMoney(report.totalSales)}", Icons.Default.Payments, listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Ganancia", "S/ ${formatMoney(report.grossProfit)}", Icons.Default.PointOfSale, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+            }
+        }
+        item {
+            DashboardStatGrid(isTablet) {
                 DashboardMetricCard("Pedidos", report.totalOrders.toString(), Icons.Default.ReceiptLong, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Productos", report.productsSold.toString(), Icons.Default.Inventory, listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary), Modifier.weight(1f))
+            }
+        }
+        item {
+            DashboardStatGrid(isTablet) {
+                DashboardMetricCard("Pedidos cobrados", report.chargedOrders.toString(), Icons.Default.CheckCircle, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Pedidos cancelados", report.cancelledOrders.toString(), Icons.Default.Error, listOf(WarningOrange, MaterialTheme.colorScheme.secondary), Modifier.weight(1f))
             }
         }
         item {
@@ -426,9 +517,6 @@ fun SalesReportSection(
                 title = "Cierre del turno",
                 icon = Icons.Default.Summarize,
                 rows = listOf(
-                    "Pedidos cobrados" to report.chargedOrders.toString(),
-                    "Productos vendidos" to report.productsSold.toString(),
-                    "Pedidos cancelados" to report.cancelledOrders.toString(),
                     "Producto mas vendido" to "${report.bestSellingProduct} (${report.bestSellingQuantity})"
                 ),
                 isTablet = isTablet
@@ -452,6 +540,57 @@ fun SalesReportSection(
 }
 
 @Composable
+fun ReportRangeSelector(
+    start: Long,
+    end: Long,
+    onRangeSelected: (Long, Long) -> Unit,
+    isTablet: Boolean
+) {
+    val context = LocalContext.current
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (isTablet) 18.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Rango por fechas",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                style = if (isTablet) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        showDatePicker(context, start) { selected ->
+                            onRangeSelected(selected, end)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Desde: ${formatDateShort(start)}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                OutlinedButton(
+                    onClick = {
+                        showDatePicker(context, end) { selected ->
+                            onRangeSelected(start, selected)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Hasta: ${formatDateShort(end)}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun ProductsAdminSection(
     products: List<com.laprevia.restobar.data.model.Product>,
     categoriesCount: Int,
@@ -463,6 +602,23 @@ fun ProductsAdminSection(
     onDelete: (com.laprevia.restobar.data.model.Product) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var searchText by rememberSaveable { mutableStateOf("") }
+    var selectedQuickFilter by rememberSaveable { mutableStateOf(ProductQuickFilter.ALL) }
+    val filteredProducts = remember(products, searchText, selectedQuickFilter) {
+        products
+            .filter { product ->
+                searchText.isBlank() || product.name.contains(searchText, ignoreCase = true)
+            }
+            .filter { product ->
+                when (selectedQuickFilter) {
+                    ProductQuickFilter.ALL -> true
+                    ProductQuickFilter.ACTIVE -> product.isActive
+                    ProductQuickFilter.OUT_OF_STOCK -> product.trackInventory && product.stock == 0.0
+                    ProductQuickFilter.LOW_STOCK -> product.trackInventory && product.stock > 0.0 && product.stock <= product.minStock
+                }
+            }
+    }
+
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(if (isTablet) 24.dp else 16.dp),
@@ -488,11 +644,40 @@ fun ProductsAdminSection(
                 Column(modifier = Modifier.fillMaxWidth().padding(if (isTablet) 24.dp else 16.dp)) {
                     Text("Productos registrados", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        label = { Text("Buscar producto") }
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        ProductQuickFilter.values().forEachIndexed { index, filter ->
+                            SegmentedButton(
+                                selected = selectedQuickFilter == filter,
+                                onClick = { selectedQuickFilter = filter },
+                                shape = SegmentedButtonDefaults.itemShape(index, ProductQuickFilter.values().size)
+                            ) {
+                                Text(filter.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "${filteredProducts.size} de ${products.size} productos",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     if (products.isEmpty()) {
                         Text("No hay productos registrados. Presiona el boton + para agregar uno.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    } else if (filteredProducts.isEmpty()) {
+                        Text("No hay productos con ese filtro.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)) {
-                            products.forEach { product ->
+                            filteredProducts.forEach { product ->
                                 ProductAdminCard(product = product, onEdit = { onEdit(product) }, onDelete = { onDelete(product) })
                             }
                         }
@@ -629,6 +814,32 @@ fun DashboardInfoCard(title: String, icon: ImageVector, rows: List<Pair<String, 
 }
 
 fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f", value)
+
+fun formatDateShort(timestamp: Long): String {
+    return SimpleDateFormat("dd/MM/yyyy", Locale("es", "PE")).format(timestamp)
+}
+
+fun showDatePicker(context: Context, initialDate: Long, onDateSelected: (Long) -> Unit) {
+    val calendar = Calendar.getInstance().apply { timeInMillis = initialDate }
+    DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            val selected = Calendar.getInstance().apply {
+                set(Calendar.YEAR, year)
+                set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            onDateSelected(selected.timeInMillis)
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    ).show()
+}
 
 @Composable
 fun isTabletScreen(): Boolean {

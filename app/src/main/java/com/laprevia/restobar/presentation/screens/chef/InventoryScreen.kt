@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,11 +31,16 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +64,13 @@ import com.laprevia.restobar.presentation.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 import timber.log.Timber
 
+private enum class ChefInventoryQuickFilter(val label: String) {
+    ALL("Todos"),
+    OUT_OF_STOCK("Agotados"),
+    LOW_STOCK("Stock bajo"),
+    ENOUGH_STOCK("Suficiente")
+}
+
 @Composable
 fun InventoryScreen(
     viewModel: InventoryViewModel = hiltViewModel(),
@@ -68,6 +82,32 @@ fun InventoryScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    var searchText by rememberSaveable { mutableStateOf("") }
+    var selectedQuickFilter by rememberSaveable { mutableStateOf(ChefInventoryQuickFilter.ALL) }
+
+    val visibleInventory = remember(inventory, searchText, selectedQuickFilter) {
+        inventory
+            .filter { item ->
+                searchText.isBlank() || item.productName.contains(searchText, ignoreCase = true)
+            }
+            .filter { item ->
+                when (selectedQuickFilter) {
+                    ChefInventoryQuickFilter.ALL -> true
+                    ChefInventoryQuickFilter.OUT_OF_STOCK -> item.currentStock == 0.0
+                    ChefInventoryQuickFilter.LOW_STOCK -> item.currentStock > 0.0 && item.currentStock <= item.minimumStock
+                    ChefInventoryQuickFilter.ENOUGH_STOCK -> item.currentStock > item.minimumStock
+                }
+            }
+            .sortedWith(
+                compareBy<Inventory> {
+                    when {
+                        it.currentStock == 0.0 -> 0
+                        it.currentStock <= it.minimumStock -> 1
+                        else -> 2
+                    }
+                }.thenBy { it.productName.lowercase() }
+            )
+    }
 
     Timber.d("📱 InventoryScreen: Inventario: ${inventory.size} items")
 
@@ -132,6 +172,14 @@ fun InventoryScreen(
 
         // Filtros
         if (inventory.isNotEmpty()) {
+            InventorySearchAndQuickFilters(
+                searchText = searchText,
+                onSearchTextChange = { searchText = it },
+                selectedFilter = selectedQuickFilter,
+                onFilterSelected = { selectedQuickFilter = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
             CategoryFilter(
                 categories = viewModel.getCategories(),
                 selectedCategory = selectedCategory,
@@ -149,7 +197,7 @@ fun InventoryScreen(
                 InventoryEmptyState(onRefresh = { viewModel.refreshInventory() })
             }
             else -> {
-                InventoryList(inventory = inventory, modifier = Modifier.weight(1f))
+                InventoryList(inventory = visibleInventory, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -177,7 +225,7 @@ fun InventoryHeader(
             ) {
                 Column {
                     Text(
-                        text = if (isLoading) "Cargando..." else "Total Productos",
+                        text = if (isLoading) "Cargando..." else "Productos en inventario",
                         style = MaterialTheme.typography.bodyMedium,
                         color = SmokeWhiteSecondary
                     )
@@ -228,6 +276,63 @@ fun InventoryHeader(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun InventorySearchAndQuickFilters(
+    searchText: String,
+    onSearchTextChange: (String) -> Unit,
+    selectedFilter: ChefInventoryQuickFilter,
+    onFilterSelected: (ChefInventoryQuickFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = searchText,
+            onValueChange = onSearchTextChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = SmokeWhiteSecondary
+                )
+            },
+            label = { Text("Buscar producto") }
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(ChefInventoryQuickFilter.values().toList()) { filter ->
+                FilterChip(
+                    selected = selectedFilter == filter,
+                    onClick = { onFilterSelected(filter) },
+                    label = {
+                        Text(
+                            filter.label,
+                            color = if (selectedFilter == filter) SmokeWhite else SmokeWhiteSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = CoralSecondary,
+                        containerColor = NightSurfaceVariant,
+                        selectedLabelColor = SmokeWhite,
+                        labelColor = SmokeWhiteSecondary
+                    ),
+                    modifier = Modifier.height(32.dp)
+                )
             }
         }
     }

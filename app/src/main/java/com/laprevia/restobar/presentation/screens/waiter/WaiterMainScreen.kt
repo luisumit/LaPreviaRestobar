@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.NotificationPanel
@@ -314,6 +315,11 @@ fun WaiterMainScreen(
                                     navController = navController,
                                     viewModel = viewModel
                                 )
+                                WaiterNotificationOverlay(
+                                    visible = showNotifications,
+                                    notifications = notifications,
+                                    viewModel = viewModel
+                                )
                             }
                         }
                     } else {
@@ -383,12 +389,37 @@ fun WaiterMainScreen(
                                 navController = navController,
                                 viewModel = viewModel
                             )
+                            WaiterNotificationOverlay(
+                                visible = showNotifications,
+                                notifications = notifications,
+                                viewModel = viewModel
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun BoxScope.WaiterNotificationOverlay(
+    visible: Boolean,
+    notifications: List<WaiterViewModel.Notification>,
+    viewModel: WaiterViewModel
+) {
+    if (!visible) return
+
+    NotificationPanel(
+        notifications = notifications,
+        onDismissNotification = { notification -> viewModel.removeNotification(notification) },
+        onClearAll = { viewModel.clearAllNotifications() },
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .padding(12.dp)
+            .widthIn(max = 420.dp)
+            .zIndex(2f)
+    )
 }
 
 @Composable

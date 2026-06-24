@@ -310,8 +310,16 @@ class WaiterViewModel @Inject constructor(
             try {
                 println("🔄 Waiter: Guardando en Room - Mesa ${updatedOrder.tableNumber}, Estado: ${updatedOrder.status}")
                 val previousOrder = _orders.value.find { it.id == updatedOrder.id }
+                val localOrder = db.orderDao().getById(updatedOrder.id)
+                val localIsClosed = localOrder?.status == "COMPLETED" || localOrder?.status == "CANCELLED"
+                val remoteIsActive = updatedOrder.status != OrderStatus.COMPLETED && updatedOrder.status != OrderStatus.CANCELLED
 
-                db.orderDao().insert(updatedOrder.toEntity())
+                if (localIsClosed && remoteIsActive) {
+                    println("Waiter: Ignorando estado viejo ${updatedOrder.status} para orden cerrada ${updatedOrder.id}")
+                    return@launch
+                }
+
+                db.orderDao().insert(updatedOrder.toEntity().copy(syncStatus = "SYNCED"))
                 refreshOrdersFromRoom()
                 loadTables()
 
@@ -615,7 +623,8 @@ class WaiterViewModel @Inject constructor(
                     entity?.let {
                         db.orderDao().insert(it.copy(
                             status = "COMPLETED",
-                            syncStatus = if (_isInternetAvailable.value) "SYNCED" else "PENDING"
+                            syncStatus = if (_isInternetAvailable.value) "SYNCED" else "PENDING",
+                            updatedAt = System.currentTimeMillis()
                         ))
                     }
 
@@ -663,7 +672,11 @@ class WaiterViewModel @Inject constructor(
 
                 val entity = db.orderDao().getAll().find { it.id == orderId }
                 entity?.let {
-                    db.orderDao().insert(it.copy(status = "COMPLETED", syncStatus = "SYNCED"))
+                    db.orderDao().insert(it.copy(
+                        status = "COMPLETED",
+                        syncStatus = "SYNCED",
+                        updatedAt = System.currentTimeMillis()
+                    ))
                 }
 
                 _orders.value = _orders.value.filter { it.id != orderId }

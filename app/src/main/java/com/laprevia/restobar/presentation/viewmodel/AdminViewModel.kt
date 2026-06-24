@@ -1,6 +1,7 @@
 package com.laprevia.restobar.presentation.viewmodel
 
 import android.content.Context
+import android.content.ContentValues
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
@@ -8,7 +9,9 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laprevia.restobar.data.local.db.AppDatabase
@@ -40,12 +43,33 @@ import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
+fun startOfDay(timestamp: Long): Long {
+    val calendar = Calendar.getInstance().apply {
+        timeInMillis = timestamp
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return calendar.timeInMillis
+}
+
+fun endOfDay(timestamp: Long): Long {
+    val calendar = Calendar.getInstance().apply {
+        timeInMillis = startOfDay(timestamp)
+        add(Calendar.DAY_OF_MONTH, 1)
+    }
+    return calendar.timeInMillis - 1
+}
+
 data class AdminUiState(
     val products: List<Product> = emptyList(),
     val categories: List<String> = emptyList(),
     val tables: List<Table> = emptyList(),
     val dashboardMetrics: AdminDashboardMetrics = AdminDashboardMetrics(),
     val reportFilter: AdminReportFilter = AdminReportFilter.DAY,
+    val customReportStart: Long = startOfDay(System.currentTimeMillis()),
+    val customReportEnd: Long = endOfDay(System.currentTimeMillis()),
     val report: SalesReport = SalesReport(),
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -65,18 +89,23 @@ const val PUBLIC_MENU_URL = "https://laprevia-restobar.web.app"
 
 enum class AdminReportFilter(val label: String) {
     DAY("Dia"),
-    WEEK("Semana"),
-    MONTH("Mes")
+    WEEK("Sem."),
+    MONTH("Mes"),
+    YEAR("Año"),
+    CUSTOM("Rango")
 }
 
 data class AdminDashboardMetrics(
     val salesToday: Double = 0.0,
+    val salesYear: Double = 0.0,
     val bestSellingProduct: String = "Sin ventas",
     val bestSellingQuantity: Int = 0,
     val activeProducts: Int = 0,
     val activeOrders: Int = 0,
     val lowStockProducts: Int = 0,
     val outOfStockProducts: Int = 0,
+    val lowStockProductNames: List<String> = emptyList(),
+    val outOfStockProductNames: List<String> = emptyList(),
     val occupiedTables: Int = 0,
     val totalTables: Int = 0
 )
@@ -84,6 +113,7 @@ data class AdminDashboardMetrics(
 data class SalesReport(
     val title: String = "Ventas del dia",
     val totalSales: Double = 0.0,
+    val grossProfit: Double = 0.0,
     val totalOrders: Int = 0,
     val chargedOrders: Int = 0,
     val cancelledOrders: Int = 0,
@@ -218,7 +248,13 @@ class AdminViewModel @Inject constructor(
                 }
                 val allOrders = loadOrdersSafely().mergeById(activeOrders)
                 val dashboardMetrics = buildDashboardMetrics(_uiState.value.products, allOrders, tables)
-                val report = buildSalesReport(allOrders, _uiState.value.reportFilter)
+                val report = buildSalesReport(
+                    orders = allOrders,
+                    filter = _uiState.value.reportFilter,
+                    products = _uiState.value.products,
+                    customStart = _uiState.value.customReportStart,
+                    customEnd = _uiState.value.customReportEnd
+                )
 
                 _uiState.value = _uiState.value.copy(
                     tables = tables,
@@ -273,7 +309,13 @@ class AdminViewModel @Inject constructor(
                 categories = uniqueProducts.mapNotNull { it.category }.distinct().sorted(),
                 tables = tables,
                 dashboardMetrics = buildDashboardMetrics(uniqueProducts, orders, tables),
-                report = buildSalesReport(orders, _uiState.value.reportFilter),
+                report = buildSalesReport(
+                    orders = orders,
+                    filter = _uiState.value.reportFilter,
+                    products = uniqueProducts,
+                    customStart = _uiState.value.customReportStart,
+                    customEnd = _uiState.value.customReportEnd
+                ),
                 isLoading = false,
                 isOffline = !_isInternetAvailable.value
             )
@@ -312,7 +354,13 @@ class AdminViewModel @Inject constructor(
                         categories = uniqueProducts.mapNotNull { it.category }.distinct().sorted(),
                         tables = tables,
                         dashboardMetrics = buildDashboardMetrics(uniqueProducts, orders, tables),
-                        report = buildSalesReport(orders, _uiState.value.reportFilter),
+                        report = buildSalesReport(
+                            orders = orders,
+                            filter = _uiState.value.reportFilter,
+                            products = uniqueProducts,
+                            customStart = _uiState.value.customReportStart,
+                            customEnd = _uiState.value.customReportEnd
+                        ),
                         isLoading = false,
                         isOffline = !_isInternetAvailable.value,
                         pendingSyncCount = pendingProducts.size
@@ -327,16 +375,42 @@ class AdminViewModel @Inject constructor(
 
     fun selectReportFilter(filter: AdminReportFilter) {
         viewModelScope.launch {
-            val report = buildSalesReport(loadOrdersSafely(), filter)
+            val report = buildSalesReport(
+                orders = loadOrdersSafely(),
+                filter = filter,
+                products = _uiState.value.products,
+                customStart = _uiState.value.customReportStart,
+                customEnd = _uiState.value.customReportEnd
+            )
             _uiState.value = _uiState.value.copy(reportFilter = filter, report = report)
+        }
+    }
+
+    fun selectCustomReportRange(start: Long, end: Long) {
+        viewModelScope.launch {
+            val normalizedStart = startOfDay(start)
+            val normalizedEnd = endOfDay(end)
+            val report = buildSalesReport(
+                orders = loadOrdersSafely(),
+                filter = AdminReportFilter.CUSTOM,
+                products = _uiState.value.products,
+                customStart = normalizedStart,
+                customEnd = normalizedEnd
+            )
+            _uiState.value = _uiState.value.copy(
+                reportFilter = AdminReportFilter.CUSTOM,
+                customReportStart = normalizedStart,
+                customReportEnd = normalizedEnd,
+                report = report
+            )
         }
     }
 
     fun exportReportToPdf() {
         viewModelScope.launch {
             try {
-                val file = createPdfReport(_uiState.value.report)
-                showMessage("Reporte PDF guardado: ${file.name}", isSuccess = true)
+                val fileName = createPdfReport(_uiState.value.report)
+                showMessage("PDF guardado en Descargas/LaPreviaReportes: $fileName", isSuccess = true)
             } catch (e: Exception) {
                 showMessage("Error exportando PDF: ${e.message}", isError = true)
             }
@@ -346,8 +420,8 @@ class AdminViewModel @Inject constructor(
     fun exportReportToExcel() {
         viewModelScope.launch {
             try {
-                val file = createCsvReport(_uiState.value.report)
-                showMessage("Reporte Excel guardado: ${file.name}", isSuccess = true)
+                val fileName = createCsvReport(_uiState.value.report)
+                showMessage("Excel guardado en Descargas/LaPreviaReportes: $fileName", isSuccess = true)
             } catch (e: Exception) {
                 showMessage("Error exportando Excel: ${e.message}", isError = true)
             }
@@ -372,29 +446,47 @@ class AdminViewModel @Inject constructor(
     }
 
     private fun buildDashboardMetrics(products: List<Product>, orders: List<Order>, tables: List<Table>): AdminDashboardMetrics {
-        val todayReport = buildSalesReport(orders, AdminReportFilter.DAY)
+        val todayReport = buildSalesReport(orders, AdminReportFilter.DAY, products)
+        val yearReport = buildSalesReport(orders, AdminReportFilter.YEAR, products)
         val activeOrders = normalizeActiveOrders(orders)
         val topProductToday = topProductFromOpenSales(orders)
         val validTables = tables.filter { it.id in 1..8 && it.number in 1..8 }
+        val lowStockProducts = products
+            .filter { it.trackInventory && it.stock > 0.0 && it.stock <= it.minStock }
+            .sortedBy { it.name }
+        val outOfStockProducts = products
+            .filter { it.trackInventory && it.stock <= 0.0 }
+            .sortedBy { it.name }
 
         return AdminDashboardMetrics(
             salesToday = todayReport.totalSales,
+            salesYear = yearReport.totalSales,
             bestSellingProduct = topProductToday?.first ?: "Sin ventas",
             bestSellingQuantity = topProductToday?.second ?: 0,
             activeProducts = products.count { it.isActive },
             activeOrders = activeOrders.size,
-            lowStockProducts = products.count { it.trackInventory && it.stock > 0.0 && it.stock <= it.minStock },
-            outOfStockProducts = products.count { it.trackInventory && it.stock <= 0.0 },
+            lowStockProducts = lowStockProducts.size,
+            outOfStockProducts = outOfStockProducts.size,
+            lowStockProductNames = lowStockProducts.map { "${it.name} (${formatStock(it.stock)})" },
+            outOfStockProductNames = outOfStockProducts.map { it.name },
             occupiedTables = activeOrders.map { it.tableId }.distinct().count(),
             totalTables = validTables.size
         )
     }
 
-    private fun buildSalesReport(orders: List<Order>, filter: AdminReportFilter): SalesReport {
-        val (start, end) = periodBounds(filter)
+    private fun buildSalesReport(
+        orders: List<Order>,
+        filter: AdminReportFilter,
+        products: List<Product>,
+        customStart: Long = startOfDay(System.currentTimeMillis()),
+        customEnd: Long = endOfDay(System.currentTimeMillis())
+    ): SalesReport {
+        val (start, end) = periodBounds(filter, customStart, customEnd)
         val filteredOrders = orders.filter { it.createdAt in start..end }
         val chargedOrders = filteredOrders.filter { it.status == OrderStatus.COMPLETED }
         val soldItems = chargedOrders.flatMap { it.items }
+        val totalSales = chargedOrders.sumOf { orderTotal(it) }
+        val grossProfit = calculateGrossProfit(chargedOrders, products)
         val bestSeller = soldItems
             .groupBy { it.productName.ifBlank { "Producto sin nombre" } }
             .mapValues { entry -> entry.value.sumOf { it.quantity } }
@@ -405,8 +497,11 @@ class AdminViewModel @Inject constructor(
                 AdminReportFilter.DAY -> "Ventas del dia"
                 AdminReportFilter.WEEK -> "Ventas de la semana"
                 AdminReportFilter.MONTH -> "Ventas del mes"
+                AdminReportFilter.YEAR -> "Ventas del año"
+                AdminReportFilter.CUSTOM -> "Ventas por rango"
             },
-            totalSales = chargedOrders.sumOf { it.total },
+            totalSales = totalSales,
+            grossProfit = grossProfit,
             totalOrders = filteredOrders.size,
             chargedOrders = chargedOrders.size,
             cancelledOrders = filteredOrders.count { it.status == OrderStatus.CANCELLED },
@@ -418,12 +513,18 @@ class AdminViewModel @Inject constructor(
         )
     }
 
-    private fun periodBounds(filter: AdminReportFilter): Pair<Long, Long> {
+    private fun periodBounds(filter: AdminReportFilter, customStart: Long, customEnd: Long): Pair<Long, Long> {
+        if (filter == AdminReportFilter.CUSTOM) {
+            return minOf(customStart, customEnd) to maxOf(customStart, customEnd)
+        }
+
         val calendar = Calendar.getInstance()
         when (filter) {
             AdminReportFilter.DAY -> Unit
             AdminReportFilter.WEEK -> calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
             AdminReportFilter.MONTH -> calendar.set(Calendar.DAY_OF_MONTH, 1)
+            AdminReportFilter.YEAR -> calendar.set(Calendar.DAY_OF_YEAR, 1)
+            AdminReportFilter.CUSTOM -> Unit
         }
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
@@ -435,8 +536,35 @@ class AdminViewModel @Inject constructor(
             AdminReportFilter.DAY -> calendar.add(Calendar.DAY_OF_MONTH, 1)
             AdminReportFilter.WEEK -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
             AdminReportFilter.MONTH -> calendar.add(Calendar.MONTH, 1)
+            AdminReportFilter.YEAR -> calendar.add(Calendar.YEAR, 1)
+            AdminReportFilter.CUSTOM -> Unit
         }
         return start to (calendar.timeInMillis - 1)
+    }
+
+    private fun orderTotal(order: Order): Double {
+        return order.total.takeIf { it > 0.0 } ?: order.items.sumOf { item ->
+            item.subtotal.takeIf { it > 0.0 } ?: (item.unitPrice * item.quantity)
+        }
+    }
+
+    private fun calculateGrossProfit(orders: List<Order>, products: List<Product>): Double {
+        val productsById = products.associateBy { it.id }
+        return orders.sumOf { order ->
+            if (order.items.isEmpty()) {
+                orderTotal(order)
+            } else {
+                order.items.sumOf { item ->
+                    val sale = item.subtotal.takeIf { it > 0.0 } ?: (item.unitPrice * item.quantity)
+                    val cost = (productsById[item.productId]?.costPrice ?: 0.0) * item.quantity
+                    sale - cost
+                }
+            }
+        }
+    }
+
+    private fun formatStock(stock: Double): String {
+        return if (stock % 1.0 == 0.0) stock.toInt().toString() else "%.2f".format(Locale.US, stock)
     }
 
     private fun normalizeActiveOrders(orders: List<Order>): List<Order> {
@@ -477,7 +605,11 @@ class AdminViewModel @Inject constructor(
     }
 
     private fun topProductFromOpenSales(orders: List<Order>): Pair<String, Int>? {
-        val (start, end) = periodBounds(AdminReportFilter.DAY)
+        val (start, end) = periodBounds(
+            AdminReportFilter.DAY,
+            startOfDay(System.currentTimeMillis()),
+            endOfDay(System.currentTimeMillis())
+        )
         return orders
             .filter { it.createdAt in start..end && it.status != OrderStatus.CANCELLED }
             .flatMap { it.items }
@@ -490,31 +622,38 @@ class AdminViewModel @Inject constructor(
     private fun List<Order>.mergeById(other: List<Order>): List<Order> = (this + other).distinctBy { it.id }
 
     private fun reportsDirectory(): File {
-        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "reportes")
+        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "LaPreviaReportes")
         if (!dir.exists()) dir.mkdirs()
         return dir
     }
 
-    private fun createCsvReport(report: SalesReport): File {
-        val file = File(reportsDirectory(), "reporte_${timestamp()}.csv")
-        FileOutputStream(file).use { fos ->
-            fos.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
-            val writer = fos.bufferedWriter()
-            writer.appendLine("REPORTE DE VENTAS - LA PREVIA")
-            writer.appendLine("Titulo,${report.title}")
-            writer.appendLine("Periodo,${formatDate(report.periodStart)} - ${formatDate(report.periodEnd)}")
-            writer.appendLine("Total vendido,S/ ${money(report.totalSales)}")
-            writer.appendLine("Pedidos cobrados,${report.chargedOrders}")
-            writer.appendLine("Productos vendidos,${report.productsSold}")
-            writer.appendLine("Producto mas vendido,${report.bestSellingProduct}")
-            writer.flush()
+    private fun createCsvReport(report: SalesReport): String {
+        val fileName = "reporte_${timestamp()}.csv"
+        val periodTitle = reportPeriodTitle(report)
+        val csv = buildString {
+            appendLine("REPORTE DE VENTAS - LA PREVIA")
+            appendLine("Titulo,${report.title}")
+            appendLine(periodTitle)
+            appendLine("Total vendido,S/ ${money(report.totalSales)}")
+            appendLine("Ganancia estimada,S/ ${money(report.grossProfit)}")
+            appendLine("Cantidad de pedidos,${report.totalOrders}")
+            appendLine("Pedidos cobrados,${report.chargedOrders}")
+            appendLine("Pedidos cancelados,${report.cancelledOrders}")
+            appendLine("Productos vendidos,${report.productsSold}")
+            appendLine("Producto mas vendido,${report.bestSellingProduct} (${report.bestSellingQuantity})")
         }
-        return file
+        writeReportFile(
+            fileName = fileName,
+            mimeType = "text/csv",
+            bytes = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + csv.toByteArray()
+        )
+        return fileName
     }
 
-    private fun createPdfReport(report: SalesReport): File {
-        val file = File(reportsDirectory(), "reporte_${timestamp()}.pdf")
+    private fun createPdfReport(report: SalesReport): String {
+        val fileName = "reporte_${timestamp()}.pdf"
         val document = PdfDocument()
+        val periodTitle = reportPeriodTitle(report)
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
         val page = document.startPage(pageInfo)
         val canvas = page.canvas
@@ -533,11 +672,12 @@ class AdminViewModel @Inject constructor(
         y += 34f
         canvas.drawText(report.title, 48f, y, textPaint)
         y += 26f
-        canvas.drawText("Periodo: ${formatDate(report.periodStart)} - ${formatDate(report.periodEnd)}", 48f, y, textPaint)
+        canvas.drawText(periodTitle, 48f, y, textPaint)
         y += 42f
 
         listOf(
             "Total vendido: S/ ${money(report.totalSales)}",
+            "Ganancia estimada: S/ ${money(report.grossProfit)}",
             "Cantidad de pedidos: ${report.totalOrders}",
             "Pedidos cobrados: ${report.chargedOrders}",
             "Pedidos cancelados: ${report.cancelledOrders}",
@@ -549,13 +689,43 @@ class AdminViewModel @Inject constructor(
         }
 
         document.finishPage(page)
-        file.outputStream().use { document.writeTo(it) }
+        writeReportFile(fileName = fileName, mimeType = "application/pdf") { output ->
+            document.writeTo(output)
+        }
         document.close()
-        return file
+        return fileName
+    }
+
+    private fun writeReportFile(fileName: String, mimeType: String, bytes: ByteArray) {
+        writeReportFile(fileName, mimeType) { output -> output.write(bytes) }
+    }
+
+    private fun writeReportFile(fileName: String, mimeType: String, write: (java.io.OutputStream) -> Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val resolver = context.contentResolver
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, mimeType)
+                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/LaPreviaReportes")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("No se pudo crear el archivo en Descargas")
+            resolver.openOutputStream(uri)?.use(write)
+                ?: error("No se pudo abrir el archivo en Descargas")
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+        } else {
+            val file = File(reportsDirectory(), fileName)
+            FileOutputStream(file).use(write)
+        }
     }
 
     private fun timestamp(): String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(System.currentTimeMillis())
     private fun formatDate(value: Long): String = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(value)
+    private fun formatDateOnly(value: Long): String = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(value)
+    private fun reportPeriodTitle(report: SalesReport): String = "Reporte del ${formatDateOnly(report.periodStart)} al ${formatDateOnly(report.periodEnd)}"
     private fun money(value: Double): String = String.format(Locale.US, "%.2f", value)
 
     private fun checkPendingSync() {
