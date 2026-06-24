@@ -86,7 +86,7 @@ fun AppNavigation() {
             // Asegurarse de estar en login
             if (navController.currentDestination?.route != "login") {
                 navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
                 }
             }
         }
@@ -293,10 +293,6 @@ fun AppNavigation() {
                     onLogout = { // ✅ AGREGAR ESTE PARÁMETRO
                         loginViewModel.signOut()
                         isAuthenticated = false
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
                     }
                 )
             } else {
