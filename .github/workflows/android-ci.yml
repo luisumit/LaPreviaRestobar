@@ -58,7 +58,12 @@ jobs:
 
       # TESTS UNITARIOS
       - name: Ejecutar Tests Unitarios con cobertura
-        run: ./gradlew testDebugUnitTest jacocoTestReport
+        run: ./gradlew :app:testDebugUnitTest :app:jacocoTestReport
+
+      - name: Verificar reporte JaCoCo
+        run: |
+          test -f app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          grep -q "<counter type=\"LINE\"" app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Analizar codigo con SonarCloud
         env:
