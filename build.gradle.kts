@@ -21,6 +21,10 @@ sonar {
     }
 }
 
+tasks.named("sonar") {
+    dependsOn(":app:jacocoTestReport")
+}
+
 tasks.register("clean", Delete::class) {
     delete(layout.buildDirectory)
 }

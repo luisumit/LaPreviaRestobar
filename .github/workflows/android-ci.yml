@@ -62,6 +62,7 @@ jobs:
 
       - name: Verificar reporte JaCoCo
         run: |
+          find app/build -path "*jacoco*" -o -name "*.exec" -o -name "*.xml"
           test -f app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           grep -q "<counter type=\"LINE\"" app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
