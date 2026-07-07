@@ -328,7 +328,7 @@ fun OrderCard(
                                     modifier = Modifier.size(iconSize)
                                 )
                                 Text(
-                                    if (isTablet) "CANCELAR" else "CANCELAR",
+                                    if (isTablet) "CANCELAR PEDIDO" else "CANCELAR",
                                     fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                                 )
                             }
