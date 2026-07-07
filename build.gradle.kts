@@ -16,8 +16,6 @@ sonar {
         property("sonar.projectKey", "luisumit_LaPreviaRestobar")
         property("sonar.organization", "luisumit")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.sources", "app/src/main/java")
-        property("sonar.tests", "app/src/test/java")
         property("sonar.androidLint.reportPaths", "app/build/reports/lint-results-debug.xml")
     }
 }
