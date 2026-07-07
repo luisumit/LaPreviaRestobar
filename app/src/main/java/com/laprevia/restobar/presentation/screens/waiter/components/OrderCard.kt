@@ -21,6 +21,9 @@ import com.laprevia.restobar.presentation.theme.InfoBlue
 import com.laprevia.restobar.presentation.theme.SuccessGreen
 import com.laprevia.restobar.presentation.theme.WarningOrange
 
+private const val CANCEL_ORDER_TEXT = "CANCELAR PEDIDO"
+private const val CANCEL_TEXT = "CANCELAR"
+
 @Composable
 fun OrderCard(
     order: Order,
@@ -271,7 +274,7 @@ fun OrderCard(
                                     modifier = Modifier.size(iconSize)
                                 )
                                 Text(
-                                    if (isTablet) "CANCELAR PEDIDO" else "CANCELAR",
+                                    if (isTablet) CANCEL_ORDER_TEXT else CANCEL_TEXT,
                                     fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                                 )
                             }
@@ -328,7 +331,7 @@ fun OrderCard(
                                     modifier = Modifier.size(iconSize)
                                 )
                                 Text(
-                                    if (isTablet) "CANCELAR PEDIDO" else "CANCELAR",
+                                    if (isTablet) CANCEL_ORDER_TEXT else CANCEL_TEXT,
                                     fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                                 )
                             }
@@ -379,7 +382,7 @@ fun OrderCard(
                                 modifier = Modifier.size(iconSize)
                             )
                             Text(
-                                if (isTablet) "CANCELAR PEDIDO" else "CANCELAR",
+                                if (isTablet) CANCEL_ORDER_TEXT else CANCEL_TEXT,
                                 fontSize = if (isTablet) MaterialTheme.typography.bodyMedium.fontSize else MaterialTheme.typography.labelLarge.fontSize
                             )
                         }
