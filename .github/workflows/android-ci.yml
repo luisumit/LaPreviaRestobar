@@ -100,6 +100,7 @@ jobs:
             app/build/reports/lint-results-debug.html
             app/build/reports/lint-results-debug.xml
             app/build/reports/tests/
+            app/build/reports/jacoco/
 
       # CD - FIREBASE APP DISTRIBUTION
       - name: Distribuir APK con Firebase App Distribution

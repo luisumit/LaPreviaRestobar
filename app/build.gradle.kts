@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import java.util.Properties
 
@@ -42,6 +44,7 @@ android {
             versionNameSuffix = "-DEBUG"
             isDebuggable = true
             isMinifyEnabled = false
+            enableUnitTestCoverage = true
             buildConfigField("String", "ENVIRONMENT", "\"DEBUG\"")
             buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080/\"")
             buildConfigField("String", "PHYSICAL_BASE_URL", "\"http://192.168.0.104:8080/\"")
@@ -203,6 +206,13 @@ detekt {
     toolVersion = "1.23.6"
     config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
     buildUponDefaultConfig = true
+}
+
+tasks.withType<Test>().configureEach {
+    extensions.configure(JacocoTaskExtension::class) {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
 }
 
 jacoco {
