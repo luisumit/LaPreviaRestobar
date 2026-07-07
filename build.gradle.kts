@@ -17,6 +17,7 @@ sonar {
         property("sonar.organization", "luisumit")
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.androidLint.reportPaths", "app/build/reports/lint-results-debug.xml")
+        property("sonar.coverage.jacoco.xmlReportPaths", "app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
     }
 }
 

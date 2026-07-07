@@ -13,10 +13,10 @@ jobs:
 
     steps:
       - name: Checkout del código
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Configurar Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -56,14 +56,14 @@ jobs:
       - name: Ejecutar Análisis Estático (Lint)
         run: ./gradlew lintDebug
 
+      # TESTS UNITARIOS
+      - name: Ejecutar Tests Unitarios con cobertura
+        run: ./gradlew testDebugUnitTest jacocoTestReport
+
       - name: Analizar codigo con SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew sonar -Dsonar.token=$SONAR_TOKEN
-
-      # TESTS UNITARIOS
-      - name: Ejecutar Tests Unitarios
-        run: ./gradlew testDebugUnitTest
 
       # BUILD DEBUG
       - name: Compilar APK de depuración
@@ -76,7 +76,7 @@ jobs:
 
       # SUBIR APK DEBUG
       - name: Subir APK generado
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
@@ -84,7 +84,7 @@ jobs:
       # SUBIR APK RELEASE
       - name: Subir APK Release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: app-release-apk
           path: app/build/outputs/apk/release/app-release.apk
@@ -92,7 +92,7 @@ jobs:
       # SUBIR REPORTES
       - name: Subir reportes de análisis y tests
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: reports
           path: |
@@ -104,7 +104,7 @@ jobs:
       # CD - FIREBASE APP DISTRIBUTION
       - name: Distribuir APK con Firebase App Distribution
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        uses: wzieba/Firebase-Distribution-Github-Action@bd494989dd4bec0343f78adee87fe66e48279ad6 # v1
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           token: ${{ secrets.FIREBASE_TOKEN }}
