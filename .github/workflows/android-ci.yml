@@ -56,6 +56,11 @@ jobs:
       - name: Ejecutar Análisis Estático (Lint)
         run: ./gradlew lintDebug
 
+      - name: Analizar codigo con SonarCloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar -Dsonar.token=$SONAR_TOKEN
+
       # TESTS UNITARIOS
       - name: Ejecutar Tests Unitarios
         run: ./gradlew testDebugUnitTest

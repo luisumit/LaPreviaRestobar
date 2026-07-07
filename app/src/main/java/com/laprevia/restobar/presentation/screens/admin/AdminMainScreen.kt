@@ -361,7 +361,7 @@ fun AdminDashboardSection(
     isTablet: Boolean,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
+    LazyColumn( 
         modifier = modifier,
         contentPadding = PaddingValues(if (isTablet) 24.dp else 16.dp),
         verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)
