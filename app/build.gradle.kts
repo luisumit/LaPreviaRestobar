@@ -1,3 +1,4 @@
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
@@ -211,6 +212,7 @@ detekt {
 tasks.withType<Test>().configureEach {
     extensions.configure(JacocoTaskExtension::class) {
         isIncludeNoLocationClasses = true
+        destinationFile = layout.buildDirectory.file("jacoco/${name}.exec").get().asFile
         excludes = listOf("jdk.internal.*")
     }
 }
@@ -267,4 +269,11 @@ tasks.register<JacocoReport>("jacocoTestReport") {
             )
         }
     )
+
+    doFirst {
+        val coverageFiles = executionData.files.filter { it.exists() }
+        if (coverageFiles.isEmpty()) {
+            throw GradleException("No se encontraron archivos .exec de JaCoCo. Ejecuta :app:testDebugUnitTest antes del reporte.")
+        }
+    }
 }
