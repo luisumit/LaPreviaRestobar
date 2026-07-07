@@ -16,10 +16,6 @@ sonar {
         property("sonar.projectKey", "luisumit_LaPreviaRestobar")
         property("sonar.organization", "luisumit")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.sources", "app/src/main/java")
-        property("sonar.tests", "app/src/test/java")
-        property("sonar.exclusions", "app/src/test/**,app/src/androidTest/**,**/build/**")
-        property("sonar.test.inclusions", "app/src/test/**/*.kt,app/src/test/**/*.java")
         property("sonar.androidLint.reportPaths", "app/build/reports/lint-results-debug.xml")
         property("sonar.coverage.jacoco.xmlReportPaths", "app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
     }
