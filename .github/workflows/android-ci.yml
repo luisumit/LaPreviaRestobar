@@ -58,7 +58,7 @@ jobs:
 
       # TESTS UNITARIOS
       - name: Ejecutar Tests Unitarios con cobertura
-        run: ./gradlew :app:testDebugUnitTest :app:jacocoTestReport
+        run: ./gradlew :app:cleanTestDebugUnitTest :app:testDebugUnitTest :app:jacocoTestReport --rerun-tasks
 
       - name: Verificar reporte JaCoCo
         run: |
