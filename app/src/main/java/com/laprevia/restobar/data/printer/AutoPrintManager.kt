@@ -4,16 +4,13 @@ import com.laprevia.restobar.data.local.datastore.PreferencesManager
 import com.laprevia.restobar.data.model.Order
 import kotlinx.coroutines.flow.first
 import java.util.Collections
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Auto-impresion de comandas y tickets segun la configuracion del dispositivo.
  * Es "dispara y olvida": si no hay impresora, el toggle esta apagado o ya se
  * imprimio ese documento, no hace nada y nunca lanza excepciones al llamador.
  */
-@Singleton
-class AutoPrintManager @Inject constructor(
+class AutoPrintManager constructor(
     private val preferencesManager: PreferencesManager,
     private val formatter: ReceiptFormatter,
     private val printerManager: BluetoothPrinterManager

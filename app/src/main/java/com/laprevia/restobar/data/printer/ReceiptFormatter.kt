@@ -5,13 +5,12 @@ import com.laprevia.restobar.data.model.PaymentMethod
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import javax.inject.Inject
 
 /**
  * Construye los documentos imprimibles a partir de una orden.
  * No depende de Android ni de Bluetooth: solo transforma datos en lineas.
  */
-class ReceiptFormatter @Inject constructor() {
+class ReceiptFormatter constructor() {
 
     private val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 

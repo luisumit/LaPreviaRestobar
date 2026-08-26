@@ -2,11 +2,8 @@ package com.laprevia.restobar.data.repository
 
 import com.laprevia.restobar.data.local.dao.OrderDao
 import com.laprevia.restobar.data.local.entity.OrderEntity
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class OrderRepositoryImpl @Inject constructor(
+class OrderRepositoryImpl constructor(
     private val orderDao: OrderDao
 ) {
 

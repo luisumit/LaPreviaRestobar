@@ -12,12 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.*
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.math.pow
 
-@Singleton
-class RealTimeWebSocketClient @Inject constructor(
+class RealTimeWebSocketClient constructor(
     private val context: Context,
     private val webSocketUrl: String
 ) {

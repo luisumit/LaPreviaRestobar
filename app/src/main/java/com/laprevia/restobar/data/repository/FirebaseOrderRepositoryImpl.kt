@@ -12,13 +12,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
-import javax.inject.Singleton
-import com.laprevia.restobar.di.OrdersReference
 
-@Singleton
-class FirebaseOrderRepositoryImpl @Inject constructor(
-    @OrdersReference
+class FirebaseOrderRepositoryImpl constructor(
     private val ordersRef: DatabaseReference
 ) : FirebaseOrderRepository {
 

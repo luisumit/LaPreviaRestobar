@@ -8,20 +8,16 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Descubre impresoras Bluetooth emparejadas y les envia bytes ESC/POS por un
  * socket serie (SPP). No necesita internet.
  */
-@Singleton
-class BluetoothPrinterManager @Inject constructor(
-    @ApplicationContext private val context: Context
+class BluetoothPrinterManager constructor(
+    private val context: Context
 ) {
     companion object {
         // UUID estandar de Serial Port Profile (SPP) usado por las impresoras termicas.

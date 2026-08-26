@@ -13,11 +13,8 @@ import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import kotlinx.coroutines.flow.firstOrNull
 import timber.log.Timber
 import java.util.UUID
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class FirebaseInitializerService @Inject constructor(
+class FirebaseInitializerService constructor(
     private val tableRepository: FirebaseTableRepository,
     private val productRepository: FirebaseProductRepository,
     private val orderRepository: FirebaseOrderRepository,

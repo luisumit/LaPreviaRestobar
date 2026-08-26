@@ -7,11 +7,8 @@ import com.laprevia.restobar.data.model.*
 import com.laprevia.restobar.domain.repository.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.first
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class UnifiedOrderRepository @Inject constructor(
+class UnifiedOrderRepository constructor(
     private val localDao: OrderDao,
     private val remoteRepo: FirebaseOrderRepository
 ) {
@@ -52,8 +49,7 @@ class UnifiedOrderRepository @Inject constructor(
     }
 }
 
-@Singleton
-class UnifiedProductRepository @Inject constructor(
+class UnifiedProductRepository constructor(
     private val localDao: ProductDao,
     private val remoteRepo: FirebaseProductRepository
 ) {
@@ -121,8 +117,7 @@ class UnifiedProductRepository @Inject constructor(
     }
 }
 
-@Singleton
-class UnifiedTableRepository @Inject constructor(
+class UnifiedTableRepository constructor(
     private val localDao: TableDao,
     private val remoteRepo: FirebaseTableRepository
 ) {
@@ -152,8 +147,7 @@ class UnifiedTableRepository @Inject constructor(
     }
 }
 
-@Singleton
-class UnifiedInventoryRepository @Inject constructor(
+class UnifiedInventoryRepository constructor(
     private val localDao: InventoryDao,
     private val remoteRepo: FirebaseInventoryRepository
 ) {

@@ -10,13 +10,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
-import javax.inject.Singleton
-import com.laprevia.restobar.di.InventoryReference
 
-@Singleton
-class FirebaseInventoryRepositoryImpl @Inject constructor(
-    @InventoryReference
+class FirebaseInventoryRepositoryImpl constructor(
     private val inventoryRef: DatabaseReference
 ) : FirebaseInventoryRepository {
 

@@ -12,14 +12,11 @@ import com.laprevia.restobar.data.printer.PaperWidth
 import com.laprevia.restobar.data.printer.PrinterConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // ✅ CORREGIDO: Usa el mismo nombre que en el otro archivo
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
 
-@Singleton
-class PreferencesManager @Inject constructor(
+class PreferencesManager constructor(
     private val context: Context
 ) {
 
