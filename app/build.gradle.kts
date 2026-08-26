@@ -159,6 +159,13 @@ dependencies {
     // Modulo compartido (KMP) con la logica pura de dominio
     implementation(project(":shared"))
 
+    // Koin (DI multiplataforma) — coexiste con Hilt durante la migracion Fase 3
+    implementation("io.insert-koin:koin-android:4.1.0")
+    implementation("io.insert-koin:koin-androidx-compose:4.1.0")
+    implementation("io.insert-koin:koin-androidx-workmanager:4.1.0")
+    testImplementation("io.insert-koin:koin-test:4.1.0")
+    testImplementation("io.insert-koin:koin-test-junit4:4.1.0")
+
     // Core Android
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")

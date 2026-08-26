@@ -8,7 +8,12 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.laprevia.restobar.di.koin.appKoinModules
 import com.laprevia.restobar.domain.worker.SyncWorker
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
+import org.koin.core.logger.Level
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
@@ -30,6 +35,13 @@ class LaPreviaApp : Application(), Configuration.Provider {
         // Timber solo en DEBUG
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+        }
+
+        // Koin (Fase 3 de la migracion KMP): coexiste con Hilt hasta completar el switch.
+        startKoin {
+            androidLogger(if (BuildConfig.DEBUG) Level.WARNING else Level.ERROR)
+            androidContext(this@LaPreviaApp)
+            modules(appKoinModules)
         }
 
         try {
