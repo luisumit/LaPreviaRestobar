@@ -95,7 +95,7 @@ private fun initFirebaseDesktop() {
         context = android.app.Application(),
         options = FirebaseOptions(
             applicationId = "1:383569219396:android:58c48b61e8b7005f799111",
-            apiKey = "AIzaSyD_nXUvxOxA1QGF3ZWY0kuAtxDlSyw2ZWA",
+            apiKey = "AIzaSyD_nXUvuPfTeEmUYk6n_FhucVfuYhAntx0",
             databaseUrl = "https://laprevia-restobar-default-rtdb.firebaseio.com",
             projectId = "laprevia-restobar"
         )
@@ -107,11 +107,14 @@ private fun initFirebaseDesktop() {
 
 @Composable
 private fun App() {
-    var user by remember { mutableStateOf<FirebaseUser?>(Firebase.auth.currentUser) }
+    // Nota JVM: firebase-java-sdk no implementa user.email (TODO() interno),
+    // asi que guardamos el email escrito en el login en vez de pedirlo al SDK.
+    var user by remember { mutableStateOf<FirebaseUser?>(null) }
+    var loggedEmail by remember { mutableStateOf("") }
     if (user == null) {
-        LoginView(onLoggedIn = { user = it })
+        LoginView(onLoggedIn = { u, email -> user = u; loggedEmail = email })
     } else {
-        PanelView(userEmail = user?.email ?: "", onLogout = {
+        PanelView(userEmail = loggedEmail, onLogout = {
             user = null
         })
     }
@@ -120,7 +123,7 @@ private fun App() {
 // ==================== Login ====================
 
 @Composable
-private fun LoginView(onLoggedIn: (FirebaseUser) -> Unit) {
+private fun LoginView(onLoggedIn: (FirebaseUser, String) -> Unit) {
     val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -154,7 +157,8 @@ private fun LoginView(onLoggedIn: (FirebaseUser) -> Unit) {
                 scope.launch {
                     try {
                         val result = Firebase.auth.signInWithEmailAndPassword(email.trim(), password)
-                        result.user?.let(onLoggedIn) ?: run { error = "Error de autenticacion" }
+                        result.user?.let { onLoggedIn(it, email.trim()) }
+                            ?: run { error = "Error de autenticacion" }
                     } catch (e: Exception) {
                         error = e.message ?: "Error desconocido"
                     } finally {
