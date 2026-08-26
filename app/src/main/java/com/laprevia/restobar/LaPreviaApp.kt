@@ -4,6 +4,10 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.laprevia.restobar.domain.worker.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
@@ -32,9 +36,33 @@ class LaPreviaApp : Application(), Configuration.Provider {
             // ✅ Inicialización mínima de Firebase para evitar bloqueos
             FirebaseApp.initializeApp(this)
             Timber.i("🔥 FirebaseApp inicializado")
+
+            // Reporte remoto de crashes: activo en release, desactivado en debug
+            FirebaseCrashlytics.getInstance().apply {
+                setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+                setCustomKey("build_type", if (BuildConfig.DEBUG) "debug" else "release")
+            }
             
-            // ⚠️ App Check desactivado temporalmente para pruebas locales
-            // Evitamos que el bloqueo de red de App Check deje la pantalla negra
+            // App Check: protege tu backend de Firebase contra abuso externo.
+            // - Debug usa el proveedor de debug (registra el token en la consola).
+            // - Release usa Play Integrity.
+            // Instalar el proveedor es seguro; la VERIFICACION (enforcement) se activa
+            // en la consola de Firebase SOLO despues de confirmar que llegan tokens validos.
+            try {
+                val appCheck = FirebaseAppCheck.getInstance()
+                if (BuildConfig.DEBUG) {
+                    appCheck.installAppCheckProviderFactory(
+                        DebugAppCheckProviderFactory.getInstance()
+                    )
+                } else {
+                    appCheck.installAppCheckProviderFactory(
+                        PlayIntegrityAppCheckProviderFactory.getInstance()
+                    )
+                }
+                Timber.i("🛡️ App Check inicializado")
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Error inicializando App Check")
+            }
         } catch (e: Exception) {
             Timber.e(e, "❌ Error inicializando Firebase")
         }

@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "LaPreviaRestobar"
 include(":app")
+include(":shared")

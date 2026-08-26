@@ -12,4 +12,15 @@ interface FirebaseOrderRepository : OrderRepository {
 
     // ✅ MÉTODO AGREGADO: Obtener lista de órdenes (suspending)
     suspend fun getOrdersList(): List<Order>
+
+    // ✅ Sube el metodo de pago a Firebase al cobrar (no solo el status)
+    suspend fun updateOrderPayment(
+        orderId: String,
+        status: String,
+        paymentMethod: String,
+        paidAt: Long,
+        receiptNumber: String,
+        amountReceived: Double,
+        changeGiven: Double
+    )
 }

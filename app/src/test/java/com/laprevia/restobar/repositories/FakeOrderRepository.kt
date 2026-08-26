@@ -39,6 +39,27 @@ class FakeOrderRepository : FirebaseOrderRepository {
             orders[index] = orders[index].copy(status = OrderStatus.valueOf(status))
         }
     }
+    override suspend fun updateOrderPayment(
+        orderId: String,
+        status: String,
+        paymentMethod: String,
+        paidAt: Long,
+        receiptNumber: String,
+        amountReceived: Double,
+        changeGiven: Double
+    ) {
+        val index = orders.indexOfFirst { it.id == orderId }
+        if (index != -1) {
+            orders[index] = orders[index].copy(
+                status = OrderStatus.valueOf(status),
+                paymentMethod = com.laprevia.restobar.data.model.PaymentMethod.fromString(paymentMethod),
+                paidAt = paidAt,
+                receiptNumber = receiptNumber,
+                amountReceived = amountReceived,
+                changeGiven = changeGiven
+            )
+        }
+    }
     override suspend fun syncPendingOrders() = Unit
     override fun getPendingOrders(): Flow<List<Order>> = flowOf(emptyList())
 }

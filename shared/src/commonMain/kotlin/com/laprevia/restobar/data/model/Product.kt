@@ -1,0 +1,38 @@
+package com.laprevia.restobar.data.model
+
+import com.laprevia.restobar.platform.currentTimeMillis
+
+data class Product(
+    val id: String = "",
+    val name: String = "",
+    val description: String = "",
+    val category: String = "",
+    val salePrice: Double? = null,
+    val costPrice: Double? = null,
+    val trackInventory: Boolean = false,
+    val stock: Double = 0.0,
+    val minStock: Double = 0.0,
+    val imageUrl: String? = null,
+    val isActive: Boolean = true,
+    val createdAt: Long = currentTimeMillis(),
+    val updatedAt: Long = currentTimeMillis(),
+    val version: Long = 0  // ✅ AGREGAR ESTO
+
+) {
+    // Constructor sin argumentos para Firebase
+    constructor() : this(
+        id = "",
+        name = "",
+        description = "",
+        category = "",
+        salePrice = null,
+        costPrice = null,
+        trackInventory = false,
+        stock = 0.0,
+        minStock = 0.0,
+        imageUrl = null,
+        isActive = true,
+        createdAt = 0,
+        updatedAt = 0
+    )
+}

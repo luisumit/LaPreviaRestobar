@@ -25,9 +25,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.laprevia.restobar.presentation.screens.chef.components.ChefNotificationPanel
 import com.laprevia.restobar.presentation.theme.SuccessGreen
 import com.laprevia.restobar.presentation.theme.WarningOrange
+import com.laprevia.restobar.presentation.screens.printer.PrinterSettingsDialog
 import com.laprevia.restobar.presentation.viewmodel.ChefViewModel
 import com.laprevia.restobar.presentation.viewmodel.InventoryViewModel
 import com.laprevia.restobar.presentation.viewmodel.LoginViewModel
+import com.laprevia.restobar.presentation.viewmodel.PrinterViewModel
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,11 +38,17 @@ fun ChefMainScreen(
     chefViewModel: ChefViewModel = hiltViewModel(),
     loginViewModel: LoginViewModel = hiltViewModel(),
     inventoryViewModel: InventoryViewModel = hiltViewModel(),
+    printerViewModel: PrinterViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var showNotifications by remember { mutableStateOf(false) }
+    var showPrinterSettings by remember { mutableStateOf(false) }
+
+    val printerConfig by printerViewModel.config.collectAsState()
+    val printerStatus by printerViewModel.statusMessage.collectAsState()
+    val printerIsPrinting by printerViewModel.isPrinting.collectAsState()
 
     val notifications by remember { chefViewModel.notifications }.collectAsState()
     val orders by remember { chefViewModel.orders }.collectAsState()
@@ -143,6 +151,23 @@ fun ChefMainScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            IconButton(
+                                onClick = { showPrinterSettings = true },
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Print,
+                                    contentDescription = "Impresora",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -381,6 +406,28 @@ fun ChefMainScreen(
                 }
             }
         }
+    }
+
+    if (showPrinterSettings) {
+        PrinterSettingsDialog(
+            config = printerConfig,
+            hasPermission = printerViewModel.hasBluetoothPermission(),
+            isPrinting = printerIsPrinting,
+            statusMessage = printerStatus,
+            onLoadPrinters = { printerViewModel.pairedPrinters() },
+            onSelectPrinter = { printerViewModel.selectPrinter(it) },
+            onSelectPaper = { printerViewModel.setPaperWidth(it) },
+            onToggleAutoComanda = { printerViewModel.setAutoPrintComanda(it) },
+            onToggleAutoTicket = { printerViewModel.setAutoPrintTicket(it) },
+            onSampleComanda = { printerViewModel.sampleComanda() },
+            onSampleTicket = { printerViewModel.sampleTicket() },
+            onPrintDocument = { printerViewModel.print(it) },
+            onTestPrint = { printerViewModel.testPrint() },
+            onDismiss = {
+                showPrinterSettings = false
+                printerViewModel.clearStatus()
+            }
+        )
     }
 }
 

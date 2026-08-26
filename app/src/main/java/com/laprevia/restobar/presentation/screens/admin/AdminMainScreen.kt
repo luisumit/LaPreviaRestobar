@@ -29,8 +29,10 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.EventSeat
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Logout
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PointOfSale
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.RestaurantMenu
@@ -71,6 +74,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -90,6 +94,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import java.net.URLEncoder
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -97,6 +105,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.laprevia.restobar.data.local.entity.AppErrorLogEntity
+import com.laprevia.restobar.data.local.entity.AuditLogEntity
+import com.laprevia.restobar.data.local.entity.CashClosureEntity
+import com.laprevia.restobar.data.model.Order
+import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.printer.ReceiptDocument
+import com.laprevia.restobar.presentation.screens.printer.PrinterSettingsDialog
+import com.laprevia.restobar.presentation.screens.printer.ReceiptPreviewDialog
+import com.laprevia.restobar.presentation.viewmodel.PrinterViewModel
 import com.laprevia.restobar.presentation.notifications.AdminStockScheduler
 import com.laprevia.restobar.presentation.theme.SuccessGreen
 import com.laprevia.restobar.presentation.theme.WarningOrange
@@ -124,6 +141,7 @@ private enum class ProductQuickFilter(val label: String) {
 fun AdminMainScreen(
     viewModel: AdminViewModel = hiltViewModel(),
     loginViewModel: LoginViewModel = hiltViewModel(),
+    printerViewModel: PrinterViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
@@ -131,6 +149,12 @@ fun AdminMainScreen(
     val context = LocalContext.current
     val isTablet = isTabletScreen()
     var selectedAdminTab by rememberSaveable { mutableIntStateOf(0) }
+
+    val printerConfig = printerViewModel.config.collectAsState().value
+    val printerStatus = printerViewModel.statusMessage.collectAsState().value
+    val isPrinting = printerViewModel.isPrinting.collectAsState().value
+    var showPrinterSettings by remember { mutableStateOf(false) }
+    var previewDocument by remember { mutableStateOf<Pair<String, ReceiptDocument>?>(null) }
 
     LaunchedEffect(Unit) {
         AdminStockScheduler.schedulePeriodicCheck(context)
@@ -255,6 +279,7 @@ fun AdminMainScreen(
                 0 -> AdminDashboardSection(uiState.dashboardMetrics, isTablet, Modifier.fillMaxSize())
                 1 -> SalesReportSection(
                     report = uiState.report,
+                    orderHistory = uiState.orderHistory,
                     selectedFilter = uiState.reportFilter,
                     customStart = uiState.customReportStart,
                     customEnd = uiState.customReportEnd,
@@ -262,6 +287,24 @@ fun AdminMainScreen(
                     onCustomRangeSelected = { start, end -> viewModel.selectCustomReportRange(start, end) },
                     onExportPdf = { viewModel.exportReportToPdf() },
                     onExportExcel = { viewModel.exportReportToExcel() },
+                    onBackupJson = { viewModel.exportBackupToJson() },
+                    onBackupExcel = { viewModel.exportBackupToExcel() },
+                    onRestoreBackup = { viewModel.showRestoreBackupDialog() },
+                    onCloseCash = { viewModel.closeCashRegister() },
+                    onExportAudit = { viewModel.exportAuditToExcel() },
+                    whatsappNumber = uiState.whatsappNumber,
+                    onSaveWhatsappNumber = { viewModel.saveWhatsappNumber(it) },
+                    dailySummaryProvider = { viewModel.buildDailySummaryText() },
+                    onOpenPrinterSettings = { showPrinterSettings = true },
+                    onPrintTicket = { order ->
+                        previewDocument = "Ticket - Mesa ${order.tableNumber}" to printerViewModel.buildTicket(order)
+                    },
+                    onPrintComanda = { order ->
+                        previewDocument = "Comanda - Mesa ${order.tableNumber}" to printerViewModel.buildComanda(order)
+                    },
+                    auditLogs = uiState.auditLogs,
+                    cashClosures = uiState.cashClosures,
+                    errorLogs = uiState.errorLogs,
                     isTablet = isTablet,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -306,6 +349,72 @@ fun AdminMainScreen(
                 TextButton(onClick = { viewModel.hideDeleteDialog() }) {
                     Text("Cancelar")
                 }
+            }
+        )
+    }
+
+    if (uiState.showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.hideRestoreBackupDialog() },
+            title = { Text("Restaurar backup JSON") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Pega aqui el contenido del archivo JSON exportado por la app.")
+                    OutlinedTextField(
+                        value = uiState.restoreJson,
+                        onValueChange = { viewModel.updateRestoreJson(it) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        label = { Text("Contenido JSON") }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.restoreBackupFromJson() }) {
+                    Text("Restaurar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.hideRestoreBackupDialog() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showPrinterSettings) {
+        PrinterSettingsDialog(
+            config = printerConfig,
+            hasPermission = printerViewModel.hasBluetoothPermission(),
+            isPrinting = isPrinting,
+            statusMessage = printerStatus,
+            onLoadPrinters = { printerViewModel.pairedPrinters() },
+            onSelectPrinter = { printerViewModel.selectPrinter(it) },
+            onSelectPaper = { printerViewModel.setPaperWidth(it) },
+            onToggleAutoComanda = { printerViewModel.setAutoPrintComanda(it) },
+            onToggleAutoTicket = { printerViewModel.setAutoPrintTicket(it) },
+            onSampleComanda = { printerViewModel.sampleComanda() },
+            onSampleTicket = { printerViewModel.sampleTicket() },
+            onPrintDocument = { printerViewModel.print(it) },
+            onTestPrint = { printerViewModel.testPrint() },
+            onDismiss = {
+                showPrinterSettings = false
+                printerViewModel.clearStatus()
+            }
+        )
+    }
+
+    previewDocument?.let { (title, document) ->
+        ReceiptPreviewDialog(
+            title = title,
+            document = document,
+            isPrinting = isPrinting,
+            statusMessage = printerStatus,
+            onPrint = { printerViewModel.print(document) },
+            onDismiss = {
+                previewDocument = null
+                printerViewModel.clearStatus()
             }
         )
     }
@@ -455,6 +564,7 @@ fun StockAlertList(title: String, items: List<String>, emptyText: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 fun SalesReportSection(
     report: SalesReport,
+    orderHistory: List<Order>,
     selectedFilter: AdminReportFilter,
     customStart: Long,
     customEnd: Long,
@@ -462,9 +572,38 @@ fun SalesReportSection(
     onCustomRangeSelected: (Long, Long) -> Unit,
     onExportPdf: () -> Unit,
     onExportExcel: () -> Unit,
+    onBackupJson: () -> Unit,
+    onBackupExcel: () -> Unit,
+    onRestoreBackup: () -> Unit,
+    onCloseCash: () -> Unit,
+    onExportAudit: () -> Unit,
+    onOpenPrinterSettings: () -> Unit,
+    onPrintTicket: (Order) -> Unit,
+    onPrintComanda: (Order) -> Unit,
+    whatsappNumber: String,
+    onSaveWhatsappNumber: (String) -> Unit,
+    dailySummaryProvider: () -> String,
+    auditLogs: List<AuditLogEntity>,
+    cashClosures: List<CashClosureEntity>,
+    errorLogs: List<AppErrorLogEntity>,
     isTablet: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val whatsappContext = LocalContext.current
+    var showWhatsappDialog by remember { mutableStateOf(false) }
+
+    if (showWhatsappDialog) {
+        WhatsappNumberDialog(
+            current = whatsappNumber,
+            onConfirm = { number ->
+                onSaveWhatsappNumber(number)
+                showWhatsappDialog = false
+                sendWhatsAppSummary(whatsappContext, number, dailySummaryProvider())
+            },
+            onDismiss = { showWhatsappDialog = false }
+        )
+    }
+
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(if (isTablet) 24.dp else 16.dp),
@@ -513,6 +652,9 @@ fun SalesReportSection(
             }
         }
         item {
+            SalesTrendChart(points = report.dailySales, isTablet = isTablet)
+        }
+        item {
             DashboardInfoCard(
                 title = "Cierre del turno",
                 icon = Icons.Default.Summarize,
@@ -521,6 +663,20 @@ fun SalesReportSection(
                 ),
                 isTablet = isTablet
             )
+        }
+        item {
+            PaymentBreakdownChart(
+                cash = report.cashSales,
+                yapePlin = report.yapePlinSales,
+                card = report.cardSales,
+                isTablet = isTablet
+            )
+        }
+        item {
+            TopProductsChart(products = report.topProducts, isTablet = isTablet)
+        }
+        item {
+            PeakHoursChart(hours = report.salesByHour, isTablet = isTablet)
         }
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)) {
@@ -534,6 +690,394 @@ fun SalesReportSection(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Excel")
                 }
+            }
+        }
+        item {
+            OutlinedButton(onClick = onOpenPrinterSettings, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Print, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Configurar impresora termica")
+            }
+        }
+        item {
+            BackupActionsCard(
+                onBackupJson = onBackupJson,
+                onBackupExcel = onBackupExcel,
+                onRestoreBackup = onRestoreBackup,
+                isTablet = isTablet
+            )
+        }
+        item {
+            Button(onClick = onCloseCash, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                Icon(Icons.Default.PointOfSale, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Cerrar caja del rango seleccionado")
+            }
+        }
+        item {
+            Button(
+                onClick = {
+                    if (whatsappNumber.isBlank()) {
+                        showWhatsappDialog = true
+                    } else {
+                        sendWhatsAppSummary(whatsappContext, whatsappNumber, dailySummaryProvider())
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Enviar resumen a WhatsApp")
+            }
+        }
+        item {
+            TextButton(onClick = { showWhatsappDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (whatsappNumber.isBlank()) "Configurar numero del dueno"
+                    else "Numero: $whatsappNumber (cambiar)",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        item {
+            CashClosuresCard(cashClosures, isTablet)
+        }
+        item {
+            AuditLogsCard(
+                logs = auditLogs,
+                onExportAudit = onExportAudit,
+                isTablet = isTablet
+            )
+        }
+        item {
+            ErrorLogsCard(errorLogs, isTablet)
+        }
+        item {
+            OrderHistoryCard(
+                orders = orderHistory,
+                isTablet = isTablet,
+                onPrintTicket = onPrintTicket,
+                onPrintComanda = onPrintComanda
+            )
+        }
+    }
+}
+
+@Composable
+fun BackupActionsCard(
+    onBackupJson: () -> Unit,
+    onBackupExcel: () -> Unit,
+    onRestoreBackup: () -> Unit,
+    isTablet: Boolean
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (isTablet) 18.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Download, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text("Backup manual", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        "Exporta productos, pedidos, inventario y mesas",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp)) {
+                OutlinedButton(onClick = onBackupJson, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Download, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("JSON")
+                }
+                Button(onClick = onBackupExcel, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)) {
+                    Icon(Icons.Default.TableChart, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Excel")
+                }
+            }
+            OutlinedButton(onClick = onRestoreBackup, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Sync, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Restaurar JSON")
+            }
+        }
+    }
+}
+
+@Composable
+fun CashClosuresCard(closures: List<CashClosureEntity>, isTablet: Boolean) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (isTablet) 18.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.PointOfSale, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Cierres de caja", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        "Arqueos guardados con su desglose de pagos",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            if (closures.isEmpty()) {
+                Text(
+                    "Aun no hay cierres guardados.",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            } else {
+                closures.take(6).forEach { closure ->
+                    CashClosureRow(closure)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CashClosureRow(closure: CashClosureEntity) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${formatDateShort(closure.periodStart)} - ${formatDateShort(closure.periodEnd)}",
+                modifier = Modifier.weight(1f),
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                "S/ ${formatMoney(closure.totalSales)}",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Text(
+            "Ganancia S/ ${formatMoney(closure.grossProfit)}  ·  ${closure.chargedOrders} cobrados  ·  ${closure.productsSold} prod.",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            style = MaterialTheme.typography.bodySmall
+        )
+        Text(
+            "Efectivo S/ ${formatMoney(closure.cashSales)}  |  Yape/Plin S/ ${formatMoney(closure.yapePlinSales)}  |  Tarjeta S/ ${formatMoney(closure.cardSales)}",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+fun AuditLogsCard(
+    logs: List<AuditLogEntity>,
+    onExportAudit: () -> Unit,
+    isTablet: Boolean
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (isTablet) 18.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Auditoria de acciones", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Quien hizo cambios y cuando", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            OutlinedButton(onClick = onExportAudit, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.TableChart, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Exportar auditoria")
+            }
+            if (logs.isEmpty()) {
+                Text("Aun no hay acciones registradas.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+            } else {
+                logs.take(8).forEach { log ->
+                    Text(
+                        "${formatDateTimeShort(log.createdAt)} | ${log.actorRole} | ${log.action}: ${log.detail}",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ErrorLogsCard(errors: List<AppErrorLogEntity>, isTablet: Boolean) {
+    SimpleAdminListCard(
+        title = "Bitacora de errores",
+        subtitle = "Errores locales registrados por la app",
+        icon = Icons.Default.Error,
+        isTablet = isTablet,
+        emptyText = "No hay errores registrados.",
+        rows = errors.take(8).map {
+            "${formatDateTimeShort(it.createdAt)} | ${it.source}: ${it.message}"
+        }
+    )
+}
+
+@Composable
+fun SimpleAdminListCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    isTablet: Boolean,
+    emptyText: String,
+    rows: List<String>
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (isTablet) 18.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(subtitle, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (rows.isEmpty()) {
+                Text(emptyText, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+            } else {
+                rows.forEach { row ->
+                    Text(row, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OrderHistoryCard(
+    orders: List<Order>,
+    isTablet: Boolean,
+    onPrintTicket: (Order) -> Unit = {},
+    onPrintComanda: (Order) -> Unit = {}
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (isTablet) 18.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text("Historial de pedidos", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        "Completados y cancelados segun el rango seleccionado",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            if (orders.isEmpty()) {
+                Text(
+                    "No hay pedidos completados o cancelados en este rango.",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    orders.take(12).forEach { order ->
+                        OrderHistoryRow(order, onPrintTicket = onPrintTicket, onPrintComanda = onPrintComanda)
+                    }
+                }
+                if (orders.size > 12) {
+                    Text(
+                        "Mostrando 12 de ${orders.size} pedidos.",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OrderHistoryRow(
+    order: Order,
+    onPrintTicket: (Order) -> Unit = {},
+    onPrintComanda: (Order) -> Unit = {}
+) {
+    val statusColor = when (order.status) {
+        OrderStatus.COMPLETED -> SuccessGreen
+        OrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.outline
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Mesa ${order.tableNumber.takeIf { it > 0 } ?: order.tableId}",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "${formatDateTimeShort(order.createdAt)} · ${order.items.size} item(s)",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text("S/ ${formatMoney(order.total.takeIf { it > 0.0 } ?: order.items.sumOf { item -> item.subtotal })}", fontWeight = FontWeight.Bold)
+            Text(
+                if (order.status == OrderStatus.COMPLETED) "Cobrado" else "Cancelado",
+                color = statusColor,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (order.status == OrderStatus.COMPLETED) {
+            IconButton(onClick = { onPrintComanda(order) }) {
+                Icon(
+                    Icons.Default.RestaurantMenu,
+                    contentDescription = "Ver comanda",
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+            IconButton(onClick = { onPrintTicket(order) }) {
+                Icon(
+                    Icons.Default.Print,
+                    contentDescription = "Imprimir ticket",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -813,10 +1357,52 @@ fun DashboardInfoCard(title: String, icon: ImageVector, rows: List<Pair<String, 
     }
 }
 
+@Composable
+fun WhatsappNumberDialog(current: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var number by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("WhatsApp del dueno") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Incluye el codigo de pais. Ejemplo Peru: 51987654321", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = number,
+                    onValueChange = { input -> number = input.filter { it.isDigit() } },
+                    label = { Text("Numero (con 51)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(number) }, enabled = number.length >= 9) { Text("Guardar y enviar") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+fun sendWhatsAppSummary(context: android.content.Context, number: String, text: String) {
+    try {
+        val encoded = URLEncoder.encode(text, "UTF-8").replace("+", "%20")
+        val url = "https://wa.me/$number?text=$encoded"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "No se pudo abrir WhatsApp. Verifica que este instalado.", Toast.LENGTH_LONG).show()
+    }
+}
+
 fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f", value)
 
 fun formatDateShort(timestamp: Long): String {
     return SimpleDateFormat("dd/MM/yyyy", Locale("es", "PE")).format(timestamp)
+}
+
+fun formatDateTimeShort(timestamp: Long): String {
+    return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "PE")).format(timestamp)
 }
 
 fun showDatePicker(context: Context, initialDate: Long, onDateSelected: (Long) -> Unit) {

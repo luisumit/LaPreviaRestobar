@@ -22,6 +22,13 @@ data class OrderEntity(
     val waiterName: String?,
 
     val notes: String?,
+    val paymentMethod: String = "UNSPECIFIED",
+    val paidAt: Long? = null,
+    val receiptNumber: String? = null,
+    val amountReceived: Double? = null,
+    val changeGiven: Double? = null,
+    val discountAmount: Double? = null,
+    val discountReason: String? = null,
     val itemsJson: String = "[]",  // Agregar esto
     val syncStatus: String = "PENDING",
     val version: Long = System.currentTimeMillis(),

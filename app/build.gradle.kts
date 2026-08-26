@@ -27,6 +27,28 @@ android {
         localProperties.load(localPropertiesFile.inputStream())
     }
 
+    // ---- Firma de release: lee la clave de local.properties o variables de entorno ----
+    val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")
+        ?: System.getenv("RELEASE_STORE_FILE")
+    val releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
+        ?: System.getenv("RELEASE_STORE_PASSWORD")
+    val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
+        ?: System.getenv("RELEASE_KEY_ALIAS")
+    val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+        ?: System.getenv("RELEASE_KEY_PASSWORD")
+    val hasReleaseKeystore = releaseStoreFile != null && rootProject.file(releaseStoreFile).exists()
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.laprevia.restobar"
         minSdk = 24
@@ -78,7 +100,12 @@ android {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug") // ← agregado
+            // Usa tu keystore si esta configurado; si no, cae a debug para no romper el build.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
             buildConfigField("String", "BASE_URL", "\"https://api.laprevia.com/\"")
             buildConfigField("String", "PHYSICAL_BASE_URL", "\"https://api.laprevia.com/\"")
@@ -129,6 +156,9 @@ android {
 }
 
 dependencies {
+    // Modulo compartido (KMP) con la logica pura de dominio
+    implementation(project(":shared"))
+
     // Core Android
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")

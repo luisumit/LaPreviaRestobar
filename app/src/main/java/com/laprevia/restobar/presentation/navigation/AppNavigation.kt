@@ -290,9 +290,13 @@ fun AppNavigation() {
                     onBack = {
                         navController.popBackStack() // ✅ SOLO PARA RETROCESO NORMAL
                     },
-                    onLogout = { // ✅ AGREGAR ESTE PARÁMETRO
+                    onLogout = {
+                        timber.log.Timber.d("🚪 AppNavigation: Admin cerrando sesión")
                         loginViewModel.signOut()
                         isAuthenticated = false
+                        navController.navigate("login") {
+                            popUpTo("admin_main") { inclusive = true }
+                        }
                     }
                 )
             } else {

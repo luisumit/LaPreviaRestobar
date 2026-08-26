@@ -13,6 +13,7 @@ import com.laprevia.restobar.data.mapper.toDomain
 import com.laprevia.restobar.data.mapper.toEntity
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.printer.AutoPrintManager
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
@@ -30,6 +31,7 @@ class ChefViewModel @Inject constructor(
     private val firebaseProductRepository: FirebaseProductRepository,
     private val db: AppDatabase,
     private val syncManager: SyncManager,
+    private val autoPrintManager: AutoPrintManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -185,6 +187,8 @@ class ChefViewModel @Inject constructor(
                 firebaseOrderRepository.listenToNewOrders().collect { newOrder ->
                     println("🎯 Chef: ¡NUEVA ORDEN DEL MESERO! - Mesa ${newOrder.tableNumber}")
                     handleNewOrderFromFirebase(newOrder)
+                    // Auto-imprime la comanda en cocina (si esta habilitado en este dispositivo)
+                    viewModelScope.launch { autoPrintManager.autoPrintComanda(newOrder) }
                 }
             } catch (e: Exception) {
                 println("❌ Chef: Error en listenToNewOrders: ${e.message}")

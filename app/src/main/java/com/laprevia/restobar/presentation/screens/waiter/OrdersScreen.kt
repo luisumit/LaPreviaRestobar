@@ -1,6 +1,8 @@
 package com.laprevia.restobar.presentation.screens.waiter
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,11 +27,16 @@ import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import java.util.Locale
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,6 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,7 +59,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.model.PaymentMethod
 import com.laprevia.restobar.presentation.screens.waiter.components.OrderCard
 import com.laprevia.restobar.presentation.theme.CoralSecondary
 import com.laprevia.restobar.presentation.theme.ErrorRed
@@ -389,12 +401,119 @@ fun OrdersStatItem(
 // Lista de órdenes agrupadas por estado
 // ────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrdersListContent(
     orders: List<com.laprevia.restobar.data.model.Order>,
     viewModel: WaiterViewModel
 ) {
     val ordersByStatus = orders.groupBy { it.status }
+    var orderToCharge by remember { mutableStateOf<Order?>(null) }
+    var orderToSplit by remember { mutableStateOf<Order?>(null) }
+    var orderToCash by remember { mutableStateOf<Order?>(null) }
+    // Descuento pendiente que se arrastra al dialogo de efectivo.
+    var pendingDiscountAmount by remember { mutableStateOf(0.0) }
+    var pendingDiscountReason by remember { mutableStateOf<String?>(null) }
+
+    orderToSplit?.let { order ->
+        SplitBillDialog(order = order, onDismiss = { orderToSplit = null })
+    }
+
+    orderToCash?.let { order ->
+        CashPaymentDialog(
+            order = order,
+            onConfirm = { received ->
+                viewModel.markTableAsFree(
+                    order.id, PaymentMethod.CASH, received,
+                    pendingDiscountAmount.takeIf { it > 0.0 }, pendingDiscountReason
+                )
+                orderToCash = null
+            },
+            onDismiss = { orderToCash = null }
+        )
+    }
+
+    orderToCharge?.let { order ->
+        // Presets de descuento: (etiqueta, %, motivo)
+        val presets = listOf(
+            Triple("Sin dto.", 0, null),
+            Triple("10%", 10, "Descuento 10%"),
+            Triple("15%", 15, "Descuento 15%"),
+            Triple("20%", 20, "Descuento 20%"),
+            Triple("Happy Hour", 20, "Happy Hour")
+        )
+        var selectedPreset by remember(order.id) { mutableStateOf(0) }
+        val percent = presets[selectedPreset].second
+        val reason = presets[selectedPreset].third
+        val discountAmount = com.laprevia.restobar.domain.Billing.discountFromPercent(order.total, percent)
+        val netTotal = com.laprevia.restobar.domain.Billing.netTotal(order.total, discountAmount)
+
+        AlertDialog(
+            onDismissRequest = { orderToCharge = null },
+            title = { Text("Cobrar mesa ${order.tableNumber}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Descuento / promocion:", style = MaterialTheme.typography.bodySmall)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        presets.forEachIndexed { index, preset ->
+                            FilterChip(
+                                selected = selectedPreset == index,
+                                onClick = { selectedPreset = index },
+                                label = { Text(preset.first) }
+                            )
+                        }
+                    }
+                    if (percent > 0) {
+                        Text(
+                            "Descuento: -S/ ${String.format(Locale.US, "%.2f", discountAmount)}",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Text(
+                        "Total a cobrar: S/ ${String.format(Locale.US, "%.2f", netTotal)}",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            },
+            confirmButton = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        orderToSplit = order
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Dividir cuenta") }
+                    Button(onClick = {
+                        pendingDiscountAmount = discountAmount
+                        pendingDiscountReason = reason
+                        orderToCash = order.copy(total = netTotal)
+                        orderToCharge = null
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Efectivo") }
+                    Button(onClick = {
+                        viewModel.markTableAsFree(
+                            order.id, PaymentMethod.YAPE_PLIN, null,
+                            discountAmount.takeIf { it > 0.0 }, reason
+                        )
+                        orderToCharge = null
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Yape/Plin") }
+                    Button(onClick = {
+                        viewModel.markTableAsFree(
+                            order.id, PaymentMethod.CARD, null,
+                            discountAmount.takeIf { it > 0.0 }, reason
+                        )
+                        orderToCharge = null
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Tarjeta") }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { orderToCharge = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -446,7 +565,7 @@ fun OrdersListContent(
                         order = order,
                         onMarkAsServed = {
                             Timber.d("🧹 Liberando mesa orden: ${order.id}")
-                            viewModel.markTableAsFree(order.id)
+                            orderToCharge = order
                         },
                         onCancel = {
                             Timber.d("❌ Cancelando orden: ${order.id}")

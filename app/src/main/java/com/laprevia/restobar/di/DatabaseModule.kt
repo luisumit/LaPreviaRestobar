@@ -24,6 +24,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "restobar_db"
         )
+            .addMigrations(*AppDatabase.MIGRATIONS)
             .fallbackToDestructiveMigration()
             .build()
     }
