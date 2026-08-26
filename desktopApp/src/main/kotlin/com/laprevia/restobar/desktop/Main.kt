@@ -237,11 +237,20 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
 
 private fun tableLabel(n: Int) = "M" + n.toString().padStart(2, '0')
 
+// Misma regla que la app Android (normalizeTables): una mesa esta OCUPADA solo si
+// tiene un pedido ACTIVO; un status OCUPADA viejo en Firebase sin pedido se muestra LIBRE.
+private val ACTIVE_STATUSES = setOf(
+    OrderStatus.PENDING, OrderStatus.ENVIADO, OrderStatus.ACEPTADO,
+    OrderStatus.EN_PREPARACION, OrderStatus.LISTO, OrderStatus.ENTREGADO
+)
+
 @Composable
 private fun MesasView(tables: List<Table>, orders: List<Order>) {
     val activeByTable = orders
-        .filter { it.status != OrderStatus.COMPLETED && it.status != OrderStatus.CANCELLED }
-        .associateBy { if (it.tableId != 0) it.tableId else it.tableNumber }
+        .map { if (it.tableId == 0 && it.tableNumber in 1..8) it.copy(tableId = it.tableNumber) else it }
+        .filter { it.status in ACTIVE_STATUSES && it.tableId in 1..8 }
+        .distinctBy { it.id }
+        .associateBy { it.tableId }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(180.dp),
@@ -250,7 +259,8 @@ private fun MesasView(tables: List<Table>, orders: List<Order>) {
     ) {
         items(tables.filter { it.number in 1..8 }.sortedBy { it.number }) { table ->
             val activeOrder = activeByTable[table.id]
-            val occupied = activeOrder != null || table.status == TableStatus.OCUPADA
+            // Igual que el celular: solo un pedido activo marca la mesa como ocupada.
+            val occupied = activeOrder != null
             Card(
                 colors = CardDefaults.cardColors(containerColor = NightSurface),
                 shape = RoundedCornerShape(14.dp)
