@@ -7,3 +7,6 @@ package com.laprevia.restobar.platform
 expect fun currentTimeMillis(): Long
 
 expect fun randomUuid(): String
+
+/** Hora del dia (0..23) de un timestamp, en la zona horaria local. */
+expect fun hourOfTimestamp(timestamp: Long): Int

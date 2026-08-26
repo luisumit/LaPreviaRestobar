@@ -5,7 +5,7 @@ import com.laprevia.restobar.data.model.PaymentMethod
 import com.laprevia.restobar.data.model.Product
 import com.laprevia.restobar.domain.model.DailySalesPoint
 import com.laprevia.restobar.domain.model.ProductSalesPoint
-import java.util.Calendar
+import com.laprevia.restobar.platform.hourOfTimestamp
 
 /**
  * Domain Service (DDD): agregaciones PURAS para reportes y cierre de caja — total de un
@@ -69,5 +69,5 @@ object SalesCalculator {
             }
 
     private fun hourOf(timestamp: Long): Int =
-        Calendar.getInstance().apply { timeInMillis = timestamp }.get(Calendar.HOUR_OF_DAY)
+        hourOfTimestamp(timestamp)
 }

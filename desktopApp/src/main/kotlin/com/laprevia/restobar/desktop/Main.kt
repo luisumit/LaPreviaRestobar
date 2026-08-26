@@ -1,0 +1,375 @@
+package com.laprevia.restobar.desktop
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.TableRestaurant
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import com.laprevia.restobar.data.model.Order
+import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.model.PaymentMethod
+import com.laprevia.restobar.data.model.Table
+import com.laprevia.restobar.data.model.TableStatus
+import com.laprevia.restobar.data.repository.GitLiveOrderRepository
+import com.laprevia.restobar.data.repository.GitLiveTableRepository
+import com.laprevia.restobar.domain.model.Money
+import com.laprevia.restobar.domain.service.SalesCalculator
+import com.google.firebase.FirebasePlatform
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.FirebaseOptions
+import dev.gitlive.firebase.auth.FirebaseUser
+import dev.gitlive.firebase.auth.auth
+import dev.gitlive.firebase.initialize
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
+
+// ==================== Paleta "Noche de Previa" (misma que Android) ====================
+private val NightBackground = Color(0xFF12121A)
+private val NightSurface = Color(0xFF1E1E28)
+private val AmberPrimary = Color(0xFFFFB300)
+private val CoralSecondary = Color(0xFFFF6E40)
+private val SuccessGreen = Color(0xFF66BB6A)
+private val WarningOrange = Color(0xFFFFB74D)
+private val SmokeWhite = Color(0xFFF5F5F5)
+
+// ==================== Arranque ====================
+
+fun main() {
+    initFirebaseDesktop()
+    application {
+        Window(
+            onCloseRequest = ::exitApplication,
+            state = rememberWindowState(width = 1100.dp, height = 720.dp),
+            title = "La Previa Restobar — Panel de Escritorio"
+        ) {
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary = AmberPrimary,
+                    secondary = CoralSecondary,
+                    background = NightBackground,
+                    surface = NightSurface,
+                    onBackground = SmokeWhite,
+                    onSurface = SmokeWhite
+                )
+            ) {
+                Surface(modifier = Modifier.fillMaxSize(), color = NightBackground) {
+                    App()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * En escritorio no existe google-services.json: se inicializa GitLive a mano con
+ * los mismos datos del proyecto Firebase que usa la app Android.
+ */
+private fun initFirebaseDesktop() {
+    FirebasePlatform.initializeFirebasePlatform(object : FirebasePlatform() {
+        val storage = mutableMapOf<String, String>()
+        override fun store(key: String, value: String) { storage[key] = value }
+        override fun retrieve(key: String): String? = storage[key]
+        override fun clear(key: String) { storage.remove(key) }
+        override fun log(msg: String) = println("[Firebase] $msg")
+    })
+    Firebase.initialize(
+        context = android.app.Application(),
+        options = FirebaseOptions(
+            applicationId = "1:383569219396:android:58c48b61e8b7005f799111",
+            apiKey = "AIzaSyD_nXUvxOxA1QGF3ZWY0kuAtxDlSyw2ZWA",
+            databaseUrl = "https://laprevia-restobar-default-rtdb.firebaseio.com",
+            projectId = "laprevia-restobar"
+        )
+    )
+    println("✅ Firebase (GitLive/JVM) inicializado para escritorio")
+}
+
+// ==================== App ====================
+
+@Composable
+private fun App() {
+    var user by remember { mutableStateOf<FirebaseUser?>(Firebase.auth.currentUser) }
+    if (user == null) {
+        LoginView(onLoggedIn = { user = it })
+    } else {
+        PanelView(userEmail = user?.email ?: "", onLogout = {
+            user = null
+        })
+    }
+}
+
+// ==================== Login ====================
+
+@Composable
+private fun LoginView(onLoggedIn: (FirebaseUser) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("LA PREVIA", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = SmokeWhite)
+        Text("RESTOBAR — Panel de Escritorio", color = AmberPrimary, fontSize = 14.sp)
+        Spacer(Modifier.height(28.dp))
+        OutlinedTextField(
+            value = email, onValueChange = { email = it },
+            label = { Text("Email") }, singleLine = true,
+            modifier = Modifier.width(360.dp)
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = password, onValueChange = { password = it },
+            label = { Text("Contrasena") }, singleLine = true,
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.width(360.dp)
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = {
+                loading = true; error = null
+                scope.launch {
+                    try {
+                        val result = Firebase.auth.signInWithEmailAndPassword(email.trim(), password)
+                        result.user?.let(onLoggedIn) ?: run { error = "Error de autenticacion" }
+                    } catch (e: Exception) {
+                        error = e.message ?: "Error desconocido"
+                    } finally {
+                        loading = false
+                    }
+                }
+            },
+            enabled = !loading && email.isNotBlank() && password.isNotBlank(),
+            modifier = Modifier.width(360.dp).height(46.dp)
+        ) {
+            if (loading) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            else Text("Iniciar Sesion")
+        }
+        error?.let {
+            Spacer(Modifier.height(12.dp))
+            Text(it, color = CoralSecondary, fontSize = 13.sp)
+        }
+    }
+}
+
+// ==================== Panel principal ====================
+
+private enum class Section(val label: String) { MESAS("Mesas"), PEDIDOS("Pedidos"), REPORTE("Reporte") }
+
+@Composable
+private fun PanelView(userEmail: String, onLogout: () -> Unit) {
+    var section by remember { mutableStateOf(Section.MESAS) }
+    val tableRepo = remember { GitLiveTableRepository() }
+    val orderRepo = remember { GitLiveOrderRepository() }
+
+    val tables by tableRepo.getTables().collectAsState(initial = emptyList())
+    val orders by orderRepo.getOrders().collectAsState(initial = emptyList())
+
+    Row(modifier = Modifier.fillMaxSize()) {
+        NavigationRail(containerColor = NightSurface) {
+            Spacer(Modifier.height(12.dp))
+            NavigationRailItem(
+                selected = section == Section.MESAS,
+                onClick = { section = Section.MESAS },
+                icon = { Icon(Icons.Default.TableRestaurant, contentDescription = null) },
+                label = { Text("Mesas") }
+            )
+            NavigationRailItem(
+                selected = section == Section.PEDIDOS,
+                onClick = { section = Section.PEDIDOS },
+                icon = { Icon(Icons.Default.ReceiptLong, contentDescription = null) },
+                label = { Text("Pedidos") }
+            )
+            NavigationRailItem(
+                selected = section == Section.REPORTE,
+                onClick = { section = Section.REPORTE },
+                icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
+                label = { Text("Reporte") }
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onLogout) { Text("Salir", color = CoralSecondary, fontSize = 12.sp) }
+            Spacer(Modifier.height(8.dp))
+        }
+
+        Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+            Text(
+                "${section.label}  ·  $userEmail",
+                color = SmokeWhite.copy(alpha = 0.6f), fontSize = 12.sp
+            )
+            Spacer(Modifier.height(12.dp))
+            when (section) {
+                Section.MESAS -> MesasView(tables, orders)
+                Section.PEDIDOS -> PedidosView(orders)
+                Section.REPORTE -> ReporteView(orders)
+            }
+        }
+    }
+}
+
+// ==================== Mesas ====================
+
+private fun tableLabel(n: Int) = "M" + n.toString().padStart(2, '0')
+
+@Composable
+private fun MesasView(tables: List<Table>, orders: List<Order>) {
+    val activeByTable = orders
+        .filter { it.status != OrderStatus.COMPLETED && it.status != OrderStatus.CANCELLED }
+        .associateBy { if (it.tableId != 0) it.tableId else it.tableNumber }
+
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(180.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(tables.filter { it.number in 1..8 }.sortedBy { it.number }) { table ->
+            val activeOrder = activeByTable[table.id]
+            val occupied = activeOrder != null || table.status == TableStatus.OCUPADA
+            Card(
+                colors = CardDefaults.cardColors(containerColor = NightSurface),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(10.dp).background(
+                                if (occupied) WarningOrange else SuccessGreen,
+                                shape = RoundedCornerShape(50)
+                            )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(tableLabel(table.number), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = SmokeWhite)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (occupied) "OCUPADA" else "LIBRE",
+                        color = if (occupied) WarningOrange else SuccessGreen,
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                    )
+                    Text("Capacidad: ${table.capacity}", color = SmokeWhite.copy(alpha = 0.6f), fontSize = 12.sp)
+                    activeOrder?.let {
+                        Text(
+                            "Pedido: ${Money(SalesCalculator.orderTotal(it)).formatted()}",
+                            color = AmberPrimary, fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==================== Pedidos ====================
+
+@Composable
+private fun PedidosView(orders: List<Order>) {
+    val active = orders
+        .filter { it.status != OrderStatus.COMPLETED && it.status != OrderStatus.CANCELLED }
+        .sortedByDescending { it.createdAt }
+
+    if (active.isEmpty()) {
+        Text("No hay pedidos activos ahora mismo.", color = SmokeWhite.copy(alpha = 0.7f))
+        return
+    }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(active) { order ->
+            Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            "${tableLabel(order.tableNumber)}  ·  ${order.status.name}",
+                            fontWeight = FontWeight.Bold, color = AmberPrimary
+                        )
+                        Text(
+                            Money(SalesCalculator.orderTotal(order)).formatted(),
+                            fontWeight = FontWeight.Bold, color = SmokeWhite
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    order.items.forEach { item ->
+                        Text("  ${item.quantity} x ${item.productName}", color = SmokeWhite.copy(alpha = 0.8f), fontSize = 13.sp)
+                    }
+                    if (!order.notes.isNullOrBlank()) {
+                        Text("  Nota: ${order.notes}", color = WarningOrange, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==================== Reporte del dia (reusa SalesCalculator del dominio) ====================
+
+@Composable
+private fun ReporteView(orders: List<Order>) {
+    val zone = ZoneId.systemDefault()
+    val startOfDay = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+    val charged = orders.filter { it.status == OrderStatus.COMPLETED && it.createdAt >= startOfDay }
+
+    val total = charged.sumOf { SalesCalculator.orderTotal(it) }
+    val cash = SalesCalculator.paymentTotal(charged, PaymentMethod.CASH)
+    val yape = SalesCalculator.paymentTotal(charged, PaymentMethod.YAPE_PLIN)
+    val card = SalesCalculator.paymentTotal(charged, PaymentMethod.CARD)
+    val top = SalesCalculator.topProducts(charged, 5)
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatCard("Total vendido hoy", Money(total).formatted(), AmberPrimary)
+            StatCard("Pedidos cobrados", charged.size.toString(), SuccessGreen)
+            StatCard("Productos vendidos", SalesCalculator.productsSold(charged).toString(), CoralSecondary)
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Metodos de pago", fontWeight = FontWeight.Bold, color = SmokeWhite)
+                Text("Efectivo: ${Money(cash).formatted()}", color = SuccessGreen)
+                Text("Yape/Plin: ${Money(yape).formatted()}", color = WarningOrange)
+                Text("Tarjeta: ${Money(card).formatted()}", color = SmokeWhite)
+            }
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Top productos de hoy", fontWeight = FontWeight.Bold, color = SmokeWhite)
+                if (top.isEmpty()) {
+                    Text("Aun no hay ventas hoy.", color = SmokeWhite.copy(alpha = 0.6f))
+                } else {
+                    top.forEachIndexed { i, p ->
+                        Text("${i + 1}. ${p.name} — ${p.quantity} u  ·  ${Money(p.total).formatted()}", color = SmokeWhite.copy(alpha = 0.85f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatCard(title: String, value: String, accent: Color) {
+    Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
+        Column(Modifier.padding(18.dp).width(180.dp)) {
+            Text(title, color = SmokeWhite.copy(alpha = 0.65f), fontSize = 12.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+        }
+    }
+}
