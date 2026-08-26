@@ -1,5 +1,6 @@
 package com.laprevia.restobar.data.local.entity
 
+import com.laprevia.restobar.platform.currentTimeMillis
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -23,7 +24,7 @@ data class ProductEntity(
     val isActive: Boolean,
 
     val syncStatus: String = "PENDING",
-    val version: Long = System.currentTimeMillis(),  // ✅ NUEVO
-    val lastModified: Long = System.currentTimeMillis(),  // ✅ NUEVO
-    val updatedAt: Long = System.currentTimeMillis()  // ✅ AGREGAR ESTO
+    val version: Long = currentTimeMillis(),  // ✅ NUEVO
+    val lastModified: Long = currentTimeMillis(),  // ✅ NUEVO
+    val updatedAt: Long = currentTimeMillis()  // ✅ AGREGAR ESTO
 )

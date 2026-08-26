@@ -1,5 +1,6 @@
 package com.laprevia.restobar.data.local.entity
 
+import com.laprevia.restobar.platform.currentTimeMillis
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -19,5 +20,5 @@ data class CashClosureEntity(
     val cardSales: Double = 0.0,
     val bestSellingProduct: String = "Sin ventas",
     val createdBy: String,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = currentTimeMillis()
 )

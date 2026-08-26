@@ -1,5 +1,6 @@
 package com.laprevia.restobar.data.local.entity
 
+import com.laprevia.restobar.platform.currentTimeMillis
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 @Entity(tableName = "tables")
@@ -17,6 +18,6 @@ data class TableEntity(
     val capacity: Int,
 
     val syncStatus: String = "PENDING",
-    val version: Long = System.currentTimeMillis(),  // ✅ NUEVO
-    val lastModified: Long = System.currentTimeMillis()  // ✅ NUEVO
+    val version: Long = currentTimeMillis(),  // ✅ NUEVO
+    val lastModified: Long = currentTimeMillis()  // ✅ NUEVO
 )

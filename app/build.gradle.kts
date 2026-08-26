@@ -183,9 +183,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
 
     // Room
-    implementation("androidx.room:room-runtime:2.8.4")
+    // Room ahora vive en el modulo :shared (KMP); el runtime llega via api(project(":shared"))
     implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

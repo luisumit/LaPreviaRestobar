@@ -8,6 +8,7 @@ plugins {
     id("com.google.firebase.firebase-perf") version "2.0.2" apply false
     id("com.google.firebase.crashlytics") version "3.0.6" apply false
     id("com.google.devtools.ksp") version "2.2.10-2.0.2" apply false
+    id("androidx.room") version "2.8.4" apply false
     id("org.sonarqube") version "6.3.1.5724"
     alias(libs.plugins.kotlin.compose) apply false
 }

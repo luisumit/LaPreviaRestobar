@@ -1,6 +1,7 @@
 package com.laprevia.restobar.di.koin
 
 import androidx.room.Room
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.laprevia.restobar.BuildConfig
 import com.laprevia.restobar.data.local.datastore.PreferencesManager
 import com.laprevia.restobar.data.local.db.AppDatabase
@@ -45,6 +46,7 @@ import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.auth
+import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
@@ -79,9 +81,15 @@ val dataKoinModule = module {
     single { PreferencesManager(androidContext()) }
     single<UserPreferencesRepository> { UserPreferencesRepositoryImpl(get()) }
     single {
-        Room.databaseBuilder(androidContext(), AppDatabase::class.java, "restobar_db")
+        // Room KMP: mismo archivo de BD de siempre, ahora con el driver multiplataforma.
+        Room.databaseBuilder<AppDatabase>(
+            context = androidContext(),
+            name = androidContext().getDatabasePath("restobar_db").absolutePath
+        )
             .addMigrations(*AppDatabase.MIGRATIONS)
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(true)
+            .setDriver(BundledSQLiteDriver())
+            .setQueryCoroutineContext(Dispatchers.IO)
             .build()
     }
     single { SyncManager(get(), get(), get(), get(), get()) }

@@ -1,5 +1,6 @@
 package com.laprevia.restobar.data.local.entity
 
+import com.laprevia.restobar.platform.currentTimeMillis
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -31,6 +32,6 @@ data class OrderEntity(
     val discountReason: String? = null,
     val itemsJson: String = "[]",  // Agregar esto
     val syncStatus: String = "PENDING",
-    val version: Long = System.currentTimeMillis(),
-    val lastModified: Long = System.currentTimeMillis()
+    val version: Long = currentTimeMillis(),
+    val lastModified: Long = currentTimeMillis()
 )

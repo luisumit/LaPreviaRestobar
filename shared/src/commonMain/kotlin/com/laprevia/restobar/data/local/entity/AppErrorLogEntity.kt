@@ -1,5 +1,6 @@
 package com.laprevia.restobar.data.local.entity
 
+import com.laprevia.restobar.platform.currentTimeMillis
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -10,5 +11,5 @@ data class AppErrorLogEntity(
     val source: String,
     val message: String,
     val detail: String,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = currentTimeMillis()
 )
