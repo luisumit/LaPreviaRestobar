@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -182,7 +183,7 @@ private fun LoginView(onLoggedIn: (FirebaseUser, String) -> Unit) {
 
 // ==================== Panel principal ====================
 
-private enum class Section(val label: String) { MESAS("Mesas"), PEDIDOS("Pedidos"), REPORTE("Reporte") }
+private enum class Section(val label: String) { MESAS("Mesas"), PEDIDOS("Pedidos"), COCINA("Cocina"), REPORTE("Reporte") }
 
 @Composable
 private fun PanelView(userEmail: String, onLogout: () -> Unit) {
@@ -237,6 +238,12 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
                 label = { Text("Pedidos") }
             )
             NavigationRailItem(
+                selected = section == Section.COCINA,
+                onClick = { section = Section.COCINA },
+                icon = { Icon(Icons.Default.Restaurant, contentDescription = null) },
+                label = { Text("Cocina") }
+            )
+            NavigationRailItem(
                 selected = section == Section.REPORTE,
                 onClick = { section = Section.REPORTE },
                 icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
@@ -262,6 +269,7 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
             when (section) {
                 Section.MESAS -> MesasView(tables, orders)
                 Section.PEDIDOS -> PedidosView(orders, onCobrar = { orderToCobrar = it })
+                Section.COCINA -> KdsView(orders, orderRepo)
                 Section.REPORTE -> ReporteView(orders)
             }
         }
