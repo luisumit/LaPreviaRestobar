@@ -192,6 +192,30 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
     val tables by tableRepo.getTables().collectAsState(initial = emptyList())
     val orders by orderRepo.getOrders().collectAsState(initial = emptyList())
 
+    // CAJA: pedido seleccionado para cobrar desde la PC
+    var orderToCobrar by remember { mutableStateOf<Order?>(null) }
+    orderToCobrar?.let { order ->
+        CobrarDialog(
+            order = order,
+            orderRepo = orderRepo,
+            tableRepo = tableRepo,
+            onClose = { orderToCobrar = null }
+        )
+    }
+
+    // Campanita de pedido nuevo: suena cuando aparece un pedido activo
+    // creado despues de abrir el panel (no suena por el historial).
+    val panelStart = remember { System.currentTimeMillis() }
+    val seenOrderIds = remember { mutableSetOf<String>() }
+    LaunchedEffect(orders) {
+        orders.forEach { order ->
+            val isNew = seenOrderIds.add(order.id)
+            if (isNew && order.createdAt >= panelStart && order.status in ACTIVE_STATUSES) {
+                OrderSound.play()
+            }
+        }
+    }
+
     Row(modifier = Modifier.fillMaxSize()) {
         NavigationRail(containerColor = NightSurface) {
             Spacer(Modifier.height(12.dp))
@@ -226,7 +250,7 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             when (section) {
                 Section.MESAS -> MesasView(tables, orders)
-                Section.PEDIDOS -> PedidosView(orders)
+                Section.PEDIDOS -> PedidosView(orders, onCobrar = { orderToCobrar = it })
                 Section.REPORTE -> ReporteView(orders)
             }
         }
@@ -298,7 +322,7 @@ private fun MesasView(tables: List<Table>, orders: List<Order>) {
 // ==================== Pedidos ====================
 
 @Composable
-private fun PedidosView(orders: List<Order>) {
+private fun PedidosView(orders: List<Order>, onCobrar: (Order) -> Unit) {
     val active = orders
         .filter { it.status != OrderStatus.COMPLETED && it.status != OrderStatus.CANCELLED }
         .sortedByDescending { it.createdAt }
@@ -327,6 +351,13 @@ private fun PedidosView(orders: List<Order>) {
                     }
                     if (!order.notes.isNullOrBlank()) {
                         Text("  Nota: ${order.notes}", color = WarningOrange, fontSize = 12.sp)
+                    }
+                    if (order.canBeCharged()) {
+                        Spacer(Modifier.height(8.dp))
+                        Button(
+                            onClick = { onCobrar(order) },
+                            colors = ButtonDefaults.buttonColors(containerColor = AmberPrimary)
+                        ) { Text("COBRAR", fontWeight = FontWeight.Bold) }
                     }
                 }
             }
