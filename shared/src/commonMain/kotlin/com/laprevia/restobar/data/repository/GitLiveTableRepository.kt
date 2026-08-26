@@ -129,17 +129,18 @@ class GitLiveTableRepository : FirebaseTableRepository {
 
     private fun DataSnapshot.toTable(): Table? = runCatching {
         val id = key?.toIntOrNull() ?: return null
+        // Lectura cruda con conversion tolerante: Firebase entrega enteros como Long.
         val status = runCatching {
-            TableStatus.valueOf(child("status").value<String?>() ?: "LIBRE")
+            TableStatus.valueOf(child("status").value as? String ?: "LIBRE")
         }.getOrDefault(TableStatus.LIBRE)
         Table(
             id = id,
-            number = child("number").value<Int?>() ?: 0,
+            number = (child("number").value as? Number)?.toInt() ?: 0,
             status = status,
-            currentOrderId = child("currentOrderId").value<String?>(),
-            capacity = child("capacity").value<Int?>() ?: 4,
-            version = child("version").value<Long?>() ?: 0,
-            syncStatus = child("syncStatus").value<String?>() ?: "SYNCED"
+            currentOrderId = child("currentOrderId").value as? String,
+            capacity = (child("capacity").value as? Number)?.toInt() ?: 4,
+            version = (child("version").value as? Number)?.toLong() ?: 0,
+            syncStatus = child("syncStatus").value as? String ?: "SYNCED"
         )
     }.getOrNull()
 

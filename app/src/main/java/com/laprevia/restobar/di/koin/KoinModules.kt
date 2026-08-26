@@ -18,6 +18,7 @@ import com.laprevia.restobar.data.remote.websocket.RealTimeWebSocketClient
 import com.laprevia.restobar.data.repository.FirebaseInventoryRepositoryImpl
 import com.laprevia.restobar.data.repository.FirebaseOrderRepositoryImpl
 import com.laprevia.restobar.data.repository.FirebaseProductRepositoryImpl
+import com.laprevia.restobar.data.repository.GitLiveProductRepository
 import com.laprevia.restobar.data.repository.GitLiveTableRepository
 import com.laprevia.restobar.data.repository.UserPreferencesRepositoryImpl
 import com.laprevia.restobar.domain.ProductManager
@@ -118,9 +119,8 @@ val firebaseKoinModule = module {
     } bind OrderRepository::class
     // Mesas: implementacion MULTIPLATAFORMA (GitLive) desde el modulo shared — Fase 4
     single<FirebaseTableRepository> { GitLiveTableRepository() } bind TableRepository::class
-    single<FirebaseProductRepository> {
-        FirebaseProductRepositoryImpl(get<DatabaseReference>(productsRef))
-    } bind ProductRepository::class
+    // Productos: implementacion MULTIPLATAFORMA (GitLive) desde el modulo shared — Fase 4
+    single<FirebaseProductRepository> { GitLiveProductRepository() } bind ProductRepository::class
     single<FirebaseInventoryRepository> {
         FirebaseInventoryRepositoryImpl(get<DatabaseReference>(inventoryRef))
     } bind InventoryRepository::class
