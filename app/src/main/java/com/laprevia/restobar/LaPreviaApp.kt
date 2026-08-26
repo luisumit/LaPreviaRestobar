@@ -9,6 +9,8 @@ import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderF
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.laprevia.restobar.di.koin.appKoinModules
 import com.laprevia.restobar.domain.worker.SyncWorker
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.database.database
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -41,6 +43,15 @@ class LaPreviaApp : Application(), Configuration.Provider {
             // ✅ Inicialización mínima de Firebase para evitar bloqueos
             FirebaseApp.initializeApp(this)
             Timber.i("🔥 FirebaseApp inicializado")
+
+            // Persistencia offline de Realtime Database (antes la activaba el modulo
+            // Hilt nativo; ahora se activa via GitLive antes de cualquier uso).
+            try {
+                Firebase.database.setPersistenceEnabled(true)
+                Timber.i("💾 Persistencia offline de Firebase activada")
+            } catch (e: Exception) {
+                Timber.w("⚠️ Persistencia Firebase ya configurada o no disponible")
+            }
 
             // Reporte remoto de crashes: activo en release, desactivado en debug
             FirebaseCrashlytics.getInstance().apply {

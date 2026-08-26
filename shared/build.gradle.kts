@@ -22,6 +22,7 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
                 // Firebase multiplataforma (GitLive): Android + Desktop/JVM + JS
                 api("dev.gitlive:firebase-database:2.1.0")
+                api("dev.gitlive:firebase-auth:2.1.0")
             }
         }
         val commonTest by getting {

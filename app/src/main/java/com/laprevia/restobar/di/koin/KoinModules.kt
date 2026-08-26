@@ -1,11 +1,6 @@
 package com.laprevia.restobar.di.koin
 
 import androidx.room.Room
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.ktx.Firebase
 import com.laprevia.restobar.BuildConfig
 import com.laprevia.restobar.data.local.datastore.PreferencesManager
 import com.laprevia.restobar.data.local.db.AppDatabase
@@ -15,9 +10,6 @@ import com.laprevia.restobar.data.printer.BluetoothPrinterManager
 import com.laprevia.restobar.data.printer.ReceiptFormatter
 import com.laprevia.restobar.data.remote.api.ApiService
 import com.laprevia.restobar.data.remote.websocket.RealTimeWebSocketClient
-import com.laprevia.restobar.data.repository.FirebaseInventoryRepositoryImpl
-import com.laprevia.restobar.data.repository.FirebaseOrderRepositoryImpl
-import com.laprevia.restobar.data.repository.FirebaseProductRepositoryImpl
 import com.laprevia.restobar.data.repository.GitLiveInventoryRepository
 import com.laprevia.restobar.data.repository.GitLiveOrderRepository
 import com.laprevia.restobar.data.repository.GitLiveProductRepository
@@ -50,6 +42,9 @@ import com.laprevia.restobar.presentation.viewmodel.PrinterViewModel
 import com.laprevia.restobar.presentation.viewmodel.SharedViewModel
 import com.laprevia.restobar.presentation.viewmodel.SyncViewModel
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.auth.FirebaseAuth
+import dev.gitlive.firebase.auth.auth
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
@@ -69,10 +64,6 @@ import java.util.concurrent.TimeUnit
  */
 
 // ---- Qualifiers (equivalentes a di/Qualifiers.kt) ----
-val ordersRef = named("ordersRef")
-val tablesRef = named("tablesRef")
-val productsRef = named("productsRef")
-val inventoryRef = named("inventoryRef")
 val baseUrlQ = named("baseUrl")
 val wsUrlQ = named("wsUrl")
 
@@ -99,22 +90,10 @@ val dataKoinModule = module {
     single { AutoPrintManager(get(), get(), get()) }
 }
 
-/** Espejo de FirebaseModule + RepositoryModule (@Binds → bind). */
+/** Firebase multiplataforma (GitLive) — auth y los 4 repositorios. */
 val firebaseKoinModule = module {
+    // Auth: multiplataforma (GitLive) — Fase 4
     single<FirebaseAuth> { Firebase.auth }
-    single {
-        FirebaseDatabase.getInstance().apply {
-            try {
-                setPersistenceEnabled(true)
-            } catch (e: Exception) {
-                // ya estaba configurado
-            }
-        }
-    }
-    single(ordersRef) { get<FirebaseDatabase>().getReference("orders") }
-    single(tablesRef) { get<FirebaseDatabase>().getReference("tables") }
-    single(productsRef) { get<FirebaseDatabase>().getReference("products") }
-    single(inventoryRef) { get<FirebaseDatabase>().getReference("inventory") }
 
     // Pedidos: implementacion MULTIPLATAFORMA (GitLive) desde el modulo shared — Fase 4
     single<FirebaseOrderRepository> { GitLiveOrderRepository() } bind OrderRepository::class
