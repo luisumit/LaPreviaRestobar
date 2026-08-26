@@ -80,6 +80,12 @@ fun CobrarDialog(
                 orderRepo.updateOrder(completed)
                 val tableId = if (order.tableId != 0) order.tableId else order.tableNumber
                 runCatching { tableRepo.clearTable(tableId) }
+                // Ticket automatico en la termica USB (si esta configurada y activado)
+                if (DesktopPrefs.autoPrintTicket && DesktopPrefs.printerName != null) {
+                    printOnDesktop(
+                        com.laprevia.restobar.data.printer.ReceiptFormatter().customerTicket(completed)
+                    )
+                }
                 onClose(true)
             } catch (e: Exception) {
                 error = e.message ?: "Error cobrando"

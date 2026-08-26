@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material3.*
@@ -194,6 +195,10 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
 
     // CAJA: pedido seleccionado para cobrar desde la PC
     var orderToCobrar by remember { mutableStateOf<Order?>(null) }
+    var showPrinterSettings by remember { mutableStateOf(false) }
+    if (showPrinterSettings) {
+        PrinterSettingsDialog(onClose = { showPrinterSettings = false })
+    }
     orderToCobrar?.let { order ->
         CobrarDialog(
             order = order,
@@ -238,6 +243,12 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
                 label = { Text("Reporte") }
             )
             Spacer(Modifier.weight(1f))
+            NavigationRailItem(
+                selected = false,
+                onClick = { showPrinterSettings = true },
+                icon = { Icon(Icons.Default.Print, contentDescription = "Impresora") },
+                label = { Text("Impresora", fontSize = 10.sp) }
+            )
             TextButton(onClick = onLogout) { Text("Salir", color = CoralSecondary, fontSize = 12.sp) }
             Spacer(Modifier.height(8.dp))
         }
@@ -354,10 +365,17 @@ private fun PedidosView(orders: List<Order>, onCobrar: (Order) -> Unit) {
                     }
                     if (order.canBeCharged()) {
                         Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = { onCobrar(order) },
-                            colors = ButtonDefaults.buttonColors(containerColor = AmberPrimary)
-                        ) { Text("COBRAR", fontWeight = FontWeight.Bold) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = { onCobrar(order) },
+                                colors = ButtonDefaults.buttonColors(containerColor = AmberPrimary)
+                            ) { Text("COBRAR", fontWeight = FontWeight.Bold) }
+                            OutlinedButton(onClick = {
+                                printOnDesktop(
+                                    com.laprevia.restobar.data.printer.ReceiptFormatter().kitchenComanda(order)
+                                )
+                            }) { Text("Comanda") }
+                        }
                     }
                 }
             }
