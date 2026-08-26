@@ -1,21 +1,22 @@
 package com.laprevia.restobar.domain.worker
 
 import android.content.Context
-import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.laprevia.restobar.data.local.sync.SyncManager
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import java.util.concurrent.TimeUnit
 
-@HiltWorker  // ✅ IMPORTANTE: Esta anotación es necesaria
-class SyncWorker @AssistedInject constructor(
-    @Assisted context: Context,
-    @Assisted params: WorkerParameters,
-    private val syncManager: SyncManager  // ✅ Se inyecta automáticamente
-) : CoroutineWorker(context, params) {
+// Worker plano: WorkManager lo crea con su fabrica por defecto y las
+// dependencias se resuelven desde Koin (KoinComponent).
+class SyncWorker(
+    context: Context,
+    params: WorkerParameters
+) : CoroutineWorker(context, params), KoinComponent {
+
+    private val syncManager: SyncManager by inject()
 
     override suspend fun doWork(): Result {
         return withContext(Dispatchers.IO) {

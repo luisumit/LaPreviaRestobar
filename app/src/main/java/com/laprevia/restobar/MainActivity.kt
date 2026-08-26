@@ -13,23 +13,16 @@ import com.laprevia.restobar.presentation.theme.LaPreviaRestoBarTheme
 import com.laprevia.restobar.domain.service.FirebaseInitializerService
 import com.laprevia.restobar.domain.service.InventorySyncService
 import com.laprevia.restobar.data.local.sync.SyncManager
-import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import timber.log.Timber
-import javax.inject.Inject
 
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var firebaseInitializerService: FirebaseInitializerService
-
-    @Inject
-    lateinit var inventorySyncService: InventorySyncService
-
-    @Inject
-    lateinit var syncManager: SyncManager
+    private val firebaseInitializerService: FirebaseInitializerService by inject()
+    private val inventorySyncService: InventorySyncService by inject()
+    private val syncManager: SyncManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

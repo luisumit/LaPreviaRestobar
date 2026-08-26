@@ -11,18 +11,20 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.laprevia.restobar.MainActivity
 import com.laprevia.restobar.R
-import androidx.hilt.work.HiltWorker  // ✅ AGREGAR ESTA LÍNEA (import)
 import com.laprevia.restobar.data.local.db.AppDatabase
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-@HiltWorker  // ✅ AGREGAR ESTA LÍNEA (anotación)
-class AdminStockWorker @AssistedInject constructor(
-    @Assisted private val appContext: Context,
-    @Assisted params: WorkerParameters,
-    private val db: AppDatabase  // ✅ Inyectado por Hilt
-) : CoroutineWorker(appContext, params) {
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+
+// Worker plano: WorkManager lo crea con su fabrica por defecto y las
+// dependencias se resuelven desde Koin (KoinComponent).
+class AdminStockWorker(
+    private val appContext: Context,
+    params: WorkerParameters
+) : CoroutineWorker(appContext, params), KoinComponent {
+
+    private val db: AppDatabase by inject()
 
     override suspend fun doWork(): Result {
         return withContext(Dispatchers.IO) {
