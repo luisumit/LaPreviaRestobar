@@ -102,7 +102,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.laprevia.restobar.data.local.entity.AppErrorLogEntity
@@ -139,9 +139,9 @@ private enum class ProductQuickFilter(val label: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminMainScreen(
-    viewModel: AdminViewModel = hiltViewModel(),
-    loginViewModel: LoginViewModel = hiltViewModel(),
-    printerViewModel: PrinterViewModel = hiltViewModel(),
+    viewModel: AdminViewModel = koinViewModel(),
+    loginViewModel: LoginViewModel = koinViewModel(),
+    printerViewModel: PrinterViewModel = koinViewModel(),
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {

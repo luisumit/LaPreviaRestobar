@@ -48,7 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import com.laprevia.restobar.data.model.Inventory
 import com.laprevia.restobar.presentation.theme.CoralSecondary
 import com.laprevia.restobar.presentation.theme.ErrorRed
@@ -73,7 +73,7 @@ private enum class ChefInventoryQuickFilter(val label: String) {
 
 @Composable
 fun InventoryScreen(
-    viewModel: InventoryViewModel = hiltViewModel(),
+    viewModel: InventoryViewModel = koinViewModel(),
     onBack: () -> Unit = {}
 ) {
     val inventory by viewModel.inventory.collectAsState()

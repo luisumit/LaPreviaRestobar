@@ -29,8 +29,6 @@ import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import com.laprevia.restobar.domain.repository.FirebaseTableRepository
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,7 +37,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
-import javax.inject.Inject
 import com.laprevia.restobar.data.local.db.AppDatabase
 import com.laprevia.restobar.data.local.entity.OrderEntity
 import com.laprevia.restobar.data.local.sync.SyncManager
@@ -50,8 +47,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-@HiltViewModel
-class WaiterViewModel @Inject constructor(
+class WaiterViewModel constructor(
     private val firebaseTableRepository: FirebaseTableRepository,
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseProductRepository: FirebaseProductRepository,
@@ -59,7 +55,7 @@ class WaiterViewModel @Inject constructor(
     private val db: AppDatabase,
     private val syncManager: SyncManager,
     private val autoPrintManager: AutoPrintManager,
-    @ApplicationContext private val context: Context
+    private val context: Context
 ) : ViewModel() {
 
     // StateFlows principales

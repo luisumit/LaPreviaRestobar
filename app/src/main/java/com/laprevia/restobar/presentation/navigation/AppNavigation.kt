@@ -8,7 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -33,7 +33,7 @@ import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val loginViewModel: LoginViewModel = hiltViewModel()
+    val loginViewModel: LoginViewModel = koinViewModel()
 
     // ✅ CORRECCIÓN 1: Usar collectAsState() en lugar de .value directamente
     val currentUser by loginViewModel.currentUser.collectAsState()
@@ -147,7 +147,7 @@ fun AppNavigation() {
         // ✅ RUTAS PROTEGIDAS DEL MESERO
         composable("waiter_main") {
             if (isAuthenticated && userRole == UserRole.MESERO) {
-                val waiterViewModel: WaiterViewModel = hiltViewModel()
+                val waiterViewModel: WaiterViewModel = koinViewModel()
                 // ✅ CORRECCIÓN 2: Verificar si WaiterMainScreen acepta onLogout
                 // Si no lo acepta, crear una versión que sí lo haga o manejar logout de otra forma
                 WaiterMainScreen(
@@ -174,7 +174,7 @@ fun AppNavigation() {
 
         composable("tables") {
             if (isAuthenticated && userRole == UserRole.MESERO) {
-                val waiterViewModel: WaiterViewModel = hiltViewModel()
+                val waiterViewModel: WaiterViewModel = koinViewModel()
                 TablesScreen(
                     navController = navController,
                     viewModel = waiterViewModel
@@ -190,7 +190,7 @@ fun AppNavigation() {
 
         composable("table_details/{tableId}") { backStackEntry ->
             if (isAuthenticated && userRole == UserRole.MESERO) {
-                val waiterViewModel: WaiterViewModel = hiltViewModel()
+                val waiterViewModel: WaiterViewModel = koinViewModel()
                 val tableId = backStackEntry.arguments?.getString("tableId")
                 TableDetailsScreen(
                     navController = navController,
@@ -208,7 +208,7 @@ fun AppNavigation() {
 
         composable("orders") {
             if (isAuthenticated && userRole == UserRole.MESERO) {
-                val waiterViewModel: WaiterViewModel = hiltViewModel()
+                val waiterViewModel: WaiterViewModel = koinViewModel()
                 WaiterOrdersScreen(
                     navController = navController,
                     viewModel = waiterViewModel
@@ -224,7 +224,7 @@ fun AppNavigation() {
 
         composable("products") {
             if (isAuthenticated && userRole == UserRole.MESERO) {
-                val waiterViewModel: WaiterViewModel = hiltViewModel()
+                val waiterViewModel: WaiterViewModel = koinViewModel()
                 ProductsScreen(
                     navController = navController,
                     viewModel = waiterViewModel
@@ -240,7 +240,7 @@ fun AppNavigation() {
 
         composable("inventory") {
             if (isAuthenticated && userRole == UserRole.MESERO) {
-                val waiterViewModel: WaiterViewModel = hiltViewModel()
+                val waiterViewModel: WaiterViewModel = koinViewModel()
                 WaiterInventoryScreen(
                     navController = navController,
                     viewModel = waiterViewModel
@@ -283,7 +283,7 @@ fun AppNavigation() {
         // ✅ RUTAS PROTEGIDAS DEL ADMIN - SOLO ESTA PARTE CAMBIÉ
         composable("admin_main") {
             if (isAuthenticated && userRole == UserRole.ADMIN) {
-                val adminViewModel: AdminViewModel = hiltViewModel()
+                val adminViewModel: AdminViewModel = koinViewModel()
                 AdminMainScreen(
                     viewModel = adminViewModel,
                     loginViewModel = loginViewModel, // ✅ AGREGAR ESTO

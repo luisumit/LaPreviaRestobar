@@ -9,14 +9,11 @@ import com.laprevia.restobar.data.mapper.toEntity
 import com.laprevia.restobar.data.model.Inventory
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class InventoryViewModel @Inject constructor(
+class InventoryViewModel constructor(
     private val firebaseInventoryRepository: FirebaseInventoryRepository,
     private val firebaseProductRepository: FirebaseProductRepository,  // ✅ AGREGADO
     private val db: AppDatabase,

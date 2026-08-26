@@ -17,22 +17,18 @@ import com.laprevia.restobar.data.printer.AutoPrintManager
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 import kotlinx.coroutines.delay
 
-@HiltViewModel
-class ChefViewModel @Inject constructor(
+class ChefViewModel constructor(
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseInventoryRepository: FirebaseInventoryRepository,
     private val firebaseProductRepository: FirebaseProductRepository,
     private val db: AppDatabase,
     private val syncManager: SyncManager,
     private val autoPrintManager: AutoPrintManager,
-    @ApplicationContext private val context: Context
+    private val context: Context
 ) : ViewModel() {
 
     // StateFlows principales

@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import com.laprevia.restobar.presentation.screens.chef.components.ChefNotificationPanel
 import com.laprevia.restobar.presentation.theme.SuccessGreen
 import com.laprevia.restobar.presentation.theme.WarningOrange
@@ -35,10 +35,10 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChefMainScreen(
-    chefViewModel: ChefViewModel = hiltViewModel(),
-    loginViewModel: LoginViewModel = hiltViewModel(),
-    inventoryViewModel: InventoryViewModel = hiltViewModel(),
-    printerViewModel: PrinterViewModel = hiltViewModel(),
+    chefViewModel: ChefViewModel = koinViewModel(),
+    loginViewModel: LoginViewModel = koinViewModel(),
+    inventoryViewModel: InventoryViewModel = koinViewModel(),
+    printerViewModel: PrinterViewModel = koinViewModel(),
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {

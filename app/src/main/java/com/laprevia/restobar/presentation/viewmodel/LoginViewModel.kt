@@ -9,14 +9,12 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.laprevia.restobar.data.model.UserRole
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
 
 sealed class LoginUiState {
     object Loading : LoginUiState()
@@ -26,8 +24,7 @@ sealed class LoginUiState {
     data class Error(val message: String) : LoginUiState()
 }
 
-@HiltViewModel
-class LoginViewModel @Inject constructor(
+class LoginViewModel constructor(
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 

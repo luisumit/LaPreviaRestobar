@@ -57,7 +57,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
@@ -98,7 +98,7 @@ private fun StatusDot(color: Color, modifier: Modifier = Modifier) {
 @Composable
 fun OrdersScreen(
     navController: NavController,
-    viewModel: WaiterViewModel = hiltViewModel()
+    viewModel: WaiterViewModel = koinViewModel()
 ) {
     val orders by viewModel.orders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()

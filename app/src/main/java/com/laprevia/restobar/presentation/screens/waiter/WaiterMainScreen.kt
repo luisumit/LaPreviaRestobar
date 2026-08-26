@@ -23,7 +23,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.NotificationPanel
 import com.laprevia.restobar.presentation.theme.SuccessGreen
@@ -37,8 +37,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun WaiterMainScreen(
     navController: NavController,
-    viewModel: WaiterViewModel = hiltViewModel(),
-    printerViewModel: PrinterViewModel = hiltViewModel(),
+    viewModel: WaiterViewModel = koinViewModel(),
+    printerViewModel: PrinterViewModel = koinViewModel(),
     onLogout: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(0) }

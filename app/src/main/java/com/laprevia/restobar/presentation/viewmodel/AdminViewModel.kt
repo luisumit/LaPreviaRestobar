@@ -38,8 +38,6 @@ import com.laprevia.restobar.data.model.TableStatus
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import com.laprevia.restobar.domain.repository.FirebaseTableRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,7 +51,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
-import javax.inject.Inject
 
 fun startOfDay(timestamp: Long): Long {
     val calendar = Calendar.getInstance().apply {
@@ -153,15 +150,14 @@ data class SalesReport(
     val salesByHour: List<DailySalesPoint> = emptyList()
 )
 
-@HiltViewModel
-class AdminViewModel @Inject constructor(
+class AdminViewModel constructor(
     private val firebaseProductRepository: FirebaseProductRepository,
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseTableRepository: FirebaseTableRepository,
     private val db: AppDatabase,
     private val syncManager: SyncManager,
     private val preferencesManager: PreferencesManager,
-    @ApplicationContext private val context: Context
+    private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())

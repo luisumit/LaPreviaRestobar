@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.data.model.TableStatus
 import com.laprevia.restobar.presentation.screens.waiter.components.ProductItem
@@ -29,7 +29,7 @@ import kotlinx.coroutines.delay
 fun TableDetailsScreen(
     navController: NavController,
     tableId: String?,
-    viewModel: WaiterViewModel = hiltViewModel()
+    viewModel: WaiterViewModel = koinViewModel()
 ) {
     val tables by viewModel.tables.collectAsState()
     val products by viewModel.products.collectAsState()

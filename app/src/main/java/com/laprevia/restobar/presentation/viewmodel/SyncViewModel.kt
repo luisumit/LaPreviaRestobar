@@ -3,13 +3,10 @@ package com.laprevia.restobar.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laprevia.restobar.data.local.sync.SyncManager
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class SyncViewModel @Inject constructor(
+class SyncViewModel constructor(
     private val syncManager: SyncManager
 ) : ViewModel() {
 
