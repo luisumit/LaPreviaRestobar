@@ -6,11 +6,8 @@ import com.laprevia.restobar.domain.repository.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SyncManager @Inject constructor(
+class SyncManager constructor(
     private val db: AppDatabase,
     private val firebaseOrders: FirebaseOrderRepository,
     private val firebaseTables: FirebaseTableRepository,

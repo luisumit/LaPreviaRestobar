@@ -6,11 +6,8 @@ import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class InventorySyncService @Inject constructor(
+class InventorySyncService constructor(
     private val productRepository: FirebaseProductRepository,
     private val inventoryRepository: FirebaseInventoryRepository
 ) {

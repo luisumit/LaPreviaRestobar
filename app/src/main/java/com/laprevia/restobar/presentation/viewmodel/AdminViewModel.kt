@@ -14,20 +14,30 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.JsonParser
+import com.google.gson.reflect.TypeToken
+import com.laprevia.restobar.data.local.entity.AppErrorLogEntity
+import com.laprevia.restobar.data.local.entity.AuditLogEntity
+import com.laprevia.restobar.data.local.entity.CashClosureEntity
+import com.laprevia.restobar.data.local.datastore.PreferencesManager
 import com.laprevia.restobar.data.local.db.AppDatabase
+import com.laprevia.restobar.domain.model.DailySalesPoint
+import com.laprevia.restobar.domain.model.ProductSalesPoint
+import com.laprevia.restobar.domain.service.SalesCalculator
 import com.laprevia.restobar.data.local.sync.SyncManager
 import com.laprevia.restobar.data.mapper.toDomain
 import com.laprevia.restobar.data.mapper.toEntity
+import com.laprevia.restobar.data.model.Inventory
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.model.PaymentMethod
 import com.laprevia.restobar.data.model.Product
 import com.laprevia.restobar.data.model.Table
 import com.laprevia.restobar.data.model.TableStatus
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import com.laprevia.restobar.domain.repository.FirebaseTableRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +51,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
-import javax.inject.Inject
 
 fun startOfDay(timestamp: Long): Long {
     val calendar = Calendar.getInstance().apply {
@@ -62,8 +71,13 @@ fun endOfDay(timestamp: Long): Long {
     return calendar.timeInMillis - 1
 }
 
+fun hourOfDay(timestamp: Long): Int {
+    return Calendar.getInstance().apply { timeInMillis = timestamp }.get(Calendar.HOUR_OF_DAY)
+}
+
 data class AdminUiState(
     val products: List<Product> = emptyList(),
+    val orderHistory: List<Order> = emptyList(),
     val categories: List<String> = emptyList(),
     val tables: List<Table> = emptyList(),
     val dashboardMetrics: AdminDashboardMetrics = AdminDashboardMetrics(),
@@ -76,6 +90,12 @@ data class AdminUiState(
     val success: String? = null,
     val warning: String? = null,
     val selectedProduct: Product? = null,
+    val auditLogs: List<AuditLogEntity> = emptyList(),
+    val cashClosures: List<CashClosureEntity> = emptyList(),
+    val errorLogs: List<AppErrorLogEntity> = emptyList(),
+    val whatsappNumber: String = "",
+    val showRestoreDialog: Boolean = false,
+    val restoreJson: String = "",
     val showProductForm: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val isOffline: Boolean = false,
@@ -118,20 +138,26 @@ data class SalesReport(
     val chargedOrders: Int = 0,
     val cancelledOrders: Int = 0,
     val productsSold: Int = 0,
+    val cashSales: Double = 0.0,
+    val yapePlinSales: Double = 0.0,
+    val cardSales: Double = 0.0,
     val bestSellingProduct: String = "Sin ventas",
     val bestSellingQuantity: Int = 0,
     val periodStart: Long = 0L,
-    val periodEnd: Long = 0L
+    val periodEnd: Long = 0L,
+    val dailySales: List<DailySalesPoint> = emptyList(),
+    val topProducts: List<ProductSalesPoint> = emptyList(),
+    val salesByHour: List<DailySalesPoint> = emptyList()
 )
 
-@HiltViewModel
-class AdminViewModel @Inject constructor(
+class AdminViewModel constructor(
     private val firebaseProductRepository: FirebaseProductRepository,
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseTableRepository: FirebaseTableRepository,
     private val db: AppDatabase,
     private val syncManager: SyncManager,
-    @ApplicationContext private val context: Context
+    private val preferencesManager: PreferencesManager,
+    private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())
@@ -215,6 +241,62 @@ class AdminViewModel @Inject constructor(
             checkPendingSync()
             listenToProductChanges()
             observeDashboardData()
+            observeControlLogs()
+        }
+    }
+
+    private fun observeControlLogs() {
+        viewModelScope.launch {
+            db.auditLogDao().getLatestFlow().collect { logs ->
+                _uiState.value = _uiState.value.copy(auditLogs = logs)
+            }
+        }
+        viewModelScope.launch {
+            db.cashClosureDao().getLatestFlow().collect { closures ->
+                _uiState.value = _uiState.value.copy(cashClosures = closures)
+            }
+        }
+        viewModelScope.launch {
+            db.appErrorLogDao().getLatestFlow().collect { errors ->
+                _uiState.value = _uiState.value.copy(errorLogs = errors)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.whatsappNumber.collect { number ->
+                _uiState.value = _uiState.value.copy(whatsappNumber = number)
+            }
+        }
+    }
+
+    fun saveWhatsappNumber(number: String) {
+        viewModelScope.launch { preferencesManager.saveWhatsappNumber(number.trim()) }
+    }
+
+    /** Arma el resumen del dia/periodo para enviar por WhatsApp. */
+    fun buildDailySummaryText(): String {
+        val report = _uiState.value.report
+        val top = report.topProducts.take(3)
+            .mapIndexed { i, p -> "${i + 1}. ${p.name} (${p.quantity})" }
+            .joinToString("\n")
+            .ifBlank { "Sin ventas" }
+        return buildString {
+            appendLine("*LA PREVIA RESTOBAR*")
+            appendLine("Resumen: ${report.title}")
+            appendLine("${reportPeriodTitle(report)}")
+            appendLine("")
+            appendLine("Total vendido: S/ ${money(report.totalSales)}")
+            appendLine("Ganancia estimada: S/ ${money(report.grossProfit)}")
+            appendLine("Pedidos cobrados: ${report.chargedOrders}")
+            appendLine("Pedidos cancelados: ${report.cancelledOrders}")
+            appendLine("Productos vendidos: ${report.productsSold}")
+            appendLine("")
+            appendLine("*Metodos de pago:*")
+            appendLine("Efectivo: S/ ${money(report.cashSales)}")
+            appendLine("Yape/Plin: S/ ${money(report.yapePlinSales)}")
+            appendLine("Tarjeta: S/ ${money(report.cardSales)}")
+            appendLine("")
+            appendLine("*Top productos:*")
+            appendLine(top)
         }
     }
 
@@ -260,6 +342,7 @@ class AdminViewModel @Inject constructor(
                     tables = tables,
                     dashboardMetrics = dashboardMetrics,
                     report = report,
+                    orderHistory = buildOrderHistory(allOrders, report.periodStart, report.periodEnd),
                     occupiedTables = dashboardMetrics.occupiedTables,
                     activeOrdersCount = dashboardMetrics.activeOrders
                 )
@@ -303,19 +386,21 @@ class AdminViewModel @Inject constructor(
                 .sortedBy { it.name }
             val orders = loadOrdersSafely()
             val tables = loadTablesSafely()
+            val report = buildSalesReport(
+                orders = orders,
+                filter = _uiState.value.reportFilter,
+                products = uniqueProducts,
+                customStart = _uiState.value.customReportStart,
+                customEnd = _uiState.value.customReportEnd
+            )
 
             _uiState.value = _uiState.value.copy(
                 products = uniqueProducts,
                 categories = uniqueProducts.mapNotNull { it.category }.distinct().sorted(),
                 tables = tables,
                 dashboardMetrics = buildDashboardMetrics(uniqueProducts, orders, tables),
-                report = buildSalesReport(
-                    orders = orders,
-                    filter = _uiState.value.reportFilter,
-                    products = uniqueProducts,
-                    customStart = _uiState.value.customReportStart,
-                    customEnd = _uiState.value.customReportEnd
-                ),
+                report = report,
+                orderHistory = buildOrderHistory(orders, report.periodStart, report.periodEnd),
                 isLoading = false,
                 isOffline = !_isInternetAvailable.value
             )
@@ -348,19 +433,21 @@ class AdminViewModel @Inject constructor(
                     val uniqueProducts = (syncedProducts + pendingProducts).distinctBy { it.id }.sortedBy { it.name }
                     val orders = loadOrdersSafely()
                     val tables = loadTablesSafely()
+                    val report = buildSalesReport(
+                        orders = orders,
+                        filter = _uiState.value.reportFilter,
+                        products = uniqueProducts,
+                        customStart = _uiState.value.customReportStart,
+                        customEnd = _uiState.value.customReportEnd
+                    )
 
                     _uiState.value = _uiState.value.copy(
                         products = uniqueProducts,
                         categories = uniqueProducts.mapNotNull { it.category }.distinct().sorted(),
                         tables = tables,
                         dashboardMetrics = buildDashboardMetrics(uniqueProducts, orders, tables),
-                        report = buildSalesReport(
-                            orders = orders,
-                            filter = _uiState.value.reportFilter,
-                            products = uniqueProducts,
-                            customStart = _uiState.value.customReportStart,
-                            customEnd = _uiState.value.customReportEnd
-                        ),
+                        report = report,
+                        orderHistory = buildOrderHistory(orders, report.periodStart, report.periodEnd),
                         isLoading = false,
                         isOffline = !_isInternetAvailable.value,
                         pendingSyncCount = pendingProducts.size
@@ -382,7 +469,11 @@ class AdminViewModel @Inject constructor(
                 customStart = _uiState.value.customReportStart,
                 customEnd = _uiState.value.customReportEnd
             )
-            _uiState.value = _uiState.value.copy(reportFilter = filter, report = report)
+            _uiState.value = _uiState.value.copy(
+                reportFilter = filter,
+                report = report,
+                orderHistory = buildOrderHistory(loadOrdersSafely(), report.periodStart, report.periodEnd)
+            )
         }
     }
 
@@ -401,7 +492,8 @@ class AdminViewModel @Inject constructor(
                 reportFilter = AdminReportFilter.CUSTOM,
                 customReportStart = normalizedStart,
                 customReportEnd = normalizedEnd,
-                report = report
+                report = report,
+                orderHistory = buildOrderHistory(loadOrdersSafely(), report.periodStart, report.periodEnd)
             )
         }
     }
@@ -428,6 +520,162 @@ class AdminViewModel @Inject constructor(
         }
     }
 
+    fun exportBackupToJson() {
+        viewModelScope.launch {
+            try {
+                val fileName = createJsonBackup(
+                    products = _uiState.value.products,
+                    orders = loadOrdersSafely(),
+                    inventory = loadInventorySafely(),
+                    tables = loadTablesSafely()
+                )
+                showMessage("Backup JSON guardado en Descargas/LaPreviaReportes: $fileName", isSuccess = true)
+            } catch (e: Exception) {
+                showMessage("Error exportando backup JSON: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    fun exportBackupToExcel() {
+        viewModelScope.launch {
+            try {
+                val fileName = createBackupCsv(
+                    products = _uiState.value.products,
+                    orders = loadOrdersSafely(),
+                    inventory = loadInventorySafely(),
+                    tables = loadTablesSafely()
+                )
+                showMessage("Backup Excel guardado en Descargas/LaPreviaReportes: $fileName", isSuccess = true)
+            } catch (e: Exception) {
+                showMessage("Error exportando backup Excel: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    fun exportAuditToExcel() {
+        viewModelScope.launch {
+            try {
+                val fileName = createAuditCsv(db.auditLogDao().getAll())
+                showMessage("Auditoria guardada en Descargas/LaPreviaReportes: $fileName", isSuccess = true)
+            } catch (e: Exception) {
+                logError("Admin.exportAuditToExcel", e.message.orEmpty(), e.stackTraceToString())
+                showMessage("Error exportando auditoria: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    fun closeCashRegister() {
+        viewModelScope.launch {
+            try {
+                val report = _uiState.value.report
+                val closure = CashClosureEntity(
+                    id = UUID.randomUUID().toString(),
+                    periodStart = report.periodStart,
+                    periodEnd = report.periodEnd,
+                    totalSales = report.totalSales,
+                    grossProfit = report.grossProfit,
+                    chargedOrders = report.chargedOrders,
+                    cancelledOrders = report.cancelledOrders,
+                    productsSold = report.productsSold,
+                    cashSales = report.cashSales,
+                    yapePlinSales = report.yapePlinSales,
+                    cardSales = report.cardSales,
+                    bestSellingProduct = "${report.bestSellingProduct} (${report.bestSellingQuantity})",
+                    createdBy = "Administrador"
+                )
+                db.cashClosureDao().insert(closure)
+                logAudit(
+                    action = "CIERRE_CAJA",
+                    targetType = "REPORT",
+                    targetId = closure.id,
+                    detail = "Total S/ ${money(report.totalSales)}, ganancia S/ ${money(report.grossProfit)}"
+                )
+                showMessage("Cierre de caja guardado", isSuccess = true)
+            } catch (e: Exception) {
+                logError("Admin.closeCashRegister", e.message.orEmpty(), e.stackTraceToString())
+                showMessage("Error cerrando caja: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    fun showRestoreBackupDialog() {
+        _uiState.value = _uiState.value.copy(showRestoreDialog = true, restoreJson = "")
+    }
+
+    fun hideRestoreBackupDialog() {
+        _uiState.value = _uiState.value.copy(showRestoreDialog = false, restoreJson = "")
+    }
+
+    fun updateRestoreJson(value: String) {
+        _uiState.value = _uiState.value.copy(restoreJson = value)
+    }
+
+    fun restoreBackupFromJson() {
+        viewModelScope.launch {
+            try {
+                val json = _uiState.value.restoreJson.trim()
+                if (json.isBlank()) {
+                    showMessage("Pega el contenido JSON del backup", isError = true)
+                    return@launch
+                }
+                val root = JsonParser.parseString(json).asJsonObject
+                val gson = Gson()
+                val productType = object : TypeToken<List<Product>>() {}.type
+                val orderType = object : TypeToken<List<Order>>() {}.type
+                val products: List<Product> = gson.fromJson(root.getAsJsonArray("products"), productType) ?: emptyList()
+                val orders: List<Order> = gson.fromJson(root.getAsJsonArray("orders"), orderType) ?: emptyList()
+
+                products.forEach { db.productDao().insert(it.toEntity().copy(syncStatus = "PENDING")) }
+                orders.forEach { db.orderDao().insert(it.toEntity().copy(syncStatus = "PENDING")) }
+                logAudit(
+                    action = "BACKUP_RESTAURADO",
+                    targetType = "BACKUP",
+                    targetId = "JSON",
+                    detail = "Productos ${products.size}, pedidos ${orders.size}"
+                )
+                hideRestoreBackupDialog()
+                refreshProducts()
+                showMessage("Backup restaurado localmente. Sincroniza para subirlo a Firebase.", isSuccess = true)
+            } catch (e: Exception) {
+                logError("Admin.restoreBackupFromJson", e.message.orEmpty(), e.stackTraceToString())
+                showMessage("Backup invalido: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    private suspend fun logAudit(action: String, targetType: String, targetId: String, detail: String) {
+        db.auditLogDao().insert(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                action = action,
+                actorRole = "ADMIN",
+                actorName = "Administrador",
+                targetType = targetType,
+                targetId = targetId,
+                detail = detail
+            )
+        )
+    }
+
+    private suspend fun logError(source: String, message: String, detail: String) {
+        db.appErrorLogDao().insert(
+            AppErrorLogEntity(
+                id = UUID.randomUUID().toString(),
+                source = source,
+                message = message,
+                detail = detail
+            )
+        )
+        // Ademas del log local, lo reporta a Crashlytics para verlo remotamente.
+        runCatching {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().apply {
+                setCustomKey("source", source)
+                log("$source: $message")
+                recordException(Exception("$source: $message | $detail"))
+            }
+        }
+    }
+
     private suspend fun loadOrdersSafely(): List<Order> {
         return db.orderDao().getAll().mapNotNull { entity ->
             runCatching { entity.toDomain() }.getOrNull()
@@ -443,6 +691,10 @@ class AdminViewModel @Inject constructor(
             }
         }
         return normalizeTables(tables, normalizeActiveOrders(loadOrdersSafely()))
+    }
+
+    private suspend fun loadInventorySafely(): List<Inventory> {
+        return db.inventoryDao().getAll().map { it.toDomain() }
     }
 
     private fun buildDashboardMetrics(products: List<Product>, orders: List<Order>, tables: List<Table>): AdminDashboardMetrics {
@@ -485,12 +737,21 @@ class AdminViewModel @Inject constructor(
         val filteredOrders = orders.filter { it.createdAt in start..end }
         val chargedOrders = filteredOrders.filter { it.status == OrderStatus.COMPLETED }
         val soldItems = chargedOrders.flatMap { it.items }
-        val totalSales = chargedOrders.sumOf { orderTotal(it) }
-        val grossProfit = calculateGrossProfit(chargedOrders, products)
+        val totalSales = chargedOrders.sumOf { SalesCalculator.orderTotal(it) }
+        val cashSales = SalesCalculator.paymentTotal(chargedOrders, PaymentMethod.CASH)
+        val yapePlinSales = SalesCalculator.paymentTotal(chargedOrders, PaymentMethod.YAPE_PLIN)
+        val cardSales = SalesCalculator.paymentTotal(chargedOrders, PaymentMethod.CARD)
+        val grossProfit = SalesCalculator.grossProfit(chargedOrders, products)
         val bestSeller = soldItems
             .groupBy { it.productName.ifBlank { "Producto sin nombre" } }
             .mapValues { entry -> entry.value.sumOf { it.quantity } }
             .maxByOrNull { it.value }
+
+        val topProducts = SalesCalculator.topProducts(chargedOrders, 5)
+
+        val dailySales = buildSalesSeries(chargedOrders, start, end, filter)
+
+        val salesByHour = SalesCalculator.salesByHour(chargedOrders)
 
         return SalesReport(
             title = when (filter) {
@@ -506,11 +767,89 @@ class AdminViewModel @Inject constructor(
             chargedOrders = chargedOrders.size,
             cancelledOrders = filteredOrders.count { it.status == OrderStatus.CANCELLED },
             productsSold = soldItems.sumOf { it.quantity },
+            cashSales = cashSales,
+            yapePlinSales = yapePlinSales,
+            cardSales = cardSales,
             bestSellingProduct = bestSeller?.key ?: "Sin ventas",
             bestSellingQuantity = bestSeller?.value ?: 0,
             periodStart = start,
-            periodEnd = end
+            periodEnd = end,
+            dailySales = dailySales,
+            topProducts = topProducts,
+            salesByHour = salesByHour
         )
+    }
+
+    /**
+     * Agrupa las ventas cobradas del periodo en "buckets" temporales para dibujar
+     * la tendencia: bloques de 2h en el dia, dias en semana/mes/rango y meses en el año.
+     */
+    private fun buildSalesSeries(
+        chargedOrders: List<Order>,
+        start: Long,
+        end: Long,
+        filter: AdminReportFilter
+    ): List<DailySalesPoint> {
+        val monthsShort = listOf("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
+        val points = mutableListOf<DailySalesPoint>()
+        val cal = Calendar.getInstance()
+
+        fun sumBetween(from: Long, to: Long): Double =
+            chargedOrders.filter { it.createdAt in from..to }.sumOf { orderTotal(it) }
+
+        when (filter) {
+            AdminReportFilter.DAY -> {
+                var hour = 0
+                while (hour < 24) {
+                    cal.timeInMillis = start
+                    cal.set(Calendar.HOUR_OF_DAY, hour)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    val from = cal.timeInMillis
+                    val to = from + 2 * 60 * 60 * 1000 - 1
+                    points.add(DailySalesPoint("${hour}h", sumBetween(from, minOf(to, end))))
+                    hour += 2
+                }
+            }
+            AdminReportFilter.YEAR -> {
+                for (month in 0 until 12) {
+                    cal.timeInMillis = start
+                    cal.set(Calendar.MONTH, month)
+                    cal.set(Calendar.DAY_OF_MONTH, 1)
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    val from = cal.timeInMillis
+                    cal.add(Calendar.MONTH, 1)
+                    val to = cal.timeInMillis - 1
+                    points.add(DailySalesPoint(monthsShort[month], sumBetween(from, minOf(to, end))))
+                }
+            }
+            else -> {
+                var dayStart = startOfDay(start)
+                var guard = 0
+                while (dayStart <= end && guard < 62) {
+                    val dayEnd = endOfDay(dayStart)
+                    cal.timeInMillis = dayStart
+                    points.add(DailySalesPoint("${cal.get(Calendar.DAY_OF_MONTH)}", sumBetween(dayStart, minOf(dayEnd, end))))
+                    cal.timeInMillis = dayStart
+                    cal.add(Calendar.DAY_OF_MONTH, 1)
+                    dayStart = cal.timeInMillis
+                    guard++
+                }
+            }
+        }
+        return points
+    }
+
+    private fun buildOrderHistory(orders: List<Order>, start: Long, end: Long): List<Order> {
+        return orders
+            .filter { it.createdAt in start..end }
+            .filter { it.status == OrderStatus.COMPLETED || it.status == OrderStatus.CANCELLED }
+            .distinctBy { it.id }
+            .sortedByDescending { it.createdAt }
     }
 
     private fun periodBounds(filter: AdminReportFilter, customStart: Long, customEnd: Long): Pair<Long, Long> {
@@ -640,7 +979,29 @@ class AdminViewModel @Inject constructor(
             appendLine("Pedidos cobrados,${report.chargedOrders}")
             appendLine("Pedidos cancelados,${report.cancelledOrders}")
             appendLine("Productos vendidos,${report.productsSold}")
+            appendLine("Ventas efectivo,S/ ${money(report.cashSales)}")
+            appendLine("Ventas Yape/Plin,S/ ${money(report.yapePlinSales)}")
+            appendLine("Ventas tarjeta,S/ ${money(report.cardSales)}")
             appendLine("Producto mas vendido,${report.bestSellingProduct} (${report.bestSellingQuantity})")
+        }
+        writeReportFile(
+            fileName = fileName,
+            mimeType = "text/csv",
+            bytes = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + csv.toByteArray()
+        )
+        return fileName
+    }
+
+    private fun createAuditCsv(logs: List<AuditLogEntity>): String {
+        val fileName = "auditoria_${timestamp()}.csv"
+        val csv = buildString {
+            appendLine("AUDITORIA - LA PREVIA RESTOBAR")
+            appendLine("Generado,${formatDate(System.currentTimeMillis())}")
+            appendLine()
+            appendLine("Fecha,Rol,Usuario,Accion,Tipo,ID,Detalle")
+            logs.forEach { log ->
+                appendLine("${csv(formatDate(log.createdAt))},${csv(log.actorRole)},${csv(log.actorName)},${csv(log.action)},${csv(log.targetType)},${csv(log.targetId)},${csv(log.detail)}")
+            }
         }
         writeReportFile(
             fileName = fileName,
@@ -696,6 +1057,134 @@ class AdminViewModel @Inject constructor(
         return fileName
     }
 
+    private fun createJsonBackup(
+        products: List<Product>,
+        orders: List<Order>,
+        inventory: List<Inventory>,
+        tables: List<Table>
+    ): String {
+        val fileName = "backup_laprevia_${timestamp()}.json"
+        val json = buildString {
+            appendLine("{")
+            appendLine("  \"generatedAt\": \"${escapeJson(formatDate(System.currentTimeMillis()))}\",")
+            appendLine("  \"products\": [")
+            products.forEachIndexed { index, product ->
+                append("    {")
+                append("\"id\":\"${escapeJson(product.id)}\",")
+                append("\"name\":\"${escapeJson(product.name)}\",")
+                append("\"description\":\"${escapeJson(product.description)}\",")
+                append("\"category\":\"${escapeJson(product.category)}\",")
+                append("\"salePrice\":${product.salePrice ?: 0.0},")
+                append("\"costPrice\":${product.costPrice ?: 0.0},")
+                append("\"trackInventory\":${product.trackInventory},")
+                append("\"stock\":${product.stock},")
+                append("\"minStock\":${product.minStock},")
+                append("\"isActive\":${product.isActive}")
+                append("}")
+                appendLine(if (index == products.lastIndex) "" else ",")
+            }
+            appendLine("  ],")
+            appendLine("  \"orders\": [")
+            orders.forEachIndexed { index, order ->
+                append("    {")
+                append("\"id\":\"${escapeJson(order.id)}\",")
+                append("\"tableId\":${order.tableId},")
+                append("\"tableNumber\":${order.tableNumber},")
+                append("\"status\":\"${order.status.name}\",")
+                append("\"total\":${orderTotal(order)},")
+                append("\"createdAt\":${order.createdAt},")
+                append("\"createdAtText\":\"${escapeJson(formatDate(order.createdAt))}\",")
+                append("\"waiterName\":\"${escapeJson(order.waiterName.orEmpty())}\",")
+                append("\"notes\":\"${escapeJson(order.notes.orEmpty())}\",")
+                append("\"items\":[")
+                order.items.forEachIndexed { itemIndex, item ->
+                    append("{")
+                    append("\"productId\":\"${escapeJson(item.productId)}\",")
+                    append("\"productName\":\"${escapeJson(item.productName)}\",")
+                    append("\"quantity\":${item.quantity},")
+                    append("\"unitPrice\":${item.unitPrice},")
+                    append("\"subtotal\":${item.subtotal}")
+                    append("}")
+                    if (itemIndex != order.items.lastIndex) append(",")
+                }
+                append("]}")
+                appendLine(if (index == orders.lastIndex) "" else ",")
+            }
+            appendLine("  ],")
+            appendLine("  \"inventory\": [")
+            inventory.forEachIndexed { index, item ->
+                append("    {")
+                append("\"productId\":\"${escapeJson(item.productId)}\",")
+                append("\"productName\":\"${escapeJson(item.productName)}\",")
+                append("\"currentStock\":${item.currentStock},")
+                append("\"unitOfMeasure\":\"${escapeJson(item.unitOfMeasure)}\",")
+                append("\"minimumStock\":${item.minimumStock},")
+                append("\"category\":\"${escapeJson(item.category.orEmpty())}\"")
+                append("}")
+                appendLine(if (index == inventory.lastIndex) "" else ",")
+            }
+            appendLine("  ],")
+            appendLine("  \"tables\": [")
+            tables.forEachIndexed { index, table ->
+                append("    {")
+                append("\"id\":${table.id},")
+                append("\"number\":${table.number},")
+                append("\"status\":\"${table.status.name}\",")
+                append("\"currentOrderId\":\"${escapeJson(table.currentOrderId.orEmpty())}\",")
+                append("\"capacity\":${table.capacity}")
+                append("}")
+                appendLine(if (index == tables.lastIndex) "" else ",")
+            }
+            appendLine("  ]")
+            appendLine("}")
+        }
+        writeReportFile(fileName, "application/json", json.toByteArray())
+        return fileName
+    }
+
+    private fun createBackupCsv(
+        products: List<Product>,
+        orders: List<Order>,
+        inventory: List<Inventory>,
+        tables: List<Table>
+    ): String {
+        val fileName = "backup_laprevia_${timestamp()}.csv"
+        val csv = buildString {
+            appendLine("BACKUP LA PREVIA RESTOBAR")
+            appendLine("Generado,${formatDate(System.currentTimeMillis())}")
+            appendLine()
+            appendLine("[PRODUCTOS]")
+            appendLine("ID,Nombre,Categoria,Precio venta,Costo,Stock,Stock minimo,Activo")
+            products.forEach { product ->
+                appendLine("${csv(product.id)},${csv(product.name)},${csv(product.category)},${product.salePrice ?: 0.0},${product.costPrice ?: 0.0},${product.stock},${product.minStock},${product.isActive}")
+            }
+            appendLine()
+            appendLine("[PEDIDOS]")
+            appendLine("ID,Mesa,Estado,Total,Fecha,Mesero,Notas")
+            orders.forEach { order ->
+                appendLine("${csv(order.id)},${order.tableNumber},${order.status.name},${orderTotal(order)},${csv(formatDate(order.createdAt))},${csv(order.waiterName.orEmpty())},${csv(order.notes.orEmpty())}")
+            }
+            appendLine()
+            appendLine("[INVENTARIO]")
+            appendLine("Producto ID,Producto,Stock actual,Unidad,Stock minimo,Categoria")
+            inventory.forEach { item ->
+                appendLine("${csv(item.productId)},${csv(item.productName)},${item.currentStock},${csv(item.unitOfMeasure)},${item.minimumStock},${csv(item.category.orEmpty())}")
+            }
+            appendLine()
+            appendLine("[MESAS]")
+            appendLine("ID,Numero,Estado,Pedido actual,Capacidad")
+            tables.forEach { table ->
+                appendLine("${table.id},${table.number},${table.status.name},${csv(table.currentOrderId.orEmpty())},${table.capacity}")
+            }
+        }
+        writeReportFile(
+            fileName = fileName,
+            mimeType = "text/csv",
+            bytes = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + csv.toByteArray()
+        )
+        return fileName
+    }
+
     private fun writeReportFile(fileName: String, mimeType: String, bytes: ByteArray) {
         writeReportFile(fileName, mimeType) { output -> output.write(bytes) }
     }
@@ -727,6 +1216,12 @@ class AdminViewModel @Inject constructor(
     private fun formatDateOnly(value: Long): String = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(value)
     private fun reportPeriodTitle(report: SalesReport): String = "Reporte del ${formatDateOnly(report.periodStart)} al ${formatDateOnly(report.periodEnd)}"
     private fun money(value: Double): String = String.format(Locale.US, "%.2f", value)
+    private fun escapeJson(value: String): String = value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    private fun csv(value: String): String = "\"${value.replace("\"", "\"\"")}\""
 
     private fun checkPendingSync() {
         viewModelScope.launch {
@@ -832,6 +1327,12 @@ class AdminViewModel @Inject constructor(
                 }
 
                 refreshProducts()
+                logAudit(
+                    action = "PRODUCTO_CREADO",
+                    targetType = "PRODUCT",
+                    targetId = finalProduct.id,
+                    detail = "Producto ${finalProduct.name}, stock ${finalProduct.stock}"
+                )
                 hideProductForm()
                 checkLowStockImmediately()
             } catch (e: Exception) {
@@ -866,6 +1367,12 @@ class AdminViewModel @Inject constructor(
                 }
 
                 refreshProducts()
+                logAudit(
+                    action = "PRODUCTO_ACTUALIZADO",
+                    targetType = "PRODUCT",
+                    targetId = product.id,
+                    detail = "Producto ${product.name}, stock ${product.stock}, costo ${product.costPrice ?: 0.0}"
+                )
                 hideProductForm()
                 checkLowStockImmediately()
             } catch (e: Exception) {
@@ -900,6 +1407,12 @@ class AdminViewModel @Inject constructor(
                 }
 
                 refreshProducts()
+                logAudit(
+                    action = "PRODUCTO_ELIMINADO",
+                    targetType = "PRODUCT",
+                    targetId = product.id,
+                    detail = "Producto ${product.name}"
+                )
                 hideDeleteDialog()
                 checkLowStockImmediately()
             } catch (e: Exception) {

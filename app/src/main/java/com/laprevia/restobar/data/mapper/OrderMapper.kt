@@ -6,6 +6,7 @@ import com.laprevia.restobar.data.local.entity.OrderEntity
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderItem
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.model.PaymentMethod
 
 private val gson = Gson()
 
@@ -31,7 +32,14 @@ fun OrderEntity.toDomain(): Order {
         total = total,
         waiterId = waiterId,
         waiterName = waiterName,
-        notes = notes
+        notes = notes,
+        paymentMethod = PaymentMethod.fromString(paymentMethod),
+        paidAt = paidAt,
+        receiptNumber = receiptNumber,
+        amountReceived = amountReceived,
+        changeGiven = changeGiven,
+        discountAmount = discountAmount,
+        discountReason = discountReason
     )
 }
 
@@ -50,6 +58,13 @@ fun Order.toEntity(): OrderEntity {
         waiterId = waiterId,
         waiterName = waiterName,
         notes = notes,
+        paymentMethod = paymentMethod.name,
+        paidAt = paidAt,
+        receiptNumber = receiptNumber,
+        amountReceived = amountReceived,
+        changeGiven = changeGiven,
+        discountAmount = discountAmount,
+        discountReason = discountReason,
         itemsJson = itemsJson,
         syncStatus = "PENDING",
         version = System.currentTimeMillis(),

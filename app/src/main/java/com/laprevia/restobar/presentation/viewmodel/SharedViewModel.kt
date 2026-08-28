@@ -7,7 +7,6 @@ import com.laprevia.restobar.data.remote.api.ApiService
 import com.laprevia.restobar.data.remote.websocket.RealTimeWebSocketClient
 import com.laprevia.restobar.data.remote.websocket.WebSocketEvent
 import com.laprevia.restobar.data.remote.websocket.WebSocketMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,10 +18,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
-@HiltViewModel
-class SharedViewModel @Inject constructor(
+class SharedViewModel constructor(
     private val webSocketClient: RealTimeWebSocketClient,
     private val apiService: ApiService
 ) : ViewModel() {

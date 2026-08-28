@@ -2,11 +2,8 @@ package com.laprevia.restobar.data.repository
 
 import com.laprevia.restobar.data.local.dao.TableDao
 import com.laprevia.restobar.data.local.entity.TableEntity
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class TableRepositoryImpl @Inject constructor(
+class TableRepositoryImpl constructor(
     private val tableDao: TableDao
 ) {
 

@@ -23,11 +23,13 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.NotificationPanel
 import com.laprevia.restobar.presentation.theme.SuccessGreen
 import com.laprevia.restobar.presentation.theme.WarningOrange
+import com.laprevia.restobar.presentation.screens.printer.PrinterSettingsDialog
+import com.laprevia.restobar.presentation.viewmodel.PrinterViewModel
 import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 import kotlinx.coroutines.delay
 
@@ -35,11 +37,17 @@ import kotlinx.coroutines.delay
 @Composable
 fun WaiterMainScreen(
     navController: NavController,
-    viewModel: WaiterViewModel = hiltViewModel(),
+    viewModel: WaiterViewModel = koinViewModel(),
+    printerViewModel: PrinterViewModel = koinViewModel(),
     onLogout: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var showNotifications by remember { mutableStateOf(false) }
+    var showPrinterSettings by remember { mutableStateOf(false) }
+
+    val printerConfig by printerViewModel.config.collectAsState()
+    val printerStatus by printerViewModel.statusMessage.collectAsState()
+    val printerIsPrinting by printerViewModel.isPrinting.collectAsState()
 
     // Detectar tamano de pantalla para diseno responsivo
     val configuration = LocalConfiguration.current
@@ -171,6 +179,23 @@ fun WaiterMainScreen(
                                         )
                                     }
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.width(if (isTablet) 12.dp else 8.dp))
+
+                            IconButton(
+                                onClick = { showPrinterSettings = true },
+                                modifier = Modifier
+                                    .size(if (isTablet) 52.dp else 44.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Print,
+                                    contentDescription = "Impresora",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
+                                )
                             }
 
                             Spacer(modifier = Modifier.width(if (isTablet) 12.dp else 8.dp))
@@ -399,6 +424,28 @@ fun WaiterMainScreen(
                 }
             }
         }
+    }
+
+    if (showPrinterSettings) {
+        PrinterSettingsDialog(
+            config = printerConfig,
+            hasPermission = printerViewModel.hasBluetoothPermission(),
+            isPrinting = printerIsPrinting,
+            statusMessage = printerStatus,
+            onLoadPrinters = { printerViewModel.pairedPrinters() },
+            onSelectPrinter = { printerViewModel.selectPrinter(it) },
+            onSelectPaper = { printerViewModel.setPaperWidth(it) },
+            onToggleAutoComanda = { printerViewModel.setAutoPrintComanda(it) },
+            onToggleAutoTicket = { printerViewModel.setAutoPrintTicket(it) },
+            onSampleComanda = { printerViewModel.sampleComanda() },
+            onSampleTicket = { printerViewModel.sampleTicket() },
+            onPrintDocument = { printerViewModel.print(it) },
+            onTestPrint = { printerViewModel.testPrint() },
+            onDismiss = {
+                showPrinterSettings = false
+                printerViewModel.clearStatus()
+            }
+        )
     }
 }
 

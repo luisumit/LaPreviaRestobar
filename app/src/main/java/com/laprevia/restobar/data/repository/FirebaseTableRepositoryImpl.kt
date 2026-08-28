@@ -11,13 +11,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
-import javax.inject.Singleton
-import com.laprevia.restobar.di.TablesReference
 
-@Singleton
-class FirebaseTableRepositoryImpl @Inject constructor(
-    @TablesReference
+class FirebaseTableRepositoryImpl constructor(
     private val tablesRef: DatabaseReference
 ) : FirebaseTableRepository {
 

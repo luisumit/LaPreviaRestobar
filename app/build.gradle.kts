@@ -7,7 +7,6 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
     id("com.google.firebase.firebase-perf")
@@ -25,6 +24,28 @@ android {
     val localPropertiesFile = rootProject.file("local.properties")
     if (localPropertiesFile.exists()) {
         localProperties.load(localPropertiesFile.inputStream())
+    }
+
+    // ---- Firma de release: lee la clave de local.properties o variables de entorno ----
+    val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")
+        ?: System.getenv("RELEASE_STORE_FILE")
+    val releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
+        ?: System.getenv("RELEASE_STORE_PASSWORD")
+    val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
+        ?: System.getenv("RELEASE_KEY_ALIAS")
+    val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+        ?: System.getenv("RELEASE_KEY_PASSWORD")
+    val hasReleaseKeystore = releaseStoreFile != null && rootProject.file(releaseStoreFile).exists()
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     defaultConfig {
@@ -78,7 +99,12 @@ android {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug") // ← agregado
+            // Usa tu keystore si esta configurado; si no, cae a debug para no romper el build.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             buildConfigField("String", "ENVIRONMENT", "\"RELEASE\"")
             buildConfigField("String", "BASE_URL", "\"https://api.laprevia.com/\"")
             buildConfigField("String", "PHYSICAL_BASE_URL", "\"https://api.laprevia.com/\"")
@@ -129,6 +155,15 @@ android {
 }
 
 dependencies {
+    // Modulo compartido (KMP) con la logica pura de dominio
+    implementation(project(":shared"))
+
+    // Koin (DI multiplataforma) — coexiste con Hilt durante la migracion Fase 3
+    implementation("io.insert-koin:koin-android:4.1.0")
+    implementation("io.insert-koin:koin-androidx-compose:4.1.0")
+    testImplementation("io.insert-koin:koin-test:4.1.0")
+    testImplementation("io.insert-koin:koin-test-junit4:4.1.0")
+
     // Core Android
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
@@ -148,9 +183,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
 
     // Room
-    implementation("androidx.room:room-runtime:2.8.4")
+    // Room ahora vive en el modulo :shared (KMP); el runtime llega via api(project(":shared"))
     implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
@@ -161,13 +195,6 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
-
-    // Hilt
-    implementation("com.google.dagger:hilt-android:2.57.1")
-    ksp("com.google.dagger:hilt-android-compiler:2.57.1")
-    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
-    implementation("androidx.hilt:hilt-work:1.3.0")
-    ksp("androidx.hilt:hilt-compiler:1.3.0")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))

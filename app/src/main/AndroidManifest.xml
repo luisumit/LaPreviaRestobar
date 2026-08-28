@@ -7,6 +7,13 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- ✅ Permiso para notificaciones (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- ✅ Impresion termica por Bluetooth -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
     <application
         android:name=".LaPreviaApp"
         android:allowBackup="true"

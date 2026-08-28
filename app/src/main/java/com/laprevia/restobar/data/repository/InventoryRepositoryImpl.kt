@@ -2,12 +2,9 @@ package com.laprevia.restobar.data.repository
 
 import com.laprevia.restobar.data.local.dao.InventoryDao
 import com.laprevia.restobar.data.local.entity.InventoryEntity
-import javax.inject.Inject
-import javax.inject.Singleton
 import com.laprevia.restobar.data.mapper.*
 
-@Singleton
-class InventoryRepositoryImpl @Inject constructor(
+class InventoryRepositoryImpl constructor(
     private val inventoryDao: InventoryDao
 ) {
 

@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.presentation.screens.waiter.components.ProductItem
 import com.laprevia.restobar.presentation.theme.WarningOrange
@@ -26,7 +26,7 @@ import com.laprevia.restobar.presentation.viewmodel.WaiterViewModel
 @Composable
 fun ProductsScreen(
     navController: NavController,
-    viewModel: WaiterViewModel = hiltViewModel()
+    viewModel: WaiterViewModel = koinViewModel()
 ) {
     val products by viewModel.products.collectAsState()
     val currentOrderItems by viewModel.currentOrderItems.collectAsState()

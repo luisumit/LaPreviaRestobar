@@ -1,15 +1,27 @@
 package com.laprevia.restobar.presentation.viewmodel
 
 import android.content.Context
+import android.content.ContentValues
+import android.graphics.Color as AndroidColor
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.laprevia.restobar.data.local.entity.AppErrorLogEntity
+import com.laprevia.restobar.data.local.entity.AuditLogEntity
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderItem
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.model.PaymentMethod
+import com.laprevia.restobar.data.printer.AutoPrintManager
+import com.laprevia.restobar.domain.model.Money
 import com.laprevia.restobar.data.model.Product
 import com.laprevia.restobar.data.model.Table
 import com.laprevia.restobar.data.model.TableStatus
@@ -17,8 +29,6 @@ import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import com.laprevia.restobar.domain.repository.FirebaseTableRepository
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,22 +37,25 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
-import javax.inject.Inject
 import com.laprevia.restobar.data.local.db.AppDatabase
 import com.laprevia.restobar.data.local.entity.OrderEntity
 import com.laprevia.restobar.data.local.sync.SyncManager
 import com.laprevia.restobar.data.mapper.toEntity
 import com.laprevia.restobar.data.mapper.toDomain
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-@HiltViewModel
-class WaiterViewModel @Inject constructor(
+class WaiterViewModel constructor(
     private val firebaseTableRepository: FirebaseTableRepository,
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseProductRepository: FirebaseProductRepository,
     private val firebaseInventoryRepository: FirebaseInventoryRepository,
     private val db: AppDatabase,
     private val syncManager: SyncManager,
-    @ApplicationContext private val context: Context
+    private val autoPrintManager: AutoPrintManager,
+    private val context: Context
 ) : ViewModel() {
 
     // StateFlows principales
@@ -610,23 +623,61 @@ class WaiterViewModel @Inject constructor(
         }
     }
 
-    fun markTableAsFree(orderId: String) {
+    fun markTableAsFree(
+        orderId: String,
+        paymentMethod: PaymentMethod = PaymentMethod.CASH,
+        amountReceived: Double? = null,
+        discountAmount: Double? = null,
+        discountReason: String? = null
+    ) {
         viewModelScope.launch {
             try {
                 println("🧹 Waiter: Liberando mesa - Orden $orderId")
                 val order = _orders.value.find { it.id == orderId }
                 order?.tableId?.let { tableId ->
+                    val paidAt = System.currentTimeMillis()
+                    val receiptNumber = "LP-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(paidAt)}"
                     firebaseTableRepository.clearTable(tableId)
-                    firebaseOrderRepository.updateOrderStatus(orderId, "COMPLETED")
+
+                    // El cobro pasa por el Aggregate Root: aplica descuento y pago
+                    // respetando las invariantes (neto no negativo, vuelto solo en efectivo).
+                    val completedOrder = order
+                        .applyDiscount(Money(discountAmount ?: 0.0), discountReason ?: "")
+                        .payWith(paymentMethod, amountReceived?.let { Money(it) })
+                        .copy(
+                            status = OrderStatus.COMPLETED,
+                            paidAt = paidAt,
+                            receiptNumber = receiptNumber,
+                            updatedAt = paidAt
+                        )
+                    // Persiste el pedido completo (neto, descuento, pago, vuelto) en Firebase.
+                    firebaseOrderRepository.updateOrder(completedOrder)
 
                     val entity = db.orderDao().getAll().find { it.id == orderId }
                     entity?.let {
                         db.orderDao().insert(it.copy(
                             status = "COMPLETED",
+                            total = completedOrder.total,
                             syncStatus = if (_isInternetAvailable.value) "SYNCED" else "PENDING",
-                            updatedAt = System.currentTimeMillis()
+                            updatedAt = paidAt,
+                            paymentMethod = paymentMethod.name,
+                            paidAt = paidAt,
+                            receiptNumber = receiptNumber,
+                            amountReceived = completedOrder.amountReceived,
+                            changeGiven = completedOrder.changeGiven,
+                            discountAmount = completedOrder.discountAmount,
+                            discountReason = completedOrder.discountReason
                         ))
                     }
+                    createReceiptPdf(completedOrder)
+                    // Auto-imprime el ticket del cliente (si esta habilitado en este dispositivo)
+                    launch { autoPrintManager.autoPrintTicket(completedOrder) }
+                    logAudit(
+                        action = "PEDIDO_COBRADO",
+                        targetType = "ORDER",
+                        targetId = orderId,
+                        detail = "Mesa ${order.tableNumber}, total S/ ${formatMoney(order.total)}, metodo ${paymentMethod.label}"
+                    )
 
                     _orders.value = _orders.value.filter { it.id != orderId }
 
@@ -775,6 +826,84 @@ class WaiterViewModel @Inject constructor(
             }
         }
     }
+
+    private suspend fun logAudit(action: String, targetType: String, targetId: String, detail: String) {
+        db.auditLogDao().insert(
+            AuditLogEntity(
+                id = UUID.randomUUID().toString(),
+                action = action,
+                actorRole = "MESERO",
+                actorName = "Mesero",
+                targetType = targetType,
+                targetId = targetId,
+                detail = detail
+            )
+        )
+    }
+
+    private fun createReceiptPdf(order: Order): String {
+        val fileName = "ticket_${order.receiptNumber ?: System.currentTimeMillis()}.pdf"
+        val document = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(300, 520, 1).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+        val titlePaint = Paint().apply {
+            color = AndroidColor.BLACK
+            textSize = 18f
+            isFakeBoldText = true
+        }
+        val textPaint = Paint().apply {
+            color = AndroidColor.rgb(35, 35, 35)
+            textSize = 12f
+        }
+
+        var y = 32f
+        canvas.drawText("LA PREVIA RESTOBAR", 24f, y, titlePaint)
+        y += 24f
+        canvas.drawText("Ticket: ${order.receiptNumber.orEmpty()}", 24f, y, textPaint)
+        y += 18f
+        canvas.drawText("Mesa: ${order.tableNumber}", 24f, y, textPaint)
+        y += 18f
+        canvas.drawText("Pago: ${order.paymentMethod.label}", 24f, y, textPaint)
+        y += 18f
+        canvas.drawText("Fecha: ${formatDate(System.currentTimeMillis())}", 24f, y, textPaint)
+        y += 28f
+        order.items.forEach { item ->
+            canvas.drawText("${item.quantity} x ${item.productName}", 24f, y, textPaint)
+            canvas.drawText("S/ ${formatMoney(item.subtotal)}", 210f, y, textPaint)
+            y += 16f
+        }
+        y += 20f
+        canvas.drawText("TOTAL: S/ ${formatMoney(order.total)}", 24f, y, titlePaint)
+        document.finishPage(page)
+        writeReceiptFile(fileName, document)
+        document.close()
+        return fileName
+    }
+
+    private fun writeReceiptFile(fileName: String, document: PdfDocument) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/LaPreviaReportes")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("No se pudo crear el ticket")
+            context.contentResolver.openOutputStream(uri)?.use { document.writeTo(it) }
+                ?: error("No se pudo escribir el ticket")
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+        } else {
+            val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "LaPreviaReportes").apply { mkdirs() }
+            FileOutputStream(File(dir, fileName)).use { document.writeTo(it) }
+        }
+    }
+
+    private fun formatDate(value: Long): String = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(value)
+    private fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f", value)
 
     // ✅ CORREGIDO: Notificaciones sin duplicados
     private fun showStatusChangeNotification(previous: Order, current: Order) {

@@ -6,18 +6,14 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.ValueEventListener
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.model.PaymentMethod
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
-import javax.inject.Singleton
-import com.laprevia.restobar.di.OrdersReference
 
-@Singleton
-class FirebaseOrderRepositoryImpl @Inject constructor(
-    @OrdersReference
+class FirebaseOrderRepositoryImpl constructor(
     private val ordersRef: DatabaseReference
 ) : FirebaseOrderRepository {
 
@@ -123,6 +119,31 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
         try {
             val updates = mapOf<String, Any>(
                 "status" to status,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            ordersRef.child(orderId).updateChildren(updates).await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    override suspend fun updateOrderPayment(
+        orderId: String,
+        status: String,
+        paymentMethod: String,
+        paidAt: Long,
+        receiptNumber: String,
+        amountReceived: Double,
+        changeGiven: Double
+    ) {
+        try {
+            val updates = mapOf<String, Any>(
+                "status" to status,
+                "paymentMethod" to paymentMethod,
+                "paidAt" to paidAt,
+                "receiptNumber" to receiptNumber,
+                "amountReceived" to amountReceived,
+                "changeGiven" to changeGiven,
                 "updatedAt" to System.currentTimeMillis()
             )
             ordersRef.child(orderId).updateChildren(updates).await()
@@ -321,6 +342,16 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
                 }
             }
 
+            val paymentMethod = PaymentMethod.fromString(
+                child("paymentMethod").getValue(String::class.java)
+            )
+            val paidAt = child("paidAt").getValue(Long::class.java)?.takeIf { it > 0 }
+            val receiptNumber = child("receiptNumber").getValue(String::class.java)?.takeIf { it.isNotBlank() }
+            val amountReceived = child("amountReceived").getValue(Double::class.java)?.takeIf { it > 0.0 }
+            val changeGiven = child("changeGiven").getValue(Double::class.java)?.takeIf { it > 0.0 }
+            val discountAmount = child("discountAmount").getValue(Double::class.java)?.takeIf { it > 0.0 }
+            val discountReason = child("discountReason").getValue(String::class.java)?.takeIf { it.isNotBlank() }
+
             Order(
                 id = id,
                 tableId = tableId,
@@ -332,7 +363,14 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
                 total = total,
                 waiterId = waiterId,
                 waiterName = waiterName,
-                notes = notes
+                notes = notes,
+                paymentMethod = paymentMethod,
+                paidAt = paidAt,
+                receiptNumber = receiptNumber,
+                amountReceived = amountReceived,
+                changeGiven = changeGiven,
+                discountAmount = discountAmount,
+                discountReason = discountReason
             )
         } catch (e: Exception) {
             timber.log.Timber.d("❌ Error convirtiendo DataSnapshot a Order: ${e.message}")
@@ -365,7 +403,14 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             "createdAt" to createdAt,
             "updatedAt" to updatedAt,
             "notes" to (notes ?: ""),
-            "total" to total
+            "total" to total,
+            "paymentMethod" to paymentMethod.name,
+            "paidAt" to (paidAt ?: 0L),
+            "receiptNumber" to (receiptNumber ?: ""),
+            "amountReceived" to (amountReceived ?: 0.0),
+            "changeGiven" to (changeGiven ?: 0.0),
+            "discountAmount" to (discountAmount ?: 0.0),
+            "discountReason" to (discountReason ?: "")
         )
     }
 }

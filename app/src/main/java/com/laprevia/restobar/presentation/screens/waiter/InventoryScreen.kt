@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavController
 import com.laprevia.restobar.data.model.Product
 import com.laprevia.restobar.presentation.theme.InfoBlue
@@ -32,7 +32,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun InventoryScreen(
     navController: NavController,
-    viewModel: WaiterViewModel = hiltViewModel()
+    viewModel: WaiterViewModel = koinViewModel()
 ) {
     val products by viewModel.products.collectAsState()
     val isInternetAvailable by viewModel.isInternetAvailable.collectAsState()

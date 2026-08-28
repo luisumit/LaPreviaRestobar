@@ -3,3 +3,10 @@
 
 # Firebase API Key (found in google-services.json -> api_key -> current_key)
 firebase.api.key=YOUR_API_KEY_HERE
+
+# ---- Firma de release (para generar el APK de produccion) ----
+# Ruta al keystore relativa a la raiz del proyecto (ej: laprevia-release.jks)
+RELEASE_STORE_FILE=laprevia-release.jks
+RELEASE_STORE_PASSWORD=TU_PASSWORD_DEL_KEYSTORE
+RELEASE_KEY_ALIAS=laprevia
+RELEASE_KEY_PASSWORD=TU_PASSWORD_DE_LA_CLAVE

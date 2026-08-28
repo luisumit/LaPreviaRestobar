@@ -13,24 +13,22 @@ import com.laprevia.restobar.data.mapper.toDomain
 import com.laprevia.restobar.data.mapper.toEntity
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
+import com.laprevia.restobar.data.printer.AutoPrintManager
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 import kotlinx.coroutines.delay
 
-@HiltViewModel
-class ChefViewModel @Inject constructor(
+class ChefViewModel constructor(
     private val firebaseOrderRepository: FirebaseOrderRepository,
     private val firebaseInventoryRepository: FirebaseInventoryRepository,
     private val firebaseProductRepository: FirebaseProductRepository,
     private val db: AppDatabase,
     private val syncManager: SyncManager,
-    @ApplicationContext private val context: Context
+    private val autoPrintManager: AutoPrintManager,
+    private val context: Context
 ) : ViewModel() {
 
     // StateFlows principales
@@ -185,6 +183,8 @@ class ChefViewModel @Inject constructor(
                 firebaseOrderRepository.listenToNewOrders().collect { newOrder ->
                     println("🎯 Chef: ¡NUEVA ORDEN DEL MESERO! - Mesa ${newOrder.tableNumber}")
                     handleNewOrderFromFirebase(newOrder)
+                    // Auto-imprime la comanda en cocina (si esta habilitado en este dispositivo)
+                    viewModelScope.launch { autoPrintManager.autoPrintComanda(newOrder) }
                 }
             } catch (e: Exception) {
                 println("❌ Chef: Error en listenToNewOrders: ${e.message}")

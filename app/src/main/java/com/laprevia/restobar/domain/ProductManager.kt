@@ -3,9 +3,8 @@ package com.laprevia.restobar.domain
 import com.laprevia.restobar.data.model.Product
 import com.laprevia.restobar.domain.repository.ProductRepository
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
 
-class ProductManager @Inject constructor(
+class ProductManager constructor(
     private val productRepository: ProductRepository
 ) {
     val products: Flow<List<Product>>

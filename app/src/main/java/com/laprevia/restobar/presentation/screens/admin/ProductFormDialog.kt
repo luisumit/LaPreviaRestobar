@@ -96,19 +96,21 @@ fun ProductFormDialog(
                     OutlinedTextField(
                         value = salePrice,
                         onValueChange = { salePrice = it },
-                        label = { Text("Precio Venta") },
+                        label = { Text("Precio Venta *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        placeholder = { Text("0.00") }
+                        placeholder = { Text("0.00") },
+                        isError = salePrice.toDoubleOrNull() == null
                     )
 
                     OutlinedTextField(
                         value = costPrice,
                         onValueChange = { costPrice = it },
-                        label = { Text("Precio Costo") },
+                        label = { Text("Precio Costo *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        placeholder = { Text("0.00") }
+                        placeholder = { Text("0.00") },
+                        isError = costPrice.toDoubleOrNull() == null
                     )
                 }
 
@@ -232,6 +234,8 @@ fun ProductFormDialog(
                         },
                         enabled = name.isNotBlank() &&
                                 category.isNotBlank() &&
+                                salePrice.toDoubleOrNull() != null &&
+                                costPrice.toDoubleOrNull() != null &&
                                 (!trackInventory || stock.toDoubleOrNull() != null)
                     ) {
                         Text(if (isEditMode) "Actualizar" else "Crear")

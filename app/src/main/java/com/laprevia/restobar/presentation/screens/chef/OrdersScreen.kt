@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.presentation.screens.chef.components.OrderCard
@@ -27,7 +27,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun OrdersScreen(
-    viewModel: ChefViewModel = hiltViewModel()
+    viewModel: ChefViewModel = koinViewModel()
 ) {
     val orders by viewModel.orders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
