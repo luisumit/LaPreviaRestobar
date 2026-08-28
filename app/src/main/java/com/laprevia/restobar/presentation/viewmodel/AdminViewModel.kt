@@ -584,6 +584,14 @@ class AdminViewModel constructor(
                     createdBy = "Administrador"
                 )
                 db.cashClosureDao().insert(closure)
+                // Ademas del guardado local, sube el cierre a Firebase para que
+                // tambien se vea desde el panel de escritorio (fire-and-forget).
+                launch {
+                    runCatching {
+                        com.laprevia.restobar.data.repository.GitLiveCashClosureRepository()
+                            .saveClosure(closure)
+                    }
+                }
                 logAudit(
                     action = "CIERRE_CAJA",
                     targetType = "REPORT",

@@ -281,7 +281,7 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
                 Section.PEDIDOS -> PedidosView(orders, onCobrar = { orderToCobrar = it })
                 Section.COCINA -> KdsView(orders, orderRepo)
                 Section.PRODUCTOS -> ProductosView(products, productRepo)
-                Section.REPORTE -> ReporteView(orders)
+                Section.REPORTE -> ReporteView(orders, userEmail)
             }
         }
     }
