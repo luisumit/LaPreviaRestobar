@@ -41,7 +41,10 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.FirebaseOptions
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.auth
+import dev.gitlive.firebase.database.database
 import dev.gitlive.firebase.initialize
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -84,15 +87,34 @@ fun main() {
 }
 
 /**
+ * Almacenamiento persistente del token de sesion (recordar sesion entre reinicios).
+ * Vive en ~/.laprevia-desktop-auth.properties.
+ */
+object AuthStorage {
+    private val file = java.io.File(System.getProperty("user.home"), ".laprevia-desktop-auth.properties")
+    private val props = java.util.Properties().apply {
+        runCatching { if (file.exists()) file.inputStream().use { load(it) } }
+    }
+
+    fun store(key: String, value: String) { props.setProperty(key, value); persist() }
+    fun retrieve(key: String): String? = props.getProperty(key)
+    fun clear(key: String) { props.remove(key); persist() }
+    fun clearAll() { props.clear(); persist() }
+    private fun persist() {
+        runCatching { file.outputStream().use { props.store(it, "La Previa - sesion del panel") } }
+    }
+}
+
+/**
  * En escritorio no existe google-services.json: se inicializa GitLive a mano con
  * los mismos datos del proyecto Firebase que usa la app Android.
  */
 private fun initFirebaseDesktop() {
     FirebasePlatform.initializeFirebasePlatform(object : FirebasePlatform() {
-        val storage = mutableMapOf<String, String>()
-        override fun store(key: String, value: String) { storage[key] = value }
-        override fun retrieve(key: String): String? = storage[key]
-        override fun clear(key: String) { storage.remove(key) }
+        // Respaldado en disco: la sesion sobrevive reinicios del panel.
+        override fun store(key: String, value: String) = AuthStorage.store(key, value)
+        override fun retrieve(key: String): String? = AuthStorage.retrieve(key)
+        override fun clear(key: String) = AuthStorage.clear(key)
         override fun log(msg: String) = println("[Firebase] $msg")
     })
     Firebase.initialize(
@@ -111,14 +133,23 @@ private fun initFirebaseDesktop() {
 
 @Composable
 private fun App() {
+    val scope = rememberCoroutineScope()
+    // Sesion recordada: el token vive en AuthStorage (disco), asi que si hubo
+    // login antes, Firebase.auth.currentUser ya viene restaurado al abrir.
     // Nota JVM: firebase-java-sdk no implementa user.email (TODO() interno),
-    // asi que guardamos el email escrito en el login en vez de pedirlo al SDK.
-    var user by remember { mutableStateOf<FirebaseUser?>(null) }
-    var loggedEmail by remember { mutableStateOf("") }
+    // asi que el email mostrado se guarda aparte en DesktopPrefs.
+    var user by remember { mutableStateOf<FirebaseUser?>(Firebase.auth.currentUser) }
+    var loggedEmail by remember { mutableStateOf(DesktopPrefs.lastEmail) }
     if (user == null) {
-        LoginView(onLoggedIn = { u, email -> user = u; loggedEmail = email })
+        LoginView(onLoggedIn = { u, email ->
+            user = u
+            loggedEmail = email
+            DesktopPrefs.lastEmail = email
+        })
     } else {
         PanelView(userEmail = loggedEmail, onLogout = {
+            scope.launch { runCatching { Firebase.auth.signOut() } }
+            AuthStorage.clearAll()
             user = null
         })
     }
@@ -213,6 +244,22 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
         )
     }
 
+    // Indicador de conexion: canal oficial de Firebase (.info/connected),
+    // con 5 s de gracia para no parpadear durante la conexion inicial.
+    val connected by remember {
+        Firebase.database.reference(".info/connected").valueEvents
+            .map { it.value as? Boolean ?: false }
+    }.collectAsState(initial = true)
+    var offline by remember { mutableStateOf(false) }
+    LaunchedEffect(connected) {
+        if (!connected) {
+            delay(5000)
+            offline = true
+        } else {
+            offline = false
+        }
+    }
+
     // Campanita de pedido nuevo: suena cuando aparece un pedido activo
     // creado despues de abrir el panel (no suena por el historial).
     val panelStart = remember { System.currentTimeMillis() }
@@ -271,6 +318,20 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
         }
 
         Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+            if (offline) {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(Color(0xFFFF5252).copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "🔴 SIN CONEXION — reconectando... (los datos pueden estar desactualizados)",
+                        color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+            }
             Text(
                 "${section.label}  ·  $userEmail",
                 color = SmokeWhite.copy(alpha = 0.6f), fontSize = 12.sp

@@ -48,6 +48,11 @@ object DesktopPrefs {
         get() = load().getProperty("printer.autoTicket", "true") == "true"
         set(value) = save("printer.autoTicket", value.toString())
 
+    /** Ultimo email logueado (para mostrarlo al restaurar la sesion). */
+    var lastEmail: String
+        get() = load().getProperty("session.email", "")
+        set(value) = save("session.email", value)
+
     private fun load(): Properties = Properties().apply {
         runCatching { if (file.exists()) file.inputStream().use { load(it) } }
     }
