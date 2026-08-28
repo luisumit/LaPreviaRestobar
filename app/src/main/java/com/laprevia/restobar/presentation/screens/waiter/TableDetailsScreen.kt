@@ -77,6 +77,25 @@ fun TableDetailsScreen(
         }
     }
 
+    // ✅ Si el ID es valido pero las mesas AUN NO CARGARON (Room/Firebase en camino),
+    // mostrar "cargando" en vez del error — evita el flash del triangulo rojo.
+    if (table == null && isValidTableId && tables.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "Cargando mesa $tableId...",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+            }
+        }
+        return
+    }
+
     // ✅ VALIDACIÓN AÑADIDA: Mensaje más informativo cuando la mesa no existe
     if (table == null) {
         Box(

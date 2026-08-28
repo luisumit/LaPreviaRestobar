@@ -184,7 +184,7 @@ private fun LoginView(onLoggedIn: (FirebaseUser, String) -> Unit) {
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             value = password, onValueChange = { password = it },
-            label = { Text("Contrasena") }, singleLine = true,
+            label = { Text("Contraseña") }, singleLine = true,
             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
             modifier = Modifier.width(360.dp)
         )

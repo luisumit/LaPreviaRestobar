@@ -898,8 +898,14 @@ fun EmailLoginForm(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            // Una sola linea, sin saltos ni espacios, maximo 60 caracteres
+            onValueChange = { email = it.replace("\n", "").replace(" ", "").take(60) },
             label = { Text("Email") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                autoCorrectEnabled = false
+            ),
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Email,
@@ -922,12 +928,14 @@ fun EmailLoginForm(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
-            label = { Text("Contrasena") },
+            // Una sola linea, sin saltos, maximo 40 caracteres
+            onValueChange = { password = it.replace("\n", "").take(40) },
+            label = { Text("Contraseña") },
+            singleLine = true,
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Lock,
-                    contentDescription = "Contrasena",
+                    contentDescription = "Contraseña",
                     tint = Color.White.copy(alpha = 0.7f)
                 )
             },
@@ -935,7 +943,7 @@ fun EmailLoginForm(
                 IconButton(onClick = { showPassword = !showPassword }) {
                     Icon(
                         imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = if (showPassword) "Ocultar contrasena" else "Mostrar contrasena",
+                        contentDescription = if (showPassword) "Ocultar contraseña" else "Mostrar contraseña",
                         tint = Color.White.copy(alpha = 0.7f)
                     )
                 }
