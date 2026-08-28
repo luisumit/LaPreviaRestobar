@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.LocalBar
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
@@ -31,6 +32,7 @@ import com.laprevia.restobar.data.model.PaymentMethod
 import com.laprevia.restobar.data.model.Table
 import com.laprevia.restobar.data.model.TableStatus
 import com.laprevia.restobar.data.repository.GitLiveOrderRepository
+import com.laprevia.restobar.data.repository.GitLiveProductRepository
 import com.laprevia.restobar.data.repository.GitLiveTableRepository
 import com.laprevia.restobar.domain.model.Money
 import com.laprevia.restobar.domain.service.SalesCalculator
@@ -183,16 +185,18 @@ private fun LoginView(onLoggedIn: (FirebaseUser, String) -> Unit) {
 
 // ==================== Panel principal ====================
 
-private enum class Section(val label: String) { MESAS("Mesas"), PEDIDOS("Pedidos"), COCINA("Cocina"), REPORTE("Reporte") }
+private enum class Section(val label: String) { MESAS("Mesas"), PEDIDOS("Pedidos"), COCINA("Cocina"), PRODUCTOS("Productos"), REPORTE("Reporte") }
 
 @Composable
 private fun PanelView(userEmail: String, onLogout: () -> Unit) {
     var section by remember { mutableStateOf(Section.MESAS) }
     val tableRepo = remember { GitLiveTableRepository() }
     val orderRepo = remember { GitLiveOrderRepository() }
+    val productRepo = remember { GitLiveProductRepository() }
 
     val tables by tableRepo.getTables().collectAsState(initial = emptyList())
     val orders by orderRepo.getOrders().collectAsState(initial = emptyList())
+    val products by productRepo.getAllProducts().collectAsState(initial = emptyList())
 
     // CAJA: pedido seleccionado para cobrar desde la PC
     var orderToCobrar by remember { mutableStateOf<Order?>(null) }
@@ -244,6 +248,12 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
                 label = { Text("Cocina") }
             )
             NavigationRailItem(
+                selected = section == Section.PRODUCTOS,
+                onClick = { section = Section.PRODUCTOS },
+                icon = { Icon(Icons.Default.LocalBar, contentDescription = null) },
+                label = { Text("Productos") }
+            )
+            NavigationRailItem(
                 selected = section == Section.REPORTE,
                 onClick = { section = Section.REPORTE },
                 icon = { Icon(Icons.Default.Assessment, contentDescription = null) },
@@ -270,6 +280,7 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
                 Section.MESAS -> MesasView(tables, orders)
                 Section.PEDIDOS -> PedidosView(orders, onCobrar = { orderToCobrar = it })
                 Section.COCINA -> KdsView(orders, orderRepo)
+                Section.PRODUCTOS -> ProductosView(products, productRepo)
                 Section.REPORTE -> ReporteView(orders)
             }
         }
@@ -387,60 +398,6 @@ private fun PedidosView(orders: List<Order>, onCobrar: (Order) -> Unit) {
                     }
                 }
             }
-        }
-    }
-}
-
-// ==================== Reporte del dia (reusa SalesCalculator del dominio) ====================
-
-@Composable
-private fun ReporteView(orders: List<Order>) {
-    val zone = ZoneId.systemDefault()
-    val startOfDay = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
-    val charged = orders.filter { it.status == OrderStatus.COMPLETED && it.createdAt >= startOfDay }
-
-    val total = charged.sumOf { SalesCalculator.orderTotal(it) }
-    val cash = SalesCalculator.paymentTotal(charged, PaymentMethod.CASH)
-    val yape = SalesCalculator.paymentTotal(charged, PaymentMethod.YAPE_PLIN)
-    val card = SalesCalculator.paymentTotal(charged, PaymentMethod.CARD)
-    val top = SalesCalculator.topProducts(charged, 5)
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("Total vendido hoy", Money(total).formatted(), AmberPrimary)
-            StatCard("Pedidos cobrados", charged.size.toString(), SuccessGreen)
-            StatCard("Productos vendidos", SalesCalculator.productsSold(charged).toString(), CoralSecondary)
-        }
-        Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Metodos de pago", fontWeight = FontWeight.Bold, color = SmokeWhite)
-                Text("Efectivo: ${Money(cash).formatted()}", color = SuccessGreen)
-                Text("Yape/Plin: ${Money(yape).formatted()}", color = WarningOrange)
-                Text("Tarjeta: ${Money(card).formatted()}", color = SmokeWhite)
-            }
-        }
-        Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Top productos de hoy", fontWeight = FontWeight.Bold, color = SmokeWhite)
-                if (top.isEmpty()) {
-                    Text("Aun no hay ventas hoy.", color = SmokeWhite.copy(alpha = 0.6f))
-                } else {
-                    top.forEachIndexed { i, p ->
-                        Text("${i + 1}. ${p.name} — ${p.quantity} u  ·  ${Money(p.total).formatted()}", color = SmokeWhite.copy(alpha = 0.85f))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatCard(title: String, value: String, accent: Color) {
-    Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
-        Column(Modifier.padding(18.dp).width(180.dp)) {
-            Text(title, color = SmokeWhite.copy(alpha = 0.65f), fontSize = 12.sp)
-            Spacer(Modifier.height(6.dp))
-            Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp)
         }
     }
 }
