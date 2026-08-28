@@ -1,9 +1,12 @@
 package com.laprevia.restobar.desktop
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -422,7 +425,13 @@ private fun PedidosView(orders: List<Order>, onCobrar: (Order) -> Unit) {
         Text("No hay pedidos activos ahora mismo.", color = SmokeWhite.copy(alpha = 0.7f))
         return
     }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val listState = rememberLazyListState()
+    Box(Modifier.fillMaxSize()) {
+    LazyColumn(
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize().padding(end = 14.dp)
+    ) {
         items(active) { order ->
             Card(colors = CardDefaults.cardColors(containerColor = NightSurface), shape = RoundedCornerShape(12.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
@@ -460,5 +469,10 @@ private fun PedidosView(orders: List<Order>, onCobrar: (Order) -> Unit) {
                 }
             }
         }
+    }
+    VerticalScrollbar(
+        adapter = rememberScrollbarAdapter(listState),
+        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+    )
     }
 }

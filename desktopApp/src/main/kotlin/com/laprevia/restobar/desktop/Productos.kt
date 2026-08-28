@@ -1,9 +1,12 @@
 package com.laprevia.restobar.desktop
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -104,9 +107,21 @@ fun ProductosView(products: List<Product>, productRepo: FirebaseProductRepositor
 
         val filtered = products
             .filter { search.isBlank() || it.name.contains(search, true) || it.category.contains(search, true) }
-            .sortedBy { it.name }
+            .sortedBy { it.name.lowercase() }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "${filtered.size} de ${products.size} productos" +
+                "  ·  ${products.count { it.isActive }} activos",
+            color = Color(0xFFF5F5F5).copy(alpha = 0.55f), fontSize = 12.sp
+        )
+
+        val listState = rememberLazyListState()
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize().padding(end = 14.dp)
+            ) {
             items(filtered, key = { it.id }) { product ->
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)), shape = RoundedCornerShape(10.dp)) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -136,6 +151,11 @@ fun ProductosView(products: List<Product>, productRepo: FirebaseProductRepositor
                     }
                 }
             }
+            }
+            VerticalScrollbar(
+                adapter = rememberScrollbarAdapter(listState),
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+            )
         }
     }
 }
