@@ -18,12 +18,16 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.TableRestaurant
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
@@ -165,6 +169,7 @@ private fun LoginView(onLoggedIn: (FirebaseUser, String) -> Unit) {
     val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
 
@@ -177,15 +182,29 @@ private fun LoginView(onLoggedIn: (FirebaseUser, String) -> Unit) {
         Text("RESTOBAR — Panel de Escritorio", color = AmberPrimary, fontSize = 14.sp)
         Spacer(Modifier.height(28.dp))
         OutlinedTextField(
-            value = email, onValueChange = { email = it },
+            value = email,
+            // Una sola linea, sin espacios, maximo 60 caracteres
+            onValueChange = { email = it.replace("\n", "").replace(" ", "").take(60) },
             label = { Text("Email") }, singleLine = true,
             modifier = Modifier.width(360.dp)
         )
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
-            value = password, onValueChange = { password = it },
+            value = password,
+            // Una sola linea, maximo 40 caracteres
+            onValueChange = { password = it.replace("\n", "").take(40) },
             label = { Text("Contraseña") }, singleLine = true,
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            visualTransformation = if (showPassword) VisualTransformation.None
+            else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { showPassword = !showPassword }) {
+                    Icon(
+                        imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (showPassword) "Ocultar contraseña" else "Mostrar contraseña",
+                        tint = SmokeWhite.copy(alpha = 0.7f)
+                    )
+                }
+            },
             modifier = Modifier.width(360.dp)
         )
         Spacer(Modifier.height(16.dp))
