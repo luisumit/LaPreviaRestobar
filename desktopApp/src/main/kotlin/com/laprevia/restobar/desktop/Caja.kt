@@ -1,12 +1,17 @@
 package com.laprevia.restobar.desktop
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -95,90 +100,128 @@ fun CobrarDialog(
     }
 
     Dialog(onDismissRequest = { if (!charging) onClose(false) }) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.width(430.dp).padding(20.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+        LpDialogCard(width = 440, maxHeight = 680) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Cobrar mesa M${order.tableNumber.toString().padStart(2, '0')}",
-                    fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFFF5F5F5)
+                    "COBRAR ${tableLabel(order.tableNumber)}",
+                    fontFamily = BebasFamily, fontSize = 28.sp, letterSpacing = 1.5.sp, color = Lp.Text
                 )
+                StatusPill("CAJA", Lp.Amber)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 order.items.forEach {
-                    Text("  ${it.quantity} x ${it.productName}", color = Color(0xFFF5F5F5).copy(alpha = 0.75f), fontSize = 13.sp)
+                    Text("${it.quantity} × ${it.productName}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
+            }
 
-                Divider(color = Color(0xFF2A2A35))
-                Text("Descuento / promocion:", color = Color(0xFFF5F5F5).copy(alpha = 0.8f), fontSize = 13.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    presets.forEachIndexed { i, p ->
-                        FilterChip(
-                            selected = presetIndex == i,
-                            onClick = { presetIndex = i },
-                            label = { Text(p.first, fontSize = 11.sp) }
+            Divider(color = Lp.Divider)
+            Text("DESCUENTO / PROMOCIÓN", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = Lp.TextDim)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                presets.forEachIndexed { i, p ->
+                    val selected = presetIndex == i
+                    Box(
+                        Modifier.clip(RoundedCornerShape(999.dp))
+                            .background(if (selected) Lp.Amber.copy(alpha = 0.14f) else Color.Transparent)
+                            .border(1.dp, if (selected) Lp.Amber.copy(alpha = 0.5f) else Lp.FieldBorder, RoundedCornerShape(999.dp))
+                            .lpHover()
+                            .clickable { presetIndex = i }
+                            .padding(horizontal = 11.dp, vertical = 7.dp)
+                    ) {
+                        Text(
+                            p.first, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                            color = if (selected) Lp.Amber else Lp.TextDim
                         )
                     }
                 }
-                if (discount > 0) {
-                    Text("Descuento: -${Money(discount).formatted()}", color = Color(0xFFFF6E40), fontSize = 13.sp)
-                }
-                Text(
-                    "Total a cobrar: ${Money(net).formatted()}",
-                    color = Color(0xFFFFB300), fontWeight = FontWeight.Bold, fontSize = 20.sp
-                )
+            }
+            if (discount > 0) {
+                Text("Descuento: -${Money(discount).formatted()}", color = Lp.Coral, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Total a cobrar:", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(Money(net).formatted(), color = Lp.Amber, fontFamily = BebasFamily, fontSize = 34.sp, letterSpacing = 1.sp)
+            }
 
-                Divider(color = Color(0xFF2A2A35))
-                Text("Efectivo:", color = Color(0xFFF5F5F5).copy(alpha = 0.8f), fontSize = 13.sp)
-                OutlinedTextField(
-                    value = receivedText,
-                    onValueChange = { input -> receivedText = input.filter { it.isDigit() || it == '.' || it == ',' } },
-                    label = { Text("Con cuanto paga? (S/)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton(onClick = { receivedText = String.format(Locale.US, "%.2f", net) }) { Text("Exacto") }
-                    listOf(20, 50, 100).forEach { amount ->
-                        OutlinedButton(onClick = { receivedText = "$amount.00" }) { Text("$amount") }
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Vuelto:", color = Color(0xFFF5F5F5))
-                    Text(
-                        Money(change).formatted(),
-                        fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                        color = if (cashReady) Color(0xFF66BB6A) else Color(0xFFFF6E40)
-                    )
-                }
-                Button(
-                    onClick = { charge(PaymentMethod.CASH, received) },
-                    enabled = cashReady && !charging,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Cobrar en EFECTIVO") }
-
-                Divider(color = Color(0xFF2A2A35))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(
-                        onClick = { charge(PaymentMethod.YAPE_PLIN, null) },
-                        enabled = !charging, modifier = Modifier.weight(1f)
-                    ) { Text("Yape/Plin") }
-                    Button(
-                        onClick = { charge(PaymentMethod.CARD, null) },
-                        enabled = !charging, modifier = Modifier.weight(1f)
-                    ) { Text("Tarjeta") }
-                }
-
-                error?.let { Text(it, color = Color(0xFFFF5252), fontSize = 13.sp) }
-                if (charging) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-                TextButton(onClick = { if (!charging) onClose(false) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Cancelar", color = Color(0xFFF5F5F5).copy(alpha = 0.7f))
+            Divider(color = Lp.Divider)
+            Text("EFECTIVO", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = Lp.TextDim)
+            OutlinedTextField(
+                value = receivedText,
+                onValueChange = { input -> receivedText = input.filter { it.isDigit() || it == '.' || it == ',' } },
+                label = { Text("¿Con cuánto paga? (S/)") },
+                singleLine = true,
+                shape = RoundedCornerShape(13.dp),
+                colors = lpFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                QuickAmount("Exacto") { receivedText = String.format(Locale.US, "%.2f", net) }
+                listOf(20, 50, 100).forEach { amount ->
+                    QuickAmount("S/ $amount") { receivedText = "$amount.00" }
                 }
             }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Vuelto:", color = Lp.Text, fontWeight = FontWeight.SemiBold)
+                Text(
+                    Money(change).formatted(),
+                    fontWeight = FontWeight.ExtraBold, fontSize = 19.sp,
+                    color = if (cashReady) Lp.Green else Lp.Coral
+                )
+            }
+            Box(
+                Modifier.fillMaxWidth().height(50.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(
+                        if (cashReady && !charging) Brush.linearGradient(listOf(Lp.Amber, Lp.AmberDeep))
+                        else Brush.linearGradient(listOf(Lp.Amber.copy(alpha = 0.3f), Lp.AmberDeep.copy(alpha = 0.3f)))
+                    )
+                    .lpHover(0.10f, enabled = cashReady && !charging)
+                    .clickable(enabled = cashReady && !charging) { charge(PaymentMethod.CASH, received) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("COBRAR EN EFECTIVO", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, letterSpacing = 1.5.sp, color = Lp.OnAccent)
+            }
+
+            Divider(color = Lp.Divider)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PayMethodButton("YAPE / PLIN", Lp.Green, enabled = !charging, modifier = Modifier.weight(1f)) {
+                    charge(PaymentMethod.YAPE_PLIN, null)
+                }
+                PayMethodButton("TARJETA", Lp.TextSoft, enabled = !charging, modifier = Modifier.weight(1f)) {
+                    charge(PaymentMethod.CARD, null)
+                }
+            }
+
+            error?.let { Text(it, color = Lp.Red, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+            if (charging) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Lp.Amber, trackColor = Lp.Divider)
+            }
+            TextButton(onClick = { if (!charging) onClose(false) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Cancelar", color = Lp.TextDim, fontWeight = FontWeight.SemiBold)
+            }
         }
+    }
+}
+
+@Composable
+private fun QuickAmount(label: String, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, Lp.FieldBorder),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+    ) { Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Lp.TextSoft) }
+}
+
+@Composable
+private fun PayMethodButton(label: String, accent: Color, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.height(46.dp).clip(RoundedCornerShape(13.dp))
+            .background(accent.copy(alpha = if (enabled) 0.14f else 0.06f))
+            .border(1.dp, accent.copy(alpha = if (enabled) 0.4f else 0.15f), RoundedCornerShape(13.dp))
+            .lpHover(0.06f, enabled = enabled)
+            .clickable(enabled = enabled) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 1.sp, color = accent.copy(alpha = if (enabled) 1f else 0.5f))
     }
 }

@@ -1,13 +1,17 @@
 package com.laprevia.restobar.desktop
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,79 +61,88 @@ fun PrinterSettingsDialog(onClose: () -> Unit) {
     var status by remember { mutableStateOf<String?>(null) }
 
     Dialog(onDismissRequest = onClose) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.width(460.dp).heightIn(max = 620.dp)
-                    .padding(20.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Impresora termica (USB)", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFFF5F5F5))
-                Text(
-                    "Elige la impresora instalada en Windows. Para una termica USB usa su driver o \"Generic / Text Only\".",
-                    color = Color(0xFFF5F5F5).copy(alpha = 0.6f), fontSize = 12.sp
-                )
+        LpDialogCard(width = 460, maxHeight = 620) {
+            Text("IMPRESORA TÉRMICA (USB)", fontFamily = BebasFamily, fontSize = 26.sp, letterSpacing = 1.5.sp, color = Lp.Text)
+            Text(
+                "Elige la impresora instalada en Windows. Para una térmica USB usa su driver o \"Generic / Text Only\".",
+                color = Lp.TextDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+            )
 
-                if (printers.isEmpty()) {
-                    Text("No se encontraron impresoras instaladas.", color = Color(0xFFFF6E40))
-                } else {
-                    printers.forEach { name ->
-                        val isSel = name == selected
-                        OutlinedButton(
-                            onClick = {
+            if (printers.isEmpty()) {
+                Text("No se encontraron impresoras instaladas.", color = Lp.Coral, fontWeight = FontWeight.SemiBold)
+            } else {
+                printers.forEach { name ->
+                    val isSel = name == selected
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(if (isSel) Lp.Amber.copy(alpha = 0.12f) else Lp.Field)
+                            .border(1.dp, if (isSel) Lp.Amber.copy(alpha = 0.5f) else Lp.FieldBorder, RoundedCornerShape(12.dp))
+                            .clickable {
                                 selected = name
                                 DesktopPrefs.printerName = name
                                 status = "Impresora guardada: $name"
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = if (isSel) ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFFFB300).copy(alpha = 0.18f))
-                            else ButtonDefaults.outlinedButtonColors()
-                        ) {
-                            Text(if (isSel) "✓ $name" else name, fontSize = 13.sp)
-                        }
-                    }
-                }
-
-                Divider(color = Color(0xFF2A2A35))
-                Text("Ancho de papel:", color = Color(0xFFF5F5F5).copy(alpha = 0.8f), fontSize = 13.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PaperWidth.entries.forEach { width ->
-                        FilterChip(
-                            selected = paper == width,
-                            onClick = { paper = width; DesktopPrefs.paperWidth = width },
-                            label = { Text(width.label) }
+                            }
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (isSel) "✓  $name" else name, fontSize = 13.sp,
+                            fontWeight = if (isSel) FontWeight.ExtraBold else FontWeight.SemiBold,
+                            color = if (isSel) Lp.Amber else Lp.TextSoft
                         )
                     }
                 }
+            }
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Imprimir ticket al cobrar", color = Color(0xFFF5F5F5), fontSize = 14.sp)
-                        Text("Automatico tras cada cobro desde la PC", color = Color(0xFFF5F5F5).copy(alpha = 0.55f), fontSize = 11.sp)
+            Divider(color = Lp.Divider)
+            Text("ANCHO DE PAPEL", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = Lp.TextDim)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PaperWidth.entries.forEach { width ->
+                    val sel = paper == width
+                    Box(
+                        Modifier.clip(RoundedCornerShape(999.dp))
+                            .background(if (sel) Lp.Amber.copy(alpha = 0.14f) else Color.Transparent)
+                            .border(1.dp, if (sel) Lp.Amber.copy(alpha = 0.5f) else Lp.FieldBorder, RoundedCornerShape(999.dp))
+                            .clickable { paper = width; DesktopPrefs.paperWidth = width }
+                            .padding(horizontal = 15.dp, vertical = 8.dp)
+                    ) {
+                        Text(width.label, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = if (sel) Lp.Amber else Lp.TextDim)
                     }
-                    Switch(checked = autoTicket, onCheckedChange = { autoTicket = it; DesktopPrefs.autoPrintTicket = it })
                 }
+            }
 
-                Divider(color = Color(0xFF2A2A35))
-                Button(
-                    onClick = {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text("Imprimir ticket al cobrar", color = Lp.Text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Automático tras cada cobro desde la PC", color = Lp.TextDim, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Switch(checked = autoTicket, onCheckedChange = { autoTicket = it; DesktopPrefs.autoPrintTicket = it })
+            }
+
+            Divider(color = Lp.Divider)
+            Box(
+                Modifier.fillMaxWidth().height(48.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(
+                        if (selected != null) Brush.linearGradient(listOf(Lp.Amber, Lp.AmberDeep))
+                        else Brush.linearGradient(listOf(Lp.Amber.copy(alpha = 0.3f), Lp.AmberDeep.copy(alpha = 0.3f)))
+                    )
+                    .clickable(enabled = selected != null) {
                         val result = printOnDesktop(ReceiptFormatter().customerTicket(sampleOrder()))
                         status = result.fold(
                             onSuccess = { "✅ Ticket de prueba enviado a la impresora" },
                             onFailure = { "❌ ${it.message}" }
                         )
                     },
-                    enabled = selected != null,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Imprimir ticket de PRUEBA") }
+                contentAlignment = Alignment.Center
+            ) {
+                Text("IMPRIMIR TICKET DE PRUEBA", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 1.5.sp, color = Lp.OnAccent)
+            }
 
-                status?.let { Text(it, color = Color(0xFFFFB300), fontSize = 12.sp) }
+            status?.let { Text(it, color = Lp.Amber, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
 
-                TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
-                    Text("Cerrar", color = Color(0xFFF5F5F5).copy(alpha = 0.7f))
-                }
+            TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
+                Text("Cerrar", color = Lp.TextDim, fontWeight = FontWeight.SemiBold)
             }
         }
     }

@@ -1,13 +1,20 @@
 package com.laprevia.restobar.desktop
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,7 +50,7 @@ private fun startOfDay(t: Long): Long = Calendar.getInstance().apply {
 
 private fun endOfDay(t: Long): Long = startOfDay(t) + 24L * 3600_000 - 1
 
-private enum class RangePreset(val label: String) { HOY("Hoy"), AYER("Ayer"), SEMANA("7 dias"), MES("30 dias"), MANUAL("Rango") }
+private enum class RangePreset(val label: String) { HOY("HOY"), AYER("AYER"), SEMANA("7 DÍAS"), MES("30 DÍAS"), MANUAL("RANGO") }
 
 private fun presetBounds(preset: RangePreset): Pair<Long, Long> {
     val now = System.currentTimeMillis()
@@ -82,78 +89,121 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
     val card = SalesCalculator.paymentTotal(charged, PaymentMethod.CARD)
     val top = SalesCalculator.topProducts(charged, 5)
 
-    Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // Selector de rango
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RangePreset.entries.forEach { p ->
-                FilterChip(selected = preset == p, onClick = { preset = p }, label = { Text(p.label) })
+                val selected = preset == p
+                Box(
+                    Modifier.clip(RoundedCornerShape(999.dp))
+                        .background(if (selected) Lp.Amber.copy(alpha = 0.14f) else Color.Transparent)
+                        .border(1.dp, if (selected) Lp.Amber.copy(alpha = 0.5f) else Lp.FieldBorder, RoundedCornerShape(999.dp))
+                        .lpHover()
+                        .clickable { preset = p }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        p.label, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp,
+                        color = if (selected) Lp.Amber else Lp.TextDim
+                    )
+                }
             }
         }
         if (preset == RangePreset.MANUAL) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(fromText, { fromText = it }, label = { Text("Desde (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.width(200.dp))
-                OutlinedTextField(toText, { toText = it }, label = { Text("Hasta (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.width(200.dp))
+                OutlinedTextField(fromText, { fromText = it }, label = { Text("Desde (dd/MM/yyyy)") }, singleLine = true, shape = RoundedCornerShape(13.dp), colors = lpFieldColors(), modifier = Modifier.width(200.dp))
+                OutlinedTextField(toText, { toText = it }, label = { Text("Hasta (dd/MM/yyyy)") }, singleLine = true, shape = RoundedCornerShape(13.dp), colors = lpFieldColors(), modifier = Modifier.width(200.dp))
             }
         }
         Text(
-            "Periodo: ${dayFormat.format(Date(start))} — ${dayFormat.format(Date(end))}",
-            color = Color(0xFFF5F5F5).copy(alpha = 0.6f), fontSize = 12.sp
+            "Período: ${dayFormat.format(Date(start))} — ${dayFormat.format(Date(end))}",
+            color = Lp.TextDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("Total vendido", Money(total).formatted(), Color(0xFFFFB300))
-            StatCard("Pedidos cobrados", charged.size.toString(), Color(0xFF66BB6A))
-            StatCard("Productos vendidos", SalesCalculator.productsSold(charged).toString(), Color(0xFFFF6E40))
+        // Hero row: los 5 KPI de la noche repartidos a todo el ancho
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            StatCard("TOTAL VENDIDO", Money(total).formatted(), Lp.Amber, Modifier.weight(1f))
+            StatCard("PEDIDOS", charged.size.toString(), Lp.Green, Modifier.weight(1f))
+            StatCard("PRODUCTOS", SalesCalculator.productsSold(charged).toString(), Lp.Coral, Modifier.weight(1f))
+            StatCard(
+                "TICKET PROMEDIO",
+                Money(if (charged.isEmpty()) 0.0 else total / charged.size).formatted(),
+                Lp.Warn, Modifier.weight(1f)
+            )
+            StatCard(
+                "DESCUENTOS",
+                Money(charged.sumOf { it.discountAmount ?: 0.0 }).formatted(),
+                Lp.Red, Modifier.weight(1f)
+            )
         }
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)), shape = RoundedCornerShape(12.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Metodos de pago", fontWeight = FontWeight.Bold, color = Color(0xFFF5F5F5))
-                Text("Efectivo: ${Money(cash).formatted()}", color = Color(0xFF66BB6A))
-                Text("Yape/Plin: ${Money(yape).formatted()}", color = Color(0xFFFFB74D))
-                Text("Tarjeta: ${Money(card).formatted()}", color = Color(0xFFF5F5F5))
-            }
+
+        // Metodos de pago con barras proporcionales
+        ReportCard("MÉTODOS DE PAGO") {
+            PaymentBar("Efectivo", cash, total, Lp.Green)
+            PaymentBar("Yape/Plin", yape, total, Lp.Warn)
+            PaymentBar("Tarjeta", card, total, Lp.TextSoft)
         }
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)), shape = RoundedCornerShape(12.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Top productos del periodo", fontWeight = FontWeight.Bold, color = Color(0xFFF5F5F5))
-                if (top.isEmpty()) Text("Sin ventas en el periodo.", color = Color(0xFFF5F5F5).copy(alpha = 0.6f))
-                else top.forEachIndexed { i, p ->
-                    Text("${i + 1}. ${p.name} — ${p.quantity} u  ·  ${Money(p.total).formatted()}", color = Color(0xFFF5F5F5).copy(alpha = 0.85f))
+
+        ReportCard("TOP PRODUCTOS DEL PERÍODO") {
+            if (top.isEmpty()) Text("Sin ventas en el período.", color = Lp.TextDim, fontWeight = FontWeight.SemiBold)
+            else top.forEachIndexed { i, p ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(24.dp).background(Lp.Amber.copy(alpha = 0.14f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("${i + 1}", color = Lp.Amber, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(p.name, color = Lp.Text, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text("${p.quantity} u", color = Lp.TextDim, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(14.dp))
+                    Text(Money(p.total).formatted(), color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                 }
             }
         }
 
-        Button(
-            onClick = {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            LpBigButton(
+                text = "EXPORTAR CSV A DESCARGAS",
+                enabled = charged.isNotEmpty(),
+                filled = false,
+                modifier = Modifier.weight(1f)
+            ) {
                 status = exportCsv(charged, start, end, total, cash, yape, card).fold(
                     onSuccess = { "✅ CSV guardado en: ${it.absolutePath}" },
                     onFailure = { "❌ ${it.message}" }
                 )
-            },
-            enabled = charged.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth().height(46.dp)
-        ) { Text("📊 Exportar CSV a Descargas", fontWeight = FontWeight.Bold) }
+            }
+            LpBigButton(
+                text = "CERRAR CAJA DEL PERÍODO",
+                enabled = charged.isNotEmpty(),
+                filled = true,
+                modifier = Modifier.weight(1f)
+            ) { confirmClose = true }
+        }
 
-        // ==================== Cierre de caja ====================
-        Button(
-            onClick = { confirmClose = true },
-            enabled = charged.isNotEmpty(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB300)),
-            modifier = Modifier.fillMaxWidth().height(46.dp)
-        ) { Text("💰 Cerrar caja del periodo", fontWeight = FontWeight.Bold, color = Color(0xFF12121A)) }
-
-        status?.let { Text(it, color = Color(0xFFFFB300), fontSize = 12.sp) }
+        status?.let { Text(it, color = Lp.Amber, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
 
         if (closures.isNotEmpty()) {
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)), shape = RoundedCornerShape(12.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Cierres de caja guardados (Firebase)", fontWeight = FontWeight.Bold, color = Color(0xFFF5F5F5))
-                    closures.take(8).forEach { c ->
+            ReportCard("CIERRES DE CAJA GUARDADOS") {
+                closures.take(8).forEach { c ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                            .background(Lp.Field)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(
+                                "${dayFormat.format(Date(c.periodStart))} — ${dayFormat.format(Date(c.periodEnd))}",
+                                color = Lp.Text, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                            )
+                            Text(Money(c.totalSales).formatted(), color = Lp.Amber, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                        }
                         Text(
-                            "${dayFormat.format(Date(c.periodStart))} — ${dayFormat.format(Date(c.periodEnd))}  ·  " +
-                                "Total ${Money(c.totalSales).formatted()}  ·  Efec. ${Money(c.cashSales).formatted()}  ·  " +
-                                "Yape ${Money(c.yapePlinSales).formatted()}  ·  Tarj. ${Money(c.cardSales).formatted()}  ·  ${c.createdBy}",
-                            color = Color(0xFFF5F5F5).copy(alpha = 0.8f), fontSize = 12.sp
+                            "Efec. ${Money(c.cashSales).formatted()}  ·  Yape ${Money(c.yapePlinSales).formatted()}  ·  " +
+                                "Tarj. ${Money(c.cardSales).formatted()}  ·  ${c.createdBy}",
+                            color = Lp.TextDim, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -164,42 +214,46 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
 
     if (confirmClose) {
         Dialog(onDismissRequest = { confirmClose = false }) {
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)), shape = RoundedCornerShape(14.dp)) {
-                Column(Modifier.width(400.dp).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Confirmar cierre de caja", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFFF5F5F5))
-                    Text("Periodo: ${dayFormat.format(Date(start))} — ${dayFormat.format(Date(end))}", color = Color(0xFFF5F5F5).copy(alpha = 0.7f), fontSize = 13.sp)
-                    Text("Total: ${Money(total).formatted()}", color = Color(0xFFFFB300), fontWeight = FontWeight.Bold, fontSize = 19.sp)
-                    Text("Efectivo ${Money(cash).formatted()}  ·  Yape ${Money(yape).formatted()}  ·  Tarjeta ${Money(card).formatted()}", color = Color(0xFFF5F5F5).copy(alpha = 0.8f), fontSize = 13.sp)
-                    Text("Pedidos cobrados: ${charged.size}", color = Color(0xFFF5F5F5).copy(alpha = 0.8f), fontSize = 13.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedButton(onClick = { confirmClose = false }, modifier = Modifier.weight(1f)) { Text("Cancelar") }
-                        Button(
-                            onClick = {
-                                confirmClose = false
-                                scope.launch {
-                                    val closure = CashClosureEntity(
-                                        id = randomUuid(),
-                                        periodStart = start,
-                                        periodEnd = end,
-                                        totalSales = total,
-                                        grossProfit = 0.0, // costo por producto no disponible en el panel v1
-                                        chargedOrders = charged.size,
-                                        cancelledOrders = orders.count { it.status == OrderStatus.CANCELLED && it.createdAt in start..end },
-                                        productsSold = SalesCalculator.productsSold(charged),
-                                        cashSales = cash,
-                                        yapePlinSales = yape,
-                                        cardSales = card,
-                                        bestSellingProduct = top.firstOrNull()?.let { "${it.name} (${it.quantity})" } ?: "Sin ventas",
-                                        createdBy = "Caja PC ($userEmail)"
-                                    )
-                                    runCatching { closureRepo.saveClosure(closure) }
-                                        .onSuccess { status = "✅ Cierre de caja guardado en Firebase" }
-                                        .onFailure { status = "❌ Error guardando cierre: ${it.message}" }
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Cerrar caja") }
-                    }
+            LpDialogCard(width = 400) {
+                Text("CONFIRMAR CIERRE DE CAJA", fontFamily = BebasFamily, fontSize = 24.sp, letterSpacing = 1.5.sp, color = Lp.Text)
+                Text("Período: ${dayFormat.format(Date(start))} — ${dayFormat.format(Date(end))}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(Money(total).formatted(), color = Lp.Amber, fontFamily = BebasFamily, fontSize = 34.sp, letterSpacing = 1.sp)
+                Text("Efectivo ${Money(cash).formatted()}  ·  Yape ${Money(yape).formatted()}  ·  Tarjeta ${Money(card).formatted()}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text("Pedidos cobrados: ${charged.size}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(
+                        onClick = { confirmClose = false },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Lp.FieldBorder),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Cancelar", color = Lp.TextSoft) }
+                    Button(
+                        onClick = {
+                            confirmClose = false
+                            scope.launch {
+                                val closure = CashClosureEntity(
+                                    id = randomUuid(),
+                                    periodStart = start,
+                                    periodEnd = end,
+                                    totalSales = total,
+                                    grossProfit = 0.0, // costo por producto no disponible en el panel v1
+                                    chargedOrders = charged.size,
+                                    cancelledOrders = orders.count { it.status == OrderStatus.CANCELLED && it.createdAt in start..end },
+                                    productsSold = SalesCalculator.productsSold(charged),
+                                    cashSales = cash,
+                                    yapePlinSales = yape,
+                                    cardSales = card,
+                                    bestSellingProduct = top.firstOrNull()?.let { "${it.name} (${it.quantity})" } ?: "Sin ventas",
+                                    createdBy = "Caja PC ($userEmail)"
+                                )
+                                runCatching { closureRepo.saveClosure(closure) }
+                                    .onSuccess { status = "✅ Cierre de caja guardado en Firebase" }
+                                    .onFailure { status = "❌ Error guardando cierre: ${it.message}" }
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Cerrar caja", fontWeight = FontWeight.ExtraBold) }
                 }
             }
         }
@@ -207,13 +261,76 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
 }
 
 @Composable
-fun StatCard(title: String, value: String, accent: Color) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)), shape = RoundedCornerShape(12.dp)) {
-        Column(Modifier.padding(18.dp).width(180.dp)) {
-            Text(title, color = Color(0xFFF5F5F5).copy(alpha = 0.65f), fontSize = 12.sp)
-            Spacer(Modifier.height(6.dp))
-            Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+private fun ReportCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().lpCard(16.dp).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(title, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp, color = Lp.TextDim)
+        content()
+    }
+}
+
+@Composable
+private fun PaymentBar(label: String, value: Double, total: Double, color: Color) {
+    val fraction = if (total > 0) (value / total).toFloat().coerceIn(0f, 1f) else 0f
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(Money(value).formatted(), color = color, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
         }
+        Box(Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(999.dp)).background(Color.White.copy(alpha = 0.06f))) {
+            if (fraction > 0f) {
+                Box(
+                    Modifier.fillMaxWidth(fraction).fillMaxHeight()
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(color)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LpBigButton(text: String, enabled: Boolean, filled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(13.dp)
+    if (filled) {
+        Box(
+            modifier.height(48.dp).clip(shape)
+                .background(
+                    if (enabled) Brush.linearGradient(listOf(Lp.Amber, Lp.AmberDeep))
+                    else Brush.linearGradient(listOf(Lp.Amber.copy(alpha = 0.3f), Lp.AmberDeep.copy(alpha = 0.3f)))
+                )
+                .lpHover(0.10f, enabled = enabled)
+                .clickable(enabled = enabled) { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 1.5.sp, color = Lp.OnAccent)
+        }
+    } else {
+        Box(
+            modifier.height(48.dp).clip(shape)
+                .border(1.dp, if (enabled) Lp.FieldBorder else Lp.FieldBorder.copy(alpha = 0.05f), shape)
+                .lpHover(enabled = enabled)
+                .clickable(enabled = enabled) { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 1.5.sp,
+                color = if (enabled) Lp.TextSoft else Lp.TextMuted
+            )
+        }
+    }
+}
+
+@Composable
+fun StatCard(title: String, value: String, accent: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier.lpCard(16.dp).padding(18.dp)
+    ) {
+        Text(title, color = Lp.TextDim, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp)
+        Spacer(Modifier.height(6.dp))
+        Text(value, color = accent, fontFamily = BebasFamily, fontSize = 40.sp, letterSpacing = 1.sp, style = TabularNumbers)
     }
 }
 
