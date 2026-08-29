@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -622,7 +623,7 @@ private fun PanelView(userEmail: String, onLogout: () -> Unit) {
             Spacer(Modifier.height(20.dp))
             Crossfade(targetState = section, animationSpec = tween(180)) { s ->
                 when (s) {
-                    Section.MESAS -> MesasView(tables, orders, now)
+                    Section.MESAS -> MesasView(tables, orders, now, onCobrar = { orderToCobrar = it })
                     Section.PEDIDOS -> PedidosView(orders, now, onCobrar = { orderToCobrar = it })
                     Section.COCINA -> KdsView(orders, orderRepo)
                     Section.PRODUCTOS -> ProductosView(products, productRepo)
@@ -741,18 +742,48 @@ internal val ACTIVE_STATUSES = setOf(
 )
 
 @Composable
-private fun MesasView(tables: List<Table>, orders: List<Order>, now: Long) {
+private fun MesasView(tables: List<Table>, orders: List<Order>, now: Long, onCobrar: (Order) -> Unit) {
     val activeByTable = activeOrdersByTable(orders)
     val visible = tables.filter { it.number in 1..8 }.sortedBy { it.number }
     val occupiedCount = visible.count { activeByTable[it.id] != null }
     val openTotal = activeByTable.values.sumOf { SalesCalculator.orderTotal(it) }
 
     Column {
-        // Franja de resumen: el mapa del salon en tres cifras
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatChip("${visible.size - occupiedCount}", "LIBRES", Lp.Green)
-            StatChip("$occupiedCount", "OCUPADAS", Lp.Warn)
-            StatChip(Money(openTotal).formatted(), "ABIERTO EN MESAS", Lp.Amber)
+        // Franja de resumen + mini-mapa del salon
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatChip("${visible.size - occupiedCount}", "LIBRES", Lp.Green)
+                StatChip("$occupiedCount", "OCUPADAS", Lp.Warn)
+                StatChip(Money(openTotal).formatted(), "ABIERTO EN MESAS", Lp.Amber)
+            }
+            Spacer(Modifier.weight(1f))
+            // Mini-mapa: el estado del salon completo de un vistazo
+            Row(
+                Modifier.background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text("SALÓN", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = Lp.TextMuted)
+                Spacer(Modifier.width(2.dp))
+                visible.forEach { table ->
+                    val order = activeByTable[table.id]
+                    val late = order != null && (now - order.createdAt) / 60000 >= 45
+                    val color = when {
+                        late -> Lp.Red
+                        order != null -> Lp.Warn
+                        else -> Lp.Green
+                    }
+                    Box(
+                        Modifier.size(24.dp).clip(RoundedCornerShape(7.dp))
+                            .background(if (order != null) color.copy(alpha = 0.16f) else Color.Transparent)
+                            .border(1.dp, color.copy(alpha = if (order != null) 0.6f else 0.4f), RoundedCornerShape(7.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("${table.number}", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = color)
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(16.dp))
 
@@ -765,55 +796,153 @@ private fun MesasView(tables: List<Table>, orders: List<Order>, now: Long) {
             items(visible) { table ->
                 val activeOrder = activeByTable[table.id]
                 // Igual que el celular: solo un pedido activo marca la mesa como ocupada.
-                val occupied = activeOrder != null
-                Box(
-                    Modifier.lpCard(16.dp, borderTint = if (occupied) Lp.Warn.copy(alpha = 0.35f) else null)
-                        .lpHover(0.03f)
-                ) {
-                    // Strip de acento en el borde izquierdo
-                    Box(
-                        Modifier.align(Alignment.CenterStart).width(3.dp).height(28.dp)
-                            .background(
-                                if (occupied) Lp.Warn else Lp.Green.copy(alpha = 0.4f),
-                                RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)
-                            )
-                    )
-                    Column(Modifier.heightIn(min = 176.dp).fillMaxWidth().padding(20.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                            Text(
-                                tableLabel(table.number), fontFamily = BebasFamily,
-                                fontSize = 56.sp, lineHeight = 50.sp, color = Lp.Text
-                            )
-                            StatusPill(if (occupied) "OCUPADA" else "LIBRE", if (occupied) Lp.Warn else Lp.Green)
-                        }
-                        Spacer(Modifier.weight(1f))
-                        if (activeOrder != null) {
-                            val minutes = ((now - activeOrder.createdAt) / 60000).coerceAtLeast(0)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    "$minutes min", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                                    color = if (minutes >= 45) Lp.Red else Lp.TextSoft, style = TabularNumbers
-                                )
-                                Text(
-                                    "· ${activeOrder.waiterName?.takeIf { it.isNotBlank() } ?: "—"} · ${activeOrder.items.sumOf { it.quantity }} items",
-                                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Lp.TextDim
-                                )
-                            }
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                Money(SalesCalculator.orderTotal(activeOrder)).formatted(),
-                                fontFamily = BebasFamily, fontSize = 26.sp, color = Lp.Amber, style = TabularNumbers
-                            )
-                        } else {
-                            Text("Capacidad: ${table.capacity}", color = Lp.TextDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(2.dp))
-                            Text("Sin pedido activo", color = Lp.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
+                if (activeOrder != null) {
+                    OccupiedTableCard(activeOrder, now, onCobrar)
+                } else {
+                    FreeTableCard(table)
                 }
             }
         }
     }
+}
+
+/** Mesa "apagada": numero en contorno + puntitos de asientos. */
+@Composable
+private fun FreeTableCard(table: Table) {
+    Box(Modifier.lpCard(16.dp).lpHover(0.03f)) {
+        Box(
+            Modifier.align(Alignment.CenterStart).width(3.dp).height(28.dp)
+                .background(Lp.Green.copy(alpha = 0.4f), RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp))
+        )
+        Column(Modifier.heightIn(min = 176.dp).fillMaxWidth().padding(20.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Text(
+                    tableLabel(table.number), fontFamily = BebasFamily,
+                    fontSize = 54.sp, lineHeight = 48.sp,
+                    // Numero en contorno (mesa "apagada"), como el logo PREVIA
+                    color = Color.White.copy(alpha = 0.35f),
+                    style = TextStyle(drawStyle = Stroke(width = 1.5f))
+                )
+                StatusPill("LIBRE", Lp.Green)
+            }
+            Spacer(Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                repeat(table.capacity.coerceIn(1, 8)) {
+                    Box(Modifier.size(7.dp).background(Lp.Green.copy(alpha = 0.5f), CircleShape))
+                }
+                Spacer(Modifier.width(3.dp))
+                Text("${table.capacity} asientos", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Lp.TextDim)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text("Sin pedido activo", color = Lp.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/** Mesa "encendida": anillo de tiempo, mozo, preview de platos, total y cobro. */
+@Composable
+private fun OccupiedTableCard(order: Order, now: Long, onCobrar: (Order) -> Unit) {
+    val minutes = ((now - order.createdAt) / 60000).coerceAtLeast(0)
+    val late = minutes >= 45
+    val accent = if (late) Lp.Red else Lp.Warn
+    Box(Modifier.lpCard(16.dp, borderTint = accent.copy(alpha = 0.4f)).lpHover(0.03f)) {
+        Box(
+            Modifier.align(Alignment.CenterStart).width(3.dp).height(28.dp)
+                .background(accent, RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp))
+        )
+        Column(Modifier.heightIn(min = 176.dp).fillMaxWidth().padding(20.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Text(
+                    tableLabel(order.tableNumber), fontFamily = BebasFamily,
+                    fontSize = 54.sp, lineHeight = 48.sp, color = Lp.Text
+                )
+                TimeRing(minutes)
+            }
+            Spacer(Modifier.height(6.dp))
+            // Mozo con avatar de iniciales
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Box(
+                    Modifier.size(20.dp).background(Lp.Coral.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(mozoInitials(order.waiterName), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = Lp.Coral)
+                }
+                Text(
+                    "${order.waiterName?.takeIf { it.isNotBlank() } ?: "Sin mozo"} · ${order.items.sumOf { it.quantity }} items",
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Lp.TextDim
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            // Preview de platos: primeros 2 + "N mas"
+            order.items.take(2).forEach { item ->
+                Text("${item.quantity}× ${item.productName}", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Lp.TextSoft, maxLines = 1)
+            }
+            if (order.items.size > 2) {
+                Text("+${order.items.size - 2} más", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Lp.TextMuted)
+            }
+            Spacer(Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                Text(
+                    Money(SalesCalculator.orderTotal(order)).formatted(),
+                    fontFamily = BebasFamily, fontSize = 28.sp, color = Lp.Amber, style = TabularNumbers
+                )
+                if (order.canBeCharged()) {
+                    Box(
+                        Modifier.height(30.dp).clip(RoundedCornerShape(9.dp))
+                            .background(Brush.linearGradient(listOf(Lp.Amber, Lp.AmberDeep)))
+                            .lpHover(0.10f)
+                            .clickable { onCobrar(order) }
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("COBRAR", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = Lp.OnAccent)
+                    }
+                } else {
+                    StatusPill(kdsStatusLabel(order.status), kdsStatusColor(order.status))
+                }
+            }
+        }
+    }
+}
+
+/** Anillo de tiempo: se llena con los minutos (rojo al pasar 45'). */
+@Composable
+private fun TimeRing(minutes: Long) {
+    val late = minutes >= 45
+    val color = if (late) Lp.Red else Lp.Amber
+    val fraction = (minutes.toFloat() / 60f).coerceIn(0.05f, 1f)
+    Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(46.dp)) {
+            val strokePx = 4.dp.toPx()
+            val d = size.minDimension - strokePx
+            val topLeft = Offset((size.width - d) / 2f, (size.height - d) / 2f)
+            drawArc(
+                color = Color.White.copy(alpha = 0.08f),
+                startAngle = 0f, sweepAngle = 360f, useCenter = false,
+                topLeft = topLeft, size = androidx.compose.ui.geometry.Size(d, d),
+                style = Stroke(width = strokePx)
+            )
+            drawArc(
+                color = color,
+                startAngle = -90f, sweepAngle = 360f * fraction, useCenter = false,
+                topLeft = topLeft, size = androidx.compose.ui.geometry.Size(d, d),
+                style = Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+        }
+        Text(
+            "$minutes'", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
+            color = if (late) Lp.Red else Lp.Text, style = TabularNumbers
+        )
+    }
+}
+
+/** Iniciales del mozo para el avatar (max 2 letras). */
+private fun mozoInitials(name: String?): String {
+    val clean = name?.trim().orEmpty()
+    if (clean.isBlank()) return "—"
+    val parts = clean.split(" ").filter { it.isNotBlank() }
+    return if (parts.size >= 2) "${parts[0].first()}${parts[1].first()}".uppercase()
+    else clean.take(2).uppercase()
 }
 
 // ==================== Pedidos ====================
