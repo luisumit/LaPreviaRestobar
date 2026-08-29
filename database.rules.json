@@ -1,18 +1,41 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
+
     "products": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
     },
+
     "tables": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
+
     "orders": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    ".read": false,
-    ".write": false
+
+    "inventory": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "cash_closures": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+    },
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+        "role": {
+          ".validate": "newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+        }
+      }
+    }
   }
 }
