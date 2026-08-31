@@ -738,6 +738,84 @@ class WaiterViewModel constructor(
         }
     }
 
+    // ==================== QUITAR UN PRODUCTO DE UN PEDIDO ENVIADO ====================
+
+    /**
+     * Quita UN producto de un pedido ya enviado, SOLO mientras la cocina no lo haya
+     * empezado a preparar (estados PENDING/ENVIADO/ACEPTADO). Asi nunca se descarta un
+     * plato ya cocinado. Devuelve el stock del item, recalcula el total y guarda el
+     * pedido editado (Room + Firebase). Para quitar el ultimo producto se cancela el
+     * pedido completo (no se permiten pedidos vacios).
+     */
+    fun removeItemFromSentOrder(orderId: String, productId: String) {
+        viewModelScope.launch {
+            try {
+                val order = _orders.value.find { it.id == orderId } ?: return@launch
+
+                // Politica: solo antes de que la cocina prepare
+                val editableStates = setOf(
+                    OrderStatus.PENDING, OrderStatus.ENVIADO, OrderStatus.ACEPTADO
+                )
+                if (order.status !in editableStates) {
+                    _errorMessage.value = "La cocina ya está preparando este pedido; no se puede quitar productos. Cancela todo el pedido si es necesario."
+                    return@launch
+                }
+
+                val item = order.items.find { it.productId == productId } ?: return@launch
+
+                if (order.items.size <= 1) {
+                    _errorMessage.value = "No puedes quitar el último producto. Cancela el pedido completo."
+                    return@launch
+                }
+
+                // 1) Devolver el stock del item quitado
+                if (item.trackInventory && _isInternetAvailable.value) {
+                    try {
+                        val currentStock = firebaseProductRepository.getProductStock(item.productId)
+                        val newStock = currentStock + item.quantity
+                        firebaseProductRepository.updateProductStock(item.productId, newStock)
+                        firebaseInventoryRepository.updateStock(item.productId, newStock)
+                        println("📦 Stock devuelto por quitar item: ${item.productName}: $currentStock → $newStock (+${item.quantity})")
+                    } catch (e: Exception) {
+                        println("⚠️ Error devolviendo stock de ${item.productName}: ${e.message}")
+                    }
+                }
+
+                // 2) Pedido editado: sin el item, total recalculado
+                val newItems = order.items.filterNot { it.productId == productId }
+                val newTotal = newItems.sumOf { it.subtotal }
+                val updated = order.copy(
+                    items = newItems,
+                    total = newTotal,
+                    updatedAt = System.currentTimeMillis()
+                )
+
+                // 3) Guardar en Room (mismo id => reemplaza)
+                db.orderDao().insert(
+                    updated.toEntity().copy(
+                        syncStatus = if (_isInternetAvailable.value) "SYNCED" else "PENDING"
+                    )
+                )
+
+                // 4) Guardar en Firebase
+                if (_isInternetAvailable.value) {
+                    try {
+                        firebaseOrderRepository.updateOrder(updated)
+                        println("✅ Producto quitado y pedido actualizado en Firebase")
+                    } catch (e: Exception) {
+                        println("⚠️ Error actualizando pedido en Firebase: ${e.message}")
+                    }
+                }
+
+                // 5) Refrescar estado local
+                refreshOrdersFromRoom()
+                _successMessage.value = "🗑️ ${item.productName} quitado del pedido - Mesa ${order.tableNumber}"
+            } catch (e: Exception) {
+                _errorMessage.value = "❌ Error: ${e.message}"
+            }
+        }
+    }
+
     // ==================== CANCELAR PEDIDO ====================
 
     fun cancelOrder(orderId: String) {

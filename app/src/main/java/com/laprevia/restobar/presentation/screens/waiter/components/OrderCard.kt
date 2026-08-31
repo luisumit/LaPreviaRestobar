@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laprevia.restobar.data.model.Order
+import com.laprevia.restobar.data.model.OrderItem
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.presentation.theme.InfoBlue
 import com.laprevia.restobar.presentation.theme.SuccessGreen
@@ -31,6 +33,9 @@ fun OrderCard(
     onMarkAsServed: () -> Unit = {},     // Para liberar mesa (ENTREGADO → COMPLETED)
     onCancel: () -> Unit = {},           // Para cancelar pedido
     onStatusUpdate: (String) -> Unit = {},
+    // Quitar un producto individual. Si es null, no se muestra el boton (p.ej. cuando
+    // la cocina ya prepara el pedido). Solo activo en estados tempranos.
+    onRemoveItem: ((OrderItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -196,7 +201,14 @@ fun OrderCard(
                     )
 
                     order.items.forEach { item ->
-                        WaiterOrderItemRow(item = item, isTablet = isTablet)
+                        WaiterOrderItemRow(
+                            item = item,
+                            isTablet = isTablet,
+                            // Solo se puede quitar si hay callback y queda mas de 1 producto
+                            onRemove = if (onRemoveItem != null && order.items.size > 1) {
+                                { onRemoveItem(item) }
+                            } else null
+                        )
                     }
 
                     Row(
@@ -451,7 +463,30 @@ fun OrderProgressBar(status: OrderStatus) {
 }
 
 @Composable
-fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem, isTablet: Boolean = false) {
+fun WaiterOrderItemRow(
+    item: OrderItem,
+    isTablet: Boolean = false,
+    onRemove: (() -> Unit)? = null
+) {
+    var showRemoveDialog by remember { mutableStateOf(false) }
+
+    if (showRemoveDialog && onRemove != null) {
+        AlertDialog(
+            onDismissRequest = { showRemoveDialog = false },
+            title = { Text("Quitar producto") },
+            text = { Text("¿Quitar \"${item.productName}\" de este pedido?\n\nSe devolverá su stock y se recalculará el total.") },
+            confirmButton = {
+                Button(
+                    onClick = { onRemove(); showRemoveDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Sí, quitar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveDialog = false }) { Text("No, volver") }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -505,6 +540,17 @@ fun WaiterOrderItemRow(item: com.laprevia.restobar.data.model.OrderItem, isTable
                         text = "Categoría: ${item.productCategory}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
+            }
+
+            // Boton para quitar este producto (solo si el pedido lo permite)
+            if (onRemove != null) {
+                IconButton(onClick = { showRemoveDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Quitar ${item.productName}",
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }

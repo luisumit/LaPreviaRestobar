@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WifiOff
@@ -443,6 +444,14 @@ fun OrderItemRow(
             )
             TextButton(onClick = { showEditDialog = true }) {
                 Text("Editar")
+            }
+            // Quitar este producto del pedido que se esta armando
+            IconButton(onClick = { viewModel.removeItemFromOrder(item.productId) }) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = "Eliminar ${item.productName}",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

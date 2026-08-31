@@ -618,6 +618,10 @@ fun OrdersListContent(
                         onCancel = {
                             Timber.d("❌ Cancelando orden: ${order.id}")
                             viewModel.cancelOrder(order.id)
+                        },
+                        onRemoveItem = { item ->
+                            Timber.d("🗑️ Quitando ${item.productName} de la orden: ${order.id}")
+                            viewModel.removeItemFromSentOrder(order.id, item.productId)
                         }
                     )
                 }
@@ -642,6 +646,10 @@ fun OrdersListContent(
                         onCancel = {
                             Timber.d("❌ Cancelando orden: ${order.id}")
                             viewModel.cancelOrder(order.id)
+                        },
+                        onRemoveItem = { item ->
+                            Timber.d("🗑️ Quitando ${item.productName} de la orden: ${order.id}")
+                            viewModel.removeItemFromSentOrder(order.id, item.productId)
                         }
                     )
                 }
