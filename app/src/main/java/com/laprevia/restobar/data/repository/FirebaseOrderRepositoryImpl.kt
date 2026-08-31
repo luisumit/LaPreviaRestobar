@@ -189,6 +189,36 @@ class FirebaseOrderRepositoryImpl constructor(
         }
     }
 
+    // Actualiza SOLO items/total/updatedAt: no toca el status para no revertir a la cocina.
+    override suspend fun updateOrderItems(
+        orderId: String,
+        items: List<com.laprevia.restobar.data.model.OrderItem>,
+        total: Double
+    ) {
+        try {
+            val itemsList = items.map { item ->
+                mapOf<String, Any>(
+                    "productId" to item.productId,
+                    "productName" to item.productName,
+                    "productDescription" to item.productDescription,
+                    "productCategory" to item.productCategory,
+                    "quantity" to item.quantity,
+                    "unitPrice" to item.unitPrice,
+                    "subtotal" to item.subtotal,
+                    "trackInventory" to item.trackInventory
+                )
+            }
+            val updates = mapOf<String, Any>(
+                "items" to itemsList,
+                "total" to total,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            ordersRef.child(orderId).updateChildren(updates).await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
     override fun getOrdersByStatus(status: String): Flow<List<Order>> = callbackFlow {
         val eventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {

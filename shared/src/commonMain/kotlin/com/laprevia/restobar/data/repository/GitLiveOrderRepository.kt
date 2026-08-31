@@ -93,6 +93,30 @@ class GitLiveOrderRepository : FirebaseOrderRepository {
         ordersRef.child(order.id).updateChildren(order.toFirebaseMap())
     }
 
+    // Actualiza SOLO items/total/updatedAt: NO toca el status para no revertir un
+    // cambio de estado hecho por la cocina en paralelo.
+    override suspend fun updateOrderItems(orderId: String, items: List<OrderItem>, total: Double) {
+        val itemsList = items.map { item ->
+            mapOf<String, Any?>(
+                "productId" to item.productId,
+                "productName" to item.productName,
+                "productDescription" to item.productDescription,
+                "productCategory" to item.productCategory,
+                "quantity" to item.quantity,
+                "unitPrice" to item.unitPrice,
+                "subtotal" to item.subtotal,
+                "trackInventory" to item.trackInventory
+            )
+        }
+        ordersRef.child(orderId).updateChildren(
+            mapOf(
+                "items" to itemsList,
+                "total" to total,
+                "updatedAt" to currentTimeMillis()
+            )
+        )
+    }
+
     override suspend fun deleteOrder(orderId: String) {
         ordersRef.child(orderId).removeValue()
     }

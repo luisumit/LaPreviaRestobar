@@ -263,7 +263,7 @@ fun TableDetailsScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(8.dp)
             ) {
-                items(products.filter { it.isActive }) { product ->
+                items(products.filter { it.isActive }.sortedBy { it.name.trim().lowercase() }) { product ->
                     ProductItem(
                         product = product,
                         onAddToOrder = {

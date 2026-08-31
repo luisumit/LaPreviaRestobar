@@ -181,8 +181,8 @@ fun ProductsScreen(
                 }
             }
         } else {
-            // Filtrar solo productos activos
-            val activeProducts = products.filter { it.isActive }
+            // Filtrar solo productos activos, ordenados alfabéticamente (A-Z, sin distinguir mayúsculas)
+            val activeProducts = products.filter { it.isActive }.sortedBy { it.name.trim().lowercase() }
 
             if (activeProducts.isEmpty()) {
                 Box(

@@ -474,7 +474,7 @@ fun WaiterOrderItemRow(
         AlertDialog(
             onDismissRequest = { showRemoveDialog = false },
             title = { Text("Quitar producto") },
-            text = { Text("¿Quitar \"${item.productName}\" de este pedido?\n\nSe devolverá su stock y se recalculará el total.") },
+            text = { Text("¿Quitar \"${item.productName}\" de este pedido?\n\nSe recalculará el total. (Necesita conexión.)") },
             confirmButton = {
                 Button(
                     onClick = { onRemove(); showRemoveDialog = false },

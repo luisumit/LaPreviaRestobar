@@ -30,6 +30,7 @@ import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import com.laprevia.restobar.domain.repository.FirebaseTableRepository
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -747,10 +748,30 @@ class WaiterViewModel constructor(
      * pedido editado (Room + Firebase). Para quitar el ultimo producto se cancela el
      * pedido completo (no se permiten pedidos vacios).
      */
+    // Pedidos con una edicion en curso, para no procesar dos quitados a la vez (evita
+    // carreras de "lost update" y doble devolucion de stock).
+    private val ordersBeingEdited = mutableSetOf<String>()
+
     fun removeItemFromSentOrder(orderId: String, productId: String) {
+        // Serializa las ediciones del mismo pedido (un toque a la vez)
+        if (!ordersBeingEdited.add(orderId)) return
         viewModelScope.launch {
             try {
-                val order = _orders.value.find { it.id == orderId } ?: return@launch
+                // Requiere conexion: editar offline un pedido enviado deja el stock
+                // inconsistente y al reconectar sobrescribiria el avance de cocina.
+                if (!_isInternetAvailable.value) {
+                    _errorMessage.value = "Necesitas conexión para quitar un producto de un pedido enviado."
+                    return@launch
+                }
+
+                // Estado FRESCO del servidor: evita decidir con un snapshot viejo
+                // (que la cocina pudo cambiar). Con timeout para no quedar colgado
+                // (el finally siempre libera el guard). Si no se puede leer, se aborta.
+                val order = withTimeoutOrNull(8_000) { firebaseOrderRepository.getOrderById(orderId) }
+                if (order == null) {
+                    _errorMessage.value = "No se pudo leer el pedido. Intenta de nuevo."
+                    return@launch
+                }
 
                 // Politica: solo antes de que la cocina prepare
                 val editableStates = setOf(
@@ -768,50 +789,50 @@ class WaiterViewModel constructor(
                     return@launch
                 }
 
-                // 1) Devolver el stock del item quitado
-                if (item.trackInventory && _isInternetAvailable.value) {
+                // Pedido editado: sin el item, total recalculado
+                val newItems = order.items.filterNot { it.productId == productId }
+                val newTotal = newItems.sumOf { it.subtotal }
+
+                // 1) CONFIRMAR la edicion PRIMERO (update PARCIAL: items/total, sin tocar
+                //    el status). Si falla, se aborta antes de tocar el stock (atomicidad).
+                try {
+                    firebaseOrderRepository.updateOrderItems(orderId, newItems, newTotal)
+                    println("✅ Producto quitado (update parcial) en Firebase")
+                } catch (e: Exception) {
+                    _errorMessage.value = "❌ No se pudo actualizar el pedido: ${e.message}"
+                    return@launch
+                }
+
+                // 2) Ya confirmado: devolver el stock SOLO si ya se habia descontado.
+                //    El stock se descuenta cuando la cocina ACEPTA; en PENDING/ENVIADO
+                //    aun no, asi que devolverlo ahi inflaria el inventario.
+                if (item.trackInventory && order.status == OrderStatus.ACEPTADO) {
                     try {
                         val currentStock = firebaseProductRepository.getProductStock(item.productId)
                         val newStock = currentStock + item.quantity
                         firebaseProductRepository.updateProductStock(item.productId, newStock)
                         firebaseInventoryRepository.updateStock(item.productId, newStock)
-                        println("📦 Stock devuelto por quitar item: ${item.productName}: $currentStock → $newStock (+${item.quantity})")
+                        println("📦 Stock devuelto (pedido aceptado): ${item.productName}: $currentStock → $newStock (+${item.quantity})")
                     } catch (e: Exception) {
                         println("⚠️ Error devolviendo stock de ${item.productName}: ${e.message}")
                     }
                 }
 
-                // 2) Pedido editado: sin el item, total recalculado
-                val newItems = order.items.filterNot { it.productId == productId }
-                val newTotal = newItems.sumOf { it.subtotal }
+                // 3) Guardar en Room (mismo id => reemplaza), preservando el status fresco
                 val updated = order.copy(
                     items = newItems,
                     total = newTotal,
                     updatedAt = System.currentTimeMillis()
                 )
+                db.orderDao().insert(updated.toEntity().copy(syncStatus = "SYNCED"))
 
-                // 3) Guardar en Room (mismo id => reemplaza)
-                db.orderDao().insert(
-                    updated.toEntity().copy(
-                        syncStatus = if (_isInternetAvailable.value) "SYNCED" else "PENDING"
-                    )
-                )
-
-                // 4) Guardar en Firebase
-                if (_isInternetAvailable.value) {
-                    try {
-                        firebaseOrderRepository.updateOrder(updated)
-                        println("✅ Producto quitado y pedido actualizado en Firebase")
-                    } catch (e: Exception) {
-                        println("⚠️ Error actualizando pedido en Firebase: ${e.message}")
-                    }
-                }
-
-                // 5) Refrescar estado local
+                // 4) Refrescar estado local
                 refreshOrdersFromRoom()
                 _successMessage.value = "🗑️ ${item.productName} quitado del pedido - Mesa ${order.tableNumber}"
             } catch (e: Exception) {
                 _errorMessage.value = "❌ Error: ${e.message}"
+            } finally {
+                ordersBeingEdited.remove(orderId)
             }
         }
     }
@@ -825,9 +846,15 @@ class WaiterViewModel constructor(
                 val order = _orders.value.find { it.id == orderId }
 
                 if (order != null) {
-                    // 1️⃣ Devolver el stock
+                    // 1️⃣ Devolver el stock SOLO si ya se habia descontado. El stock se
+                    //    descuenta cuando la cocina ACEPTA; cancelar un pedido en
+                    //    PENDING/ENVIADO no debe devolver stock (nunca se descontó), o se infla.
+                    val stockWasDeducted = order.status in setOf(
+                        OrderStatus.ACEPTADO, OrderStatus.EN_PREPARACION,
+                        OrderStatus.LISTO, OrderStatus.ENTREGADO
+                    )
                     order.items.forEach { item ->
-                        if (item.trackInventory) {
+                        if (item.trackInventory && stockWasDeducted) {
                             try {
                                 if (_isInternetAvailable.value) {
                                     val currentStock = firebaseProductRepository.getProductStock(item.productId)
