@@ -30,7 +30,6 @@ fun TableCard(
         TableStatus.LIBRE -> Triple(SuccessGreen, MaterialTheme.colorScheme.onPrimary, Icons.Default.TableBar)
         TableStatus.OCUPADA -> Triple(WarningOrange, MaterialTheme.colorScheme.onSecondary, Icons.Default.EventSeat)
         TableStatus.RESERVADA -> Triple(InfoBlue, MaterialTheme.colorScheme.onSurface, Icons.Default.EventSeat)
-        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, Icons.Default.TableBar)
     }
 
     Card(

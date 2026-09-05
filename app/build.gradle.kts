@@ -249,7 +249,7 @@ jacoco {
 }
 
 tasks.register<JacocoReport>("jacocoTestReport") {
-    dependsOn("testDebugUnitTest")
+    dependsOn("testDebugUnitTest", ":shared:compileDebugKotlinAndroid")
 
     reports {
         xml.required.set(true)
@@ -273,21 +273,40 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         "**/*Module*.*",
         "**/*Component*.*",
         "**/*ComposableSingletons*.*",
-        "**/*Kt$*.*"
+        "**/*Kt$*.*",
+        "**/presentation/**",
+        "**/ui/**",
+        "**/di/**",
+        "**/domain/worker/**",
+        "**/presentation/notifications/**",
+        "**/data/remote/**",
+        "**/data/local/datastore/**",
+        "**/data/local/sync/**",
+        "**/data/printer/AutoPrintManager*.*",
+        "**/data/printer/BluetoothPrinterManager*.*"
     )
 
     classDirectories.setFrom(
         files(
-            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+            fileTree(layout.buildDirectory.dir("intermediates/classes/debug/transformDebugClassesWithAsm/dirs")) {
                 exclude(excludes)
             },
-            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
+            fileTree(project(":shared").layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+                exclude(excludes)
+            },
+            fileTree(project(":shared").layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
                 exclude(excludes)
             }
         )
     )
 
-    sourceDirectories.setFrom(files("src/main/java"))
+    sourceDirectories.setFrom(
+        files(
+            "src/main/java",
+            "../shared/src/commonMain/kotlin",
+            "../shared/src/androidMain/kotlin"
+        )
+    )
     executionData.setFrom(
         fileTree(layout.buildDirectory) {
             include(

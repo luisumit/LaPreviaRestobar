@@ -1,5 +1,6 @@
 package com.laprevia.restobar.data.printer
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -74,7 +75,7 @@ class BluetoothPrinterManager constructor(
         try {
             val device = currentAdapter.getRemoteDevice(mac)
             socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            currentAdapter.cancelDiscovery()
+            cancelDiscoveryIfAllowed(currentAdapter)
             socket.connect()
             socket.outputStream.apply {
                 write(bytes)
@@ -90,6 +91,15 @@ class BluetoothPrinterManager constructor(
                 socket?.close()
             } catch (_: Exception) {
             }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun cancelDiscoveryIfAllowed(currentAdapter: BluetoothAdapter) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+        ) {
+            currentAdapter.cancelDiscovery()
         }
     }
 }

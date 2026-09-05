@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
@@ -61,8 +61,8 @@ fun TableDetailsScreen(
 
     LaunchedEffect(tableId) {
         // ✅ VALIDACIÓN AÑADIDA
-        if (isValidTableId && tableIdInt != null) {
-            viewModel.setCurrentTable(tableIdInt)
+        if (isValidTableId) {
+            viewModel.setCurrentTable(tableIdInt ?: return@LaunchedEffect)
         } else {
             timber.log.Timber.d("❌ TableDetailsScreen: ID de mesa inválido: $tableId")
             viewModel.clearCurrentOrder()
@@ -169,7 +169,7 @@ fun TableDetailsScreen(
                         viewModel.clearCurrentOrder()
                         navController.popBackStack()
                     }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -550,7 +550,7 @@ fun ConfirmOrderDialog(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Divider()
+                HorizontalDivider()
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(

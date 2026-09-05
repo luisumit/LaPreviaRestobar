@@ -19,12 +19,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.OutdoorGrill
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.RestaurantMenu
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
@@ -634,7 +634,7 @@ fun OrdersListContent(
                 item {
                     OrdersSectionHeader(
                         title = "Enviadas a cocina",
-                        icon = Icons.Default.Send,
+                        icon = Icons.AutoMirrored.Filled.Send,
                         count = sentOrders.size,
                         color = InfoBlue,
                         description = "Esperando confirmación de la cocina"

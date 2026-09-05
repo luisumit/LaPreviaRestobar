@@ -35,6 +35,8 @@ import com.laprevia.restobar.data.model.PaymentMethod
 import com.laprevia.restobar.data.model.Product
 import com.laprevia.restobar.data.model.Table
 import com.laprevia.restobar.data.model.TableStatus
+import com.laprevia.restobar.domain.service.BackupExportFormatter
+import com.laprevia.restobar.domain.service.CashRegisterCalculator
 import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import com.laprevia.restobar.domain.repository.FirebaseTableRepository
@@ -96,6 +98,10 @@ data class AdminUiState(
     val whatsappNumber: String = "",
     val showRestoreDialog: Boolean = false,
     val restoreJson: String = "",
+    val showCashClosureDialog: Boolean = false,
+    val openingAmountText: String = "0.00",
+    val expenseAmountText: String = "0.00",
+    val actualCashText: String = "0.00",
     val showProductForm: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val isOffline: Boolean = false,
@@ -565,9 +571,56 @@ class AdminViewModel constructor(
     }
 
     fun closeCashRegister() {
+        val report = _uiState.value.report
+        val income = CashRegisterCalculator.incomeAmount(report.cashSales)
+        _uiState.value = _uiState.value.copy(
+            showCashClosureDialog = true,
+            openingAmountText = "0.00",
+            expenseAmountText = "0.00",
+            actualCashText = money(income)
+        )
+    }
+
+    fun hideCashClosureDialog() {
+        _uiState.value = _uiState.value.copy(showCashClosureDialog = false)
+    }
+
+    fun updateOpeningAmount(value: String) {
+        _uiState.value = _uiState.value.copy(openingAmountText = sanitizeMoneyInput(value))
+    }
+
+    fun updateExpenseAmount(value: String) {
+        _uiState.value = _uiState.value.copy(expenseAmountText = sanitizeMoneyInput(value))
+    }
+
+    fun updateActualCash(value: String) {
+        _uiState.value = _uiState.value.copy(actualCashText = sanitizeMoneyInput(value))
+    }
+
+    fun confirmCloseCashRegister() {
         viewModelScope.launch {
             try {
-                val report = _uiState.value.report
+                val state = _uiState.value
+                val report = state.report
+                val openingAmount = parseRequiredMoney(state.openingAmountText)
+                val expenseAmount = parseRequiredMoney(state.expenseAmountText)
+                val actualCash = parseRequiredMoney(state.actualCashText)
+
+                if (openingAmount == null || expenseAmount == null || actualCash == null) {
+                    showMessage("Revisa los montos del arqueo", isError = true)
+                    return@launch
+                }
+
+                val incomeAmount = CashRegisterCalculator.incomeAmount(report.cashSales)
+                val expectedCash = CashRegisterCalculator.expectedCash(
+                    openingAmount = openingAmount,
+                    incomeAmount = incomeAmount,
+                    expenseAmount = expenseAmount
+                )
+                val cashDifference = CashRegisterCalculator.cashDifference(
+                    actualCash = actualCash,
+                    expectedCash = expectedCash
+                )
                 val closure = CashClosureEntity(
                     id = UUID.randomUUID().toString(),
                     periodStart = report.periodStart,
@@ -581,6 +634,12 @@ class AdminViewModel constructor(
                     yapePlinSales = report.yapePlinSales,
                     cardSales = report.cardSales,
                     bestSellingProduct = "${report.bestSellingProduct} (${report.bestSellingQuantity})",
+                    openingAmount = openingAmount,
+                    incomeAmount = incomeAmount,
+                    expenseAmount = expenseAmount,
+                    expectedCash = expectedCash,
+                    actualCash = actualCash,
+                    cashDifference = cashDifference,
                     createdBy = "Administrador"
                 )
                 db.cashClosureDao().insert(closure)
@@ -596,11 +655,12 @@ class AdminViewModel constructor(
                     action = "CIERRE_CAJA",
                     targetType = "REPORT",
                     targetId = closure.id,
-                    detail = "Total S/ ${money(report.totalSales)}, ganancia S/ ${money(report.grossProfit)}"
+                    detail = "Total S/ ${money(report.totalSales)}, esperado S/ ${money(expectedCash)}, real S/ ${money(actualCash)}, diferencia S/ ${money(cashDifference)}"
                 )
+                hideCashClosureDialog()
                 showMessage("Cierre de caja guardado", isSuccess = true)
             } catch (e: Exception) {
-                logError("Admin.closeCashRegister", e.message.orEmpty(), e.stackTraceToString())
+                logError("Admin.confirmCloseCashRegister", e.message.orEmpty(), e.stackTraceToString())
                 showMessage("Error cerrando caja: ${e.message}", isError = true)
             }
         }
@@ -1002,15 +1062,7 @@ class AdminViewModel constructor(
 
     private fun createAuditCsv(logs: List<AuditLogEntity>): String {
         val fileName = "auditoria_${timestamp()}.csv"
-        val csv = buildString {
-            appendLine("AUDITORIA - LA PREVIA RESTOBAR")
-            appendLine("Generado,${formatDate(System.currentTimeMillis())}")
-            appendLine()
-            appendLine("Fecha,Rol,Usuario,Accion,Tipo,ID,Detalle")
-            logs.forEach { log ->
-                appendLine("${csv(formatDate(log.createdAt))},${csv(log.actorRole)},${csv(log.actorName)},${csv(log.action)},${csv(log.targetType)},${csv(log.targetId)},${csv(log.detail)}")
-            }
-        }
+        val csv = BackupExportFormatter.auditCsv(logs)
         writeReportFile(
             fileName = fileName,
             mimeType = "text/csv",
@@ -1072,80 +1124,7 @@ class AdminViewModel constructor(
         tables: List<Table>
     ): String {
         val fileName = "backup_laprevia_${timestamp()}.json"
-        val json = buildString {
-            appendLine("{")
-            appendLine("  \"generatedAt\": \"${escapeJson(formatDate(System.currentTimeMillis()))}\",")
-            appendLine("  \"products\": [")
-            products.forEachIndexed { index, product ->
-                append("    {")
-                append("\"id\":\"${escapeJson(product.id)}\",")
-                append("\"name\":\"${escapeJson(product.name)}\",")
-                append("\"description\":\"${escapeJson(product.description)}\",")
-                append("\"category\":\"${escapeJson(product.category)}\",")
-                append("\"salePrice\":${product.salePrice ?: 0.0},")
-                append("\"costPrice\":${product.costPrice ?: 0.0},")
-                append("\"trackInventory\":${product.trackInventory},")
-                append("\"stock\":${product.stock},")
-                append("\"minStock\":${product.minStock},")
-                append("\"isActive\":${product.isActive}")
-                append("}")
-                appendLine(if (index == products.lastIndex) "" else ",")
-            }
-            appendLine("  ],")
-            appendLine("  \"orders\": [")
-            orders.forEachIndexed { index, order ->
-                append("    {")
-                append("\"id\":\"${escapeJson(order.id)}\",")
-                append("\"tableId\":${order.tableId},")
-                append("\"tableNumber\":${order.tableNumber},")
-                append("\"status\":\"${order.status.name}\",")
-                append("\"total\":${orderTotal(order)},")
-                append("\"createdAt\":${order.createdAt},")
-                append("\"createdAtText\":\"${escapeJson(formatDate(order.createdAt))}\",")
-                append("\"waiterName\":\"${escapeJson(order.waiterName.orEmpty())}\",")
-                append("\"notes\":\"${escapeJson(order.notes.orEmpty())}\",")
-                append("\"items\":[")
-                order.items.forEachIndexed { itemIndex, item ->
-                    append("{")
-                    append("\"productId\":\"${escapeJson(item.productId)}\",")
-                    append("\"productName\":\"${escapeJson(item.productName)}\",")
-                    append("\"quantity\":${item.quantity},")
-                    append("\"unitPrice\":${item.unitPrice},")
-                    append("\"subtotal\":${item.subtotal}")
-                    append("}")
-                    if (itemIndex != order.items.lastIndex) append(",")
-                }
-                append("]}")
-                appendLine(if (index == orders.lastIndex) "" else ",")
-            }
-            appendLine("  ],")
-            appendLine("  \"inventory\": [")
-            inventory.forEachIndexed { index, item ->
-                append("    {")
-                append("\"productId\":\"${escapeJson(item.productId)}\",")
-                append("\"productName\":\"${escapeJson(item.productName)}\",")
-                append("\"currentStock\":${item.currentStock},")
-                append("\"unitOfMeasure\":\"${escapeJson(item.unitOfMeasure)}\",")
-                append("\"minimumStock\":${item.minimumStock},")
-                append("\"category\":\"${escapeJson(item.category.orEmpty())}\"")
-                append("}")
-                appendLine(if (index == inventory.lastIndex) "" else ",")
-            }
-            appendLine("  ],")
-            appendLine("  \"tables\": [")
-            tables.forEachIndexed { index, table ->
-                append("    {")
-                append("\"id\":${table.id},")
-                append("\"number\":${table.number},")
-                append("\"status\":\"${table.status.name}\",")
-                append("\"currentOrderId\":\"${escapeJson(table.currentOrderId.orEmpty())}\",")
-                append("\"capacity\":${table.capacity}")
-                append("}")
-                appendLine(if (index == tables.lastIndex) "" else ",")
-            }
-            appendLine("  ]")
-            appendLine("}")
-        }
+        val json = BackupExportFormatter.backupJson(products, orders, inventory, tables)
         writeReportFile(fileName, "application/json", json.toByteArray())
         return fileName
     }
@@ -1157,34 +1136,7 @@ class AdminViewModel constructor(
         tables: List<Table>
     ): String {
         val fileName = "backup_laprevia_${timestamp()}.csv"
-        val csv = buildString {
-            appendLine("BACKUP LA PREVIA RESTOBAR")
-            appendLine("Generado,${formatDate(System.currentTimeMillis())}")
-            appendLine()
-            appendLine("[PRODUCTOS]")
-            appendLine("ID,Nombre,Categoria,Precio venta,Costo,Stock,Stock minimo,Activo")
-            products.forEach { product ->
-                appendLine("${csv(product.id)},${csv(product.name)},${csv(product.category)},${product.salePrice ?: 0.0},${product.costPrice ?: 0.0},${product.stock},${product.minStock},${product.isActive}")
-            }
-            appendLine()
-            appendLine("[PEDIDOS]")
-            appendLine("ID,Mesa,Estado,Total,Fecha,Mesero,Notas")
-            orders.forEach { order ->
-                appendLine("${csv(order.id)},${order.tableNumber},${order.status.name},${orderTotal(order)},${csv(formatDate(order.createdAt))},${csv(order.waiterName.orEmpty())},${csv(order.notes.orEmpty())}")
-            }
-            appendLine()
-            appendLine("[INVENTARIO]")
-            appendLine("Producto ID,Producto,Stock actual,Unidad,Stock minimo,Categoria")
-            inventory.forEach { item ->
-                appendLine("${csv(item.productId)},${csv(item.productName)},${item.currentStock},${csv(item.unitOfMeasure)},${item.minimumStock},${csv(item.category.orEmpty())}")
-            }
-            appendLine()
-            appendLine("[MESAS]")
-            appendLine("ID,Numero,Estado,Pedido actual,Capacidad")
-            tables.forEach { table ->
-                appendLine("${table.id},${table.number},${table.status.name},${csv(table.currentOrderId.orEmpty())},${table.capacity}")
-            }
-        }
+        val csv = BackupExportFormatter.backupCsv(products, orders, inventory, tables)
         writeReportFile(
             fileName = fileName,
             mimeType = "text/csv",
@@ -1224,12 +1176,19 @@ class AdminViewModel constructor(
     private fun formatDateOnly(value: Long): String = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(value)
     private fun reportPeriodTitle(report: SalesReport): String = "Reporte del ${formatDateOnly(report.periodStart)} al ${formatDateOnly(report.periodEnd)}"
     private fun money(value: Double): String = String.format(Locale.US, "%.2f", value)
-    private fun escapeJson(value: String): String = value
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
     private fun csv(value: String): String = "\"${value.replace("\"", "\"\"")}\""
+
+    private fun sanitizeMoneyInput(value: String): String =
+        value.filter { it.isDigit() || it == '.' || it == ',' }.take(12)
+
+    private fun parseRequiredMoney(value: String): Double? {
+        val normalized = value.trim()
+        if (normalized.isBlank()) return 0.0
+        return normalized
+            .replace(",", ".")
+            .toDoubleOrNull()
+            ?.takeIf { it >= 0.0 }
+    }
 
     private fun checkPendingSync() {
         viewModelScope.launch {

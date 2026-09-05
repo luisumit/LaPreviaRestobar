@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -208,7 +210,7 @@ fun WaiterMainScreen(
                                     .background(MaterialTheme.colorScheme.secondary)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Logout,
+                                    imageVector = Icons.AutoMirrored.Filled.Logout,
                                     contentDescription = "Cerrar sesion",
                                     tint = MaterialTheme.colorScheme.onSecondary,
                                     modifier = Modifier.size(if (isTablet) 24.dp else 20.dp)
@@ -325,7 +327,7 @@ fun WaiterMainScreen(
                                 NavigationRailItem(
                                     selected = selectedTab == 2,
                                     onClick = { selectedTab = 2; showNotifications = false },
-                                    icon = { Icon(Icons.Default.ListAlt, contentDescription = "Ordenes") },
+                                    icon = { Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = "Ordenes") },
                                     label = { Text("Ordenes", fontSize = 10.sp) }
                                 )
                             }

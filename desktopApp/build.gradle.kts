@@ -25,14 +25,15 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.laprevia.restobar.desktop.MainKt"
-        // El JBR de Android Studio no trae jpackage; se empaqueta con el JDK 24.
-        javaHome = "C:\\Program Files\\Java\\jdk-24"
+        // Se empaqueta con JDK 17 para incluir un runtime estable en Windows.
+        javaHome = "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot"
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "LaPreviaRestobar"
-            packageVersion = "1.0.0"
+            packageVersion = "1.0.2"
             description = "La Previa Restobar - Panel de Escritorio"
             vendor = "La Previa Restobar"
+            includeAllModules = true
             windows {
                 menu = true        // acceso en el menu inicio
                 shortcut = true    // acceso directo en el escritorio

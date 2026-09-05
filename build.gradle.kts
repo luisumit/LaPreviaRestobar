@@ -22,6 +22,20 @@ sonar {
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.androidLint.reportPaths", "app/build/reports/lint-results-debug.xml")
         property("sonar.coverage.jacoco.xmlReportPaths", "app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        property(
+            "sonar.coverage.exclusions",
+            listOf(
+                "**/presentation/**",
+                "**/ui/**",
+                "**/di/**",
+                "**/*Activity*.*",
+                "**/*Application*.*",
+                "**/*Worker*.*",
+                "**/data/remote/**",
+                "**/data/local/datastore/**",
+                "**/data/local/sync/**"
+            ).joinToString(",")
+        )
     }
 }
 

@@ -19,8 +19,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
@@ -230,7 +230,7 @@ fun PrinterSettingsDialog(
                     }
                 }
 
-                Divider()
+                HorizontalDivider()
 
                 ToggleRow(
                     label = "Auto-imprimir comanda",
@@ -245,7 +245,7 @@ fun PrinterSettingsDialog(
                     onCheckedChange = onToggleAutoTicket
                 )
 
-                Divider()
+                HorizontalDivider()
 
                 Text("Ver ejemplo (datos de muestra)", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -259,7 +259,7 @@ fun PrinterSettingsDialog(
                     ) { Text("Ticket") }
                 }
 
-                Divider()
+                HorizontalDivider()
 
                 if (!permissionGranted) {
                     Text(

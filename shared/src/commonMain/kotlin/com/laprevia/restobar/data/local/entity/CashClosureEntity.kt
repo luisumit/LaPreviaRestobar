@@ -19,6 +19,12 @@ data class CashClosureEntity(
     val yapePlinSales: Double = 0.0,
     val cardSales: Double = 0.0,
     val bestSellingProduct: String = "Sin ventas",
+    val openingAmount: Double = 0.0,
+    val incomeAmount: Double = 0.0,
+    val expenseAmount: Double = 0.0,
+    val expectedCash: Double = 0.0,
+    val actualCash: Double = 0.0,
+    val cashDifference: Double = 0.0,
     val createdBy: String,
     val createdAt: Long = currentTimeMillis()
 )

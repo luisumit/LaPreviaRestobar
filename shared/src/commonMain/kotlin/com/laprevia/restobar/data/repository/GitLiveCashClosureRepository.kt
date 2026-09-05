@@ -39,6 +39,12 @@ class GitLiveCashClosureRepository {
                 "yapePlinSales" to closure.yapePlinSales,
                 "cardSales" to closure.cardSales,
                 "bestSellingProduct" to closure.bestSellingProduct,
+                "openingAmount" to closure.openingAmount,
+                "incomeAmount" to closure.incomeAmount,
+                "expenseAmount" to closure.expenseAmount,
+                "expectedCash" to closure.expectedCash,
+                "actualCash" to closure.actualCash,
+                "cashDifference" to closure.cashDifference,
                 "createdBy" to closure.createdBy,
                 "createdAt" to closure.createdAt
             )
@@ -60,6 +66,12 @@ class GitLiveCashClosureRepository {
             yapePlinSales = (child("yapePlinSales").value as? Number)?.toDouble() ?: 0.0,
             cardSales = (child("cardSales").value as? Number)?.toDouble() ?: 0.0,
             bestSellingProduct = child("bestSellingProduct").value as? String ?: "Sin ventas",
+            openingAmount = (child("openingAmount").value as? Number)?.toDouble() ?: 0.0,
+            incomeAmount = (child("incomeAmount").value as? Number)?.toDouble() ?: 0.0,
+            expenseAmount = (child("expenseAmount").value as? Number)?.toDouble() ?: 0.0,
+            expectedCash = (child("expectedCash").value as? Number)?.toDouble() ?: 0.0,
+            actualCash = (child("actualCash").value as? Number)?.toDouble() ?: 0.0,
+            cashDifference = (child("cashDifference").value as? Number)?.toDouble() ?: 0.0,
             createdBy = child("createdBy").value as? String ?: "",
             createdAt = (child("createdAt").value as? Number)?.toLong() ?: 0L
         )

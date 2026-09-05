@@ -22,8 +22,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Restaurant
@@ -45,7 +45,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -219,7 +219,7 @@ private fun ErrorContent(
             modifier = Modifier.align(Alignment.Start)
         ) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Volver",
                 tint = MaterialTheme.colorScheme.onSurface
             )
@@ -822,7 +822,7 @@ private fun AnimatedRoleSelectionButton(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.ArrowForward,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Seleccionar",
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
@@ -862,7 +862,7 @@ fun EmailLoginForm(
             enabled = !isLoading
         ) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Volver",
                 tint = if (isLoading) Color.White.copy(alpha = 0.5f) else Color.White
             )
@@ -914,8 +914,11 @@ fun EmailLoginForm(
                 )
             },
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                containerColor = Color.White.copy(alpha = 0.1f),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White.copy(alpha = 0.1f),
+                unfocusedContainerColor = Color.White.copy(alpha = 0.1f),
+                disabledContainerColor = Color.White.copy(alpha = 0.1f),
+                errorContainerColor = Color.White.copy(alpha = 0.1f),
                 unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
@@ -954,8 +957,11 @@ fun EmailLoginForm(
                 autoCorrectEnabled = false
             ),
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                containerColor = Color.White.copy(alpha = 0.1f),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White.copy(alpha = 0.1f),
+                unfocusedContainerColor = Color.White.copy(alpha = 0.1f),
+                disabledContainerColor = Color.White.copy(alpha = 0.1f),
+                errorContainerColor = Color.White.copy(alpha = 0.1f),
                 unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedLabelColor = Color.White.copy(alpha = 0.7f),

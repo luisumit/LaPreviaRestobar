@@ -37,7 +37,7 @@ import com.laprevia.restobar.data.local.entity.TableEntity
         CashClosureEntity::class,
         AppErrorLogEntity::class
     ],
-    version = 11
+    version = 12
 )
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -86,9 +86,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN openingAmount REAL NOT NULL DEFAULT 0")
+                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN incomeAmount REAL NOT NULL DEFAULT 0")
+                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN expenseAmount REAL NOT NULL DEFAULT 0")
+                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN expectedCash REAL NOT NULL DEFAULT 0")
+                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN actualCash REAL NOT NULL DEFAULT 0")
+                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN cashDifference REAL NOT NULL DEFAULT 0")
+            }
+        }
+
         // Lista de migraciones para reutilizar en los builders por plataforma.
         val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            arrayOf(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
     }
 }
 

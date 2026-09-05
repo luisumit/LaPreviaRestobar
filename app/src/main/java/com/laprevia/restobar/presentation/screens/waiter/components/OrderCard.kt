@@ -432,7 +432,7 @@ fun OrderProgressBar(status: OrderStatus) {
 
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         LinearProgressIndicator(
-            progress = progress,
+            progress = { progress },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp),

@@ -26,6 +26,7 @@ import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.data.model.PaymentMethod
 import com.laprevia.restobar.data.repository.GitLiveCashClosureRepository
 import com.laprevia.restobar.domain.model.Money
+import com.laprevia.restobar.domain.service.CashRegisterCalculator
 import com.laprevia.restobar.domain.service.SalesCalculator
 import com.laprevia.restobar.platform.randomUuid
 import kotlinx.coroutines.launch
@@ -49,6 +50,12 @@ private fun startOfDay(t: Long): Long = Calendar.getInstance().apply {
 }.timeInMillis
 
 private fun endOfDay(t: Long): Long = startOfDay(t) + 24L * 3600_000 - 1
+
+private fun parseMoneyText(value: String): Double =
+    value.trim().replace(",", ".").toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
+
+private fun moneyText(value: Double): String =
+    String.format(Locale.US, "%.2f", value)
 
 private enum class RangePreset(val label: String) { HOY("HOY"), AYER("AYER"), SEMANA("7 DÍAS"), MES("30 DÍAS"), MANUAL("RANGO") }
 
@@ -74,6 +81,9 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
     var toText by remember { mutableStateOf(dayFormat.format(Date())) }
     var status by remember { mutableStateOf<String?>(null) }
     var confirmClose by remember { mutableStateOf(false) }
+    var openingAmountText by remember { mutableStateOf("0.00") }
+    var expenseAmountText by remember { mutableStateOf("0.00") }
+    var actualCashText by remember { mutableStateOf("0.00") }
 
     val (start, end) = if (preset == RangePreset.MANUAL) {
         val from = runCatching { dayFormat.parse(fromText)!!.time }.getOrNull()
@@ -180,7 +190,12 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
                 enabled = charged.isNotEmpty(),
                 filled = true,
                 modifier = Modifier.weight(1f)
-            ) { confirmClose = true }
+            ) {
+                openingAmountText = "0.00"
+                expenseAmountText = "0.00"
+                actualCashText = moneyText(CashRegisterCalculator.incomeAmount(cash))
+                confirmClose = true
+            }
         }
 
         status?.let { Text(it, color = Lp.Amber, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
@@ -205,6 +220,13 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
                                 "Tarj. ${Money(c.cardSales).formatted()}  ·  ${c.createdBy}",
                             color = Lp.TextDim, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
                         )
+                        Text(
+                            "Esperado ${Money(c.expectedCash).formatted()}  ·  Real ${Money(c.actualCash).formatted()}  ·  " +
+                                "Dif. ${Money(c.cashDifference).formatted()}",
+                            color = if (c.cashDifference == 0.0) Lp.TextDim else Lp.Amber,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -213,13 +235,51 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
     }
 
     if (confirmClose) {
+        val incomeAmount = CashRegisterCalculator.incomeAmount(cash)
+        val expectedCash = CashRegisterCalculator.expectedCash(
+            openingAmount = parseMoneyText(openingAmountText),
+            incomeAmount = incomeAmount,
+            expenseAmount = parseMoneyText(expenseAmountText)
+        )
+        val cashDifference = CashRegisterCalculator.cashDifference(
+            actualCash = parseMoneyText(actualCashText),
+            expectedCash = expectedCash
+        )
         Dialog(onDismissRequest = { confirmClose = false }) {
-            LpDialogCard(width = 400) {
+            LpDialogCard(width = 460) {
                 Text("CONFIRMAR CIERRE DE CAJA", fontFamily = BebasFamily, fontSize = 24.sp, letterSpacing = 1.5.sp, color = Lp.Text)
                 Text("Período: ${dayFormat.format(Date(start))} — ${dayFormat.format(Date(end))}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Text(Money(total).formatted(), color = Lp.Amber, fontFamily = BebasFamily, fontSize = 34.sp, letterSpacing = 1.sp)
                 Text("Efectivo ${Money(cash).formatted()}  ·  Yape ${Money(yape).formatted()}  ·  Tarjeta ${Money(card).formatted()}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Text("Pedidos cobrados: ${charged.size}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(
+                    value = openingAmountText,
+                    onValueChange = { openingAmountText = it },
+                    label = { Text("Monto inicial") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = expenseAmountText,
+                    onValueChange = { expenseAmountText = it },
+                    label = { Text("Egresos") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = actualCashText,
+                    onValueChange = { actualCashText = it },
+                    label = { Text("Efectivo real contado") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text("Efectivo esperado: ${Money(expectedCash).formatted()}", color = Lp.TextSoft, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "Diferencia de caja: ${Money(cashDifference).formatted()}",
+                    color = if (cashDifference == 0.0) Lp.TextSoft else Lp.Amber,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(
                         onClick = { confirmClose = false },
@@ -244,6 +304,12 @@ fun ReporteView(orders: List<Order>, userEmail: String) {
                                     yapePlinSales = yape,
                                     cardSales = card,
                                     bestSellingProduct = top.firstOrNull()?.let { "${it.name} (${it.quantity})" } ?: "Sin ventas",
+                                    openingAmount = parseMoneyText(openingAmountText),
+                                    incomeAmount = incomeAmount,
+                                    expenseAmount = parseMoneyText(expenseAmountText),
+                                    expectedCash = expectedCash,
+                                    actualCash = parseMoneyText(actualCashText),
+                                    cashDifference = cashDifference,
                                     createdBy = "Caja PC ($userEmail)"
                                 )
                                 runCatching { closureRepo.saveClosure(closure) }

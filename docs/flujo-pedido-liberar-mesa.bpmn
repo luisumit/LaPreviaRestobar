@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Definitions_LaPreviaPedido"
+    targetNamespace="https://laprevia-restobar/bpmn">
+
+    <bpmn:collaboration id="Collaboration_LaPrevia">
+        <bpmn:participant id="Participant_LaPrevia" name="La Previa Restobar" processRef="Process_PedidoLiberarMesa"/>
+    </bpmn:collaboration>
+
+    <bpmn:process id="Process_PedidoLiberarMesa" name="Pedido del cliente hasta liberar mesa" isExecutable="false">
+        <bpmn:laneSet id="LaneSet_LaPrevia">
+            <bpmn:lane id="Lane_Cliente" name="Cliente">
+                <bpmn:flowNodeRef>StartEvent_ClienteSolicitaPedido</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RevisarCarta</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_ElegirOtroProducto</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_AgregarMasProductos</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_SolicitarCuenta</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>EndEvent_MesaLiberada</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>EndEvent_PedidoCancelado</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Mesero" name="Mesero">
+                <bpmn:flowNodeRef>Task_TomarPedido</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_InformarSinStock</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_PedidoCancelado</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_EntregarPedido</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_AgregarProductos</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_CobrarMovil</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Cocina" name="Cocina / Chef">
+                <bpmn:flowNodeRef>Task_RecibirPedido</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_AceptarPedido</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_PrepararPedido</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_MarcarListo</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Caja" name="Caja / App de escritorio">
+                <bpmn:flowNodeRef>Gateway_DondeCobra</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_BuscarPedidoMesa</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_CobrarEscritorio</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Sistema" name="Sistema La Previa">
+                <bpmn:flowNodeRef>Task_ValidarStockMesa</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Gateway_HayStock</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RegistrarPedidoOcuparMesa</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_CambiarPedidoCancelado</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_LiberarMesaCancelacion</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_RegistrarMetodoPago</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_GenerarTicket</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_LiberarMesa</bpmn:flowNodeRef>
+            </bpmn:lane>
+            <bpmn:lane id="Lane_Firebase" name="Firebase / Base de datos">
+                <bpmn:flowNodeRef>Task_GuardarPedidoMesa</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_GuardarCancelacion</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_GuardarMesaLibreCancelacion</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_ActualizarPedidoCobrado</bpmn:flowNodeRef>
+                <bpmn:flowNodeRef>Task_GuardarMesaLibre</bpmn:flowNodeRef>
+            </bpmn:lane>
+        </bpmn:laneSet>
+
+        <bpmn:startEvent id="StartEvent_ClienteSolicitaPedido" name="Cliente solicita pedido">
+            <bpmn:outgoing>Flow_01</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:task id="Task_RevisarCarta" name="Revisar carta QR o pedir al mesero">
+            <bpmn:incoming>Flow_01</bpmn:incoming>
+            <bpmn:outgoing>Flow_02</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_TomarPedido" name="Tomar pedido en la app movil">
+            <bpmn:incoming>Flow_02</bpmn:incoming>
+            <bpmn:incoming>Flow_06B</bpmn:incoming>
+            <bpmn:incoming>Flow_19A</bpmn:incoming>
+            <bpmn:outgoing>Flow_03</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_ValidarStockMesa" name="Validar productos y mesa">
+            <bpmn:incoming>Flow_03</bpmn:incoming>
+            <bpmn:outgoing>Flow_04</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:exclusiveGateway id="Gateway_HayStock" name="Hay stock disponible?">
+            <bpmn:incoming>Flow_04</bpmn:incoming>
+            <bpmn:outgoing>Flow_05A</bpmn:outgoing>
+            <bpmn:outgoing>Flow_05B</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+        <bpmn:task id="Task_InformarSinStock" name="Informar producto no disponible">
+            <bpmn:incoming>Flow_05A</bpmn:incoming>
+            <bpmn:outgoing>Flow_06A</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_ElegirOtroProducto" name="Elegir otro producto">
+            <bpmn:incoming>Flow_06A</bpmn:incoming>
+            <bpmn:outgoing>Flow_06B</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_RegistrarPedidoOcuparMesa" name="Registrar pedido y ocupar mesa">
+            <bpmn:incoming>Flow_05B</bpmn:incoming>
+            <bpmn:outgoing>Flow_07</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_GuardarPedidoMesa" name="Guardar pedido y estado de mesa">
+            <bpmn:incoming>Flow_07</bpmn:incoming>
+            <bpmn:outgoing>Flow_08</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:exclusiveGateway id="Gateway_PedidoCancelado" name="Pedido cancelado?">
+            <bpmn:incoming>Flow_08</bpmn:incoming>
+            <bpmn:outgoing>Flow_09A</bpmn:outgoing>
+            <bpmn:outgoing>Flow_09B</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+        <bpmn:task id="Task_CambiarPedidoCancelado" name="Cambiar pedido a cancelado">
+            <bpmn:incoming>Flow_09A</bpmn:incoming>
+            <bpmn:outgoing>Flow_10A</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_GuardarCancelacion" name="Guardar cancelacion">
+            <bpmn:incoming>Flow_10A</bpmn:incoming>
+            <bpmn:outgoing>Flow_11A</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_LiberarMesaCancelacion" name="Liberar mesa por cancelacion">
+            <bpmn:incoming>Flow_11A</bpmn:incoming>
+            <bpmn:outgoing>Flow_12A</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_GuardarMesaLibreCancelacion" name="Guardar mesa como libre">
+            <bpmn:incoming>Flow_12A</bpmn:incoming>
+            <bpmn:outgoing>Flow_13A</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:endEvent id="EndEvent_PedidoCancelado" name="Pedido cancelado y mesa libre">
+            <bpmn:incoming>Flow_13A</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:task id="Task_RecibirPedido" name="Recibir pedido">
+            <bpmn:incoming>Flow_09B</bpmn:incoming>
+            <bpmn:outgoing>Flow_10</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_AceptarPedido" name="Aceptar pedido">
+            <bpmn:incoming>Flow_10</bpmn:incoming>
+            <bpmn:outgoing>Flow_11</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_PrepararPedido" name="Preparar pedido">
+            <bpmn:incoming>Flow_11</bpmn:incoming>
+            <bpmn:outgoing>Flow_12</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_MarcarListo" name="Marcar pedido como listo">
+            <bpmn:incoming>Flow_12</bpmn:incoming>
+            <bpmn:outgoing>Flow_13</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_EntregarPedido" name="Entregar pedido al cliente">
+            <bpmn:incoming>Flow_13</bpmn:incoming>
+            <bpmn:outgoing>Flow_14</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:exclusiveGateway id="Gateway_AgregarMasProductos" name="Desea agregar mas productos?">
+            <bpmn:incoming>Flow_14</bpmn:incoming>
+            <bpmn:outgoing>Flow_15A</bpmn:outgoing>
+            <bpmn:outgoing>Flow_15B</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+        <bpmn:task id="Task_AgregarProductos" name="Agregar productos al pedido">
+            <bpmn:incoming>Flow_15A</bpmn:incoming>
+            <bpmn:outgoing>Flow_19A</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_SolicitarCuenta" name="Solicitar cuenta">
+            <bpmn:incoming>Flow_15B</bpmn:incoming>
+            <bpmn:outgoing>Flow_16</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:exclusiveGateway id="Gateway_DondeCobra" name="Donde se realiza el cobro?">
+            <bpmn:incoming>Flow_16</bpmn:incoming>
+            <bpmn:outgoing>Flow_17A</bpmn:outgoing>
+            <bpmn:outgoing>Flow_17B</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+        <bpmn:task id="Task_CobrarMovil" name="Cobrar desde app movil">
+            <bpmn:incoming>Flow_17A</bpmn:incoming>
+            <bpmn:outgoing>Flow_18A</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_BuscarPedidoMesa" name="Buscar pedido o mesa">
+            <bpmn:incoming>Flow_17B</bpmn:incoming>
+            <bpmn:outgoing>Flow_18B</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_CobrarEscritorio" name="Cobrar desde app de escritorio">
+            <bpmn:incoming>Flow_18B</bpmn:incoming>
+            <bpmn:outgoing>Flow_19B</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_RegistrarMetodoPago" name="Registrar metodo de pago">
+            <bpmn:incoming>Flow_18A</bpmn:incoming>
+            <bpmn:incoming>Flow_19B</bpmn:incoming>
+            <bpmn:outgoing>Flow_20</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_GenerarTicket" name="Generar ticket">
+            <bpmn:incoming>Flow_20</bpmn:incoming>
+            <bpmn:outgoing>Flow_21</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_ActualizarPedidoCobrado" name="Actualizar pedido como cobrado">
+            <bpmn:incoming>Flow_21</bpmn:incoming>
+            <bpmn:outgoing>Flow_22</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_LiberarMesa" name="Liberar mesa">
+            <bpmn:incoming>Flow_22</bpmn:incoming>
+            <bpmn:outgoing>Flow_23</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:task id="Task_GuardarMesaLibre" name="Guardar mesa como libre">
+            <bpmn:incoming>Flow_23</bpmn:incoming>
+            <bpmn:outgoing>Flow_24</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:endEvent id="EndEvent_MesaLiberada" name="Mesa liberada y venta registrada">
+            <bpmn:incoming>Flow_24</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_ClienteSolicitaPedido" targetRef="Task_RevisarCarta"/>
+        <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_RevisarCarta" targetRef="Task_TomarPedido"/>
+        <bpmn:sequenceFlow id="Flow_03" sourceRef="Task_TomarPedido" targetRef="Task_ValidarStockMesa"/>
+        <bpmn:sequenceFlow id="Flow_04" sourceRef="Task_ValidarStockMesa" targetRef="Gateway_HayStock"/>
+        <bpmn:sequenceFlow id="Flow_05A" name="No" sourceRef="Gateway_HayStock" targetRef="Task_InformarSinStock"/>
+        <bpmn:sequenceFlow id="Flow_05B" name="Si" sourceRef="Gateway_HayStock" targetRef="Task_RegistrarPedidoOcuparMesa"/>
+        <bpmn:sequenceFlow id="Flow_06A" sourceRef="Task_InformarSinStock" targetRef="Task_ElegirOtroProducto"/>
+        <bpmn:sequenceFlow id="Flow_06B" sourceRef="Task_ElegirOtroProducto" targetRef="Task_TomarPedido"/>
+        <bpmn:sequenceFlow id="Flow_07" sourceRef="Task_RegistrarPedidoOcuparMesa" targetRef="Task_GuardarPedidoMesa"/>
+        <bpmn:sequenceFlow id="Flow_08" sourceRef="Task_GuardarPedidoMesa" targetRef="Gateway_PedidoCancelado"/>
+        <bpmn:sequenceFlow id="Flow_09A" name="Si" sourceRef="Gateway_PedidoCancelado" targetRef="Task_CambiarPedidoCancelado"/>
+        <bpmn:sequenceFlow id="Flow_09B" name="No" sourceRef="Gateway_PedidoCancelado" targetRef="Task_RecibirPedido"/>
+        <bpmn:sequenceFlow id="Flow_10A" sourceRef="Task_CambiarPedidoCancelado" targetRef="Task_GuardarCancelacion"/>
+        <bpmn:sequenceFlow id="Flow_11A" sourceRef="Task_GuardarCancelacion" targetRef="Task_LiberarMesaCancelacion"/>
+        <bpmn:sequenceFlow id="Flow_12A" sourceRef="Task_LiberarMesaCancelacion" targetRef="Task_GuardarMesaLibreCancelacion"/>
+        <bpmn:sequenceFlow id="Flow_13A" sourceRef="Task_GuardarMesaLibreCancelacion" targetRef="EndEvent_PedidoCancelado"/>
+        <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_RecibirPedido" targetRef="Task_AceptarPedido"/>
+        <bpmn:sequenceFlow id="Flow_11" sourceRef="Task_AceptarPedido" targetRef="Task_PrepararPedido"/>
+        <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_PrepararPedido" targetRef="Task_MarcarListo"/>
+        <bpmn:sequenceFlow id="Flow_13" sourceRef="Task_MarcarListo" targetRef="Task_EntregarPedido"/>
+        <bpmn:sequenceFlow id="Flow_14" sourceRef="Task_EntregarPedido" targetRef="Gateway_AgregarMasProductos"/>
+        <bpmn:sequenceFlow id="Flow_15A" name="Si" sourceRef="Gateway_AgregarMasProductos" targetRef="Task_AgregarProductos"/>
+        <bpmn:sequenceFlow id="Flow_15B" name="No" sourceRef="Gateway_AgregarMasProductos" targetRef="Task_SolicitarCuenta"/>
+        <bpmn:sequenceFlow id="Flow_19A" sourceRef="Task_AgregarProductos" targetRef="Task_TomarPedido"/>
+        <bpmn:sequenceFlow id="Flow_16" sourceRef="Task_SolicitarCuenta" targetRef="Gateway_DondeCobra"/>
+        <bpmn:sequenceFlow id="Flow_17A" name="Mesero" sourceRef="Gateway_DondeCobra" targetRef="Task_CobrarMovil"/>
+        <bpmn:sequenceFlow id="Flow_17B" name="Caja" sourceRef="Gateway_DondeCobra" targetRef="Task_BuscarPedidoMesa"/>
+        <bpmn:sequenceFlow id="Flow_18A" sourceRef="Task_CobrarMovil" targetRef="Task_RegistrarMetodoPago"/>
+        <bpmn:sequenceFlow id="Flow_18B" sourceRef="Task_BuscarPedidoMesa" targetRef="Task_CobrarEscritorio"/>
+        <bpmn:sequenceFlow id="Flow_19B" sourceRef="Task_CobrarEscritorio" targetRef="Task_RegistrarMetodoPago"/>
+        <bpmn:sequenceFlow id="Flow_20" sourceRef="Task_RegistrarMetodoPago" targetRef="Task_GenerarTicket"/>
+        <bpmn:sequenceFlow id="Flow_21" sourceRef="Task_GenerarTicket" targetRef="Task_ActualizarPedidoCobrado"/>
+        <bpmn:sequenceFlow id="Flow_22" sourceRef="Task_ActualizarPedidoCobrado" targetRef="Task_LiberarMesa"/>
+        <bpmn:sequenceFlow id="Flow_23" sourceRef="Task_LiberarMesa" targetRef="Task_GuardarMesaLibre"/>
+        <bpmn:sequenceFlow id="Flow_24" sourceRef="Task_GuardarMesaLibre" targetRef="EndEvent_MesaLiberada"/>
+    </bpmn:process>
+
+    <bpmndi:BPMNDiagram id="BPMNDiagram_LaPrevia">
+        <bpmndi:BPMNPlane id="BPMNPlane_LaPrevia" bpmnElement="Collaboration_LaPrevia">
+            <bpmndi:BPMNShape id="Participant_LaPrevia_di" bpmnElement="Participant_LaPrevia" isHorizontal="true">
+                <dc:Bounds x="40" y="40" width="2850" height="960"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Cliente_di" bpmnElement="Lane_Cliente" isHorizontal="true">
+                <dc:Bounds x="70" y="40" width="2820" height="160"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Mesero_di" bpmnElement="Lane_Mesero" isHorizontal="true">
+                <dc:Bounds x="70" y="200" width="2820" height="160"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Cocina_di" bpmnElement="Lane_Cocina" isHorizontal="true">
+                <dc:Bounds x="70" y="360" width="2820" height="160"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Caja_di" bpmnElement="Lane_Caja" isHorizontal="true">
+                <dc:Bounds x="70" y="520" width="2820" height="160"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Sistema_di" bpmnElement="Lane_Sistema" isHorizontal="true">
+                <dc:Bounds x="70" y="680" width="2820" height="160"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Lane_Firebase_di" bpmnElement="Lane_Firebase" isHorizontal="true">
+                <dc:Bounds x="70" y="840" width="2820" height="160"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="StartEvent_ClienteSolicitaPedido_di" bpmnElement="StartEvent_ClienteSolicitaPedido">
+                <dc:Bounds x="130" y="102" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_RevisarCarta_di" bpmnElement="Task_RevisarCarta">
+                <dc:Bounds x="220" y="80" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_TomarPedido_di" bpmnElement="Task_TomarPedido">
+                <dc:Bounds x="420" y="240" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_ValidarStockMesa_di" bpmnElement="Task_ValidarStockMesa">
+                <dc:Bounds x="610" y="720" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_HayStock_di" bpmnElement="Gateway_HayStock" isMarkerVisible="true">
+                <dc:Bounds x="805" y="735" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_InformarSinStock_di" bpmnElement="Task_InformarSinStock">
+                <dc:Bounds x="910" y="240" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_ElegirOtroProducto_di" bpmnElement="Task_ElegirOtroProducto">
+                <dc:Bounds x="910" y="80" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_RegistrarPedidoOcuparMesa_di" bpmnElement="Task_RegistrarPedidoOcuparMesa">
+                <dc:Bounds x="930" y="720" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_GuardarPedidoMesa_di" bpmnElement="Task_GuardarPedidoMesa">
+                <dc:Bounds x="1130" y="880" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_PedidoCancelado_di" bpmnElement="Gateway_PedidoCancelado" isMarkerVisible="true">
+                <dc:Bounds x="1325" y="255" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_CambiarPedidoCancelado_di" bpmnElement="Task_CambiarPedidoCancelado">
+                <dc:Bounds x="1430" y="720" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_GuardarCancelacion_di" bpmnElement="Task_GuardarCancelacion">
+                <dc:Bounds x="1620" y="880" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_LiberarMesaCancelacion_di" bpmnElement="Task_LiberarMesaCancelacion">
+                <dc:Bounds x="1810" y="720" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_GuardarMesaLibreCancelacion_di" bpmnElement="Task_GuardarMesaLibreCancelacion">
+                <dc:Bounds x="2000" y="880" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="EndEvent_PedidoCancelado_di" bpmnElement="EndEvent_PedidoCancelado">
+                <dc:Bounds x="2200" y="102" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNShape id="Task_RecibirPedido_di" bpmnElement="Task_RecibirPedido">
+                <dc:Bounds x="1430" y="400" width="130" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_AceptarPedido_di" bpmnElement="Task_AceptarPedido">
+                <dc:Bounds x="1610" y="400" width="130" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_PrepararPedido_di" bpmnElement="Task_PrepararPedido">
+                <dc:Bounds x="1790" y="400" width="130" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_MarcarListo_di" bpmnElement="Task_MarcarListo">
+                <dc:Bounds x="1970" y="400" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_EntregarPedido_di" bpmnElement="Task_EntregarPedido">
+                <dc:Bounds x="2160" y="240" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_AgregarMasProductos_di" bpmnElement="Gateway_AgregarMasProductos" isMarkerVisible="true">
+                <dc:Bounds x="2365" y="95" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_AgregarProductos_di" bpmnElement="Task_AgregarProductos">
+                <dc:Bounds x="2480" y="240" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_SolicitarCuenta_di" bpmnElement="Task_SolicitarCuenta">
+                <dc:Bounds x="2480" y="80" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Gateway_DondeCobra_di" bpmnElement="Gateway_DondeCobra" isMarkerVisible="true">
+                <dc:Bounds x="2670" y="575" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_CobrarMovil_di" bpmnElement="Task_CobrarMovil">
+                <dc:Bounds x="2670" y="240" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_BuscarPedidoMesa_di" bpmnElement="Task_BuscarPedidoMesa">
+                <dc:Bounds x="2500" y="560" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_CobrarEscritorio_di" bpmnElement="Task_CobrarEscritorio">
+                <dc:Bounds x="2310" y="560" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_RegistrarMetodoPago_di" bpmnElement="Task_RegistrarMetodoPago">
+                <dc:Bounds x="2300" y="720" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_GenerarTicket_di" bpmnElement="Task_GenerarTicket">
+                <dc:Bounds x="2490" y="720" width="130" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_ActualizarPedidoCobrado_di" bpmnElement="Task_ActualizarPedidoCobrado">
+                <dc:Bounds x="2490" y="880" width="150" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_LiberarMesa_di" bpmnElement="Task_LiberarMesa">
+                <dc:Bounds x="2680" y="720" width="130" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Task_GuardarMesaLibre_di" bpmnElement="Task_GuardarMesaLibre">
+                <dc:Bounds x="2680" y="880" width="140" height="80"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="EndEvent_MesaLiberada_di" bpmnElement="EndEvent_MesaLiberada">
+                <dc:Bounds x="2825" y="102" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01"><di:waypoint x="166" y="120"/><di:waypoint x="220" y="120"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02"><di:waypoint x="360" y="120"/><di:waypoint x="420" y="280"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03"><di:waypoint x="560" y="280"/><di:waypoint x="610" y="760"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04"><di:waypoint x="750" y="760"/><di:waypoint x="805" y="760"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_05A_di" bpmnElement="Flow_05A"><di:waypoint x="830" y="735"/><di:waypoint x="910" y="280"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_05B_di" bpmnElement="Flow_05B"><di:waypoint x="855" y="760"/><di:waypoint x="930" y="760"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_06A_di" bpmnElement="Flow_06A"><di:waypoint x="985" y="240"/><di:waypoint x="985" y="160"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_06B_di" bpmnElement="Flow_06B"><di:waypoint x="910" y="120"/><di:waypoint x="490" y="240"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07"><di:waypoint x="1080" y="760"/><di:waypoint x="1130" y="920"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08"><di:waypoint x="1280" y="920"/><di:waypoint x="1350" y="305"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_09A_di" bpmnElement="Flow_09A"><di:waypoint x="1350" y="305"/><di:waypoint x="1430" y="760"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_09B_di" bpmnElement="Flow_09B"><di:waypoint x="1375" y="280"/><di:waypoint x="1430" y="440"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_10A_di" bpmnElement="Flow_10A"><di:waypoint x="1580" y="760"/><di:waypoint x="1620" y="920"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_11A_di" bpmnElement="Flow_11A"><di:waypoint x="1770" y="920"/><di:waypoint x="1810" y="760"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_12A_di" bpmnElement="Flow_12A"><di:waypoint x="1960" y="760"/><di:waypoint x="2000" y="920"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_13A_di" bpmnElement="Flow_13A"><di:waypoint x="2150" y="920"/><di:waypoint x="2218" y="138"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="1560" y="440"/><di:waypoint x="1610" y="440"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="1740" y="440"/><di:waypoint x="1790" y="440"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12"><di:waypoint x="1920" y="440"/><di:waypoint x="1970" y="440"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13"><di:waypoint x="2110" y="440"/><di:waypoint x="2160" y="280"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14"><di:waypoint x="2300" y="280"/><di:waypoint x="2390" y="145"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_15A_di" bpmnElement="Flow_15A"><di:waypoint x="2390" y="145"/><di:waypoint x="2480" y="280"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_15B_di" bpmnElement="Flow_15B"><di:waypoint x="2415" y="120"/><di:waypoint x="2480" y="120"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_19A_di" bpmnElement="Flow_19A"><di:waypoint x="2480" y="280"/><di:waypoint x="490" y="320"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16"><di:waypoint x="2620" y="120"/><di:waypoint x="2695" y="575"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_17A_di" bpmnElement="Flow_17A"><di:waypoint x="2695" y="575"/><di:waypoint x="2740" y="320"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_17B_di" bpmnElement="Flow_17B"><di:waypoint x="2670" y="600"/><di:waypoint x="2640" y="600"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_18A_di" bpmnElement="Flow_18A"><di:waypoint x="2740" y="320"/><di:waypoint x="2375" y="720"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_18B_di" bpmnElement="Flow_18B"><di:waypoint x="2500" y="600"/><di:waypoint x="2460" y="600"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_19B_di" bpmnElement="Flow_19B"><di:waypoint x="2385" y="640"/><di:waypoint x="2375" y="720"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20"><di:waypoint x="2450" y="760"/><di:waypoint x="2490" y="760"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21"><di:waypoint x="2555" y="800"/><di:waypoint x="2565" y="880"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22"><di:waypoint x="2640" y="920"/><di:waypoint x="2680" y="760"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23"><di:waypoint x="2745" y="800"/><di:waypoint x="2750" y="880"/></bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_24_di" bpmnElement="Flow_24"><di:waypoint x="2820" y="920"/><di:waypoint x="2843" y="138"/></bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</bpmn:definitions>

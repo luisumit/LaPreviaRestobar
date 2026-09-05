@@ -23,7 +23,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CheckCircle
@@ -35,14 +38,12 @@ import androidx.compose.material.icons.filled.EventSeat
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -99,6 +100,7 @@ import android.net.Uri
 import android.widget.Toast
 import java.net.URLEncoder
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -111,6 +113,7 @@ import com.laprevia.restobar.data.local.entity.CashClosureEntity
 import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.data.printer.ReceiptDocument
+import com.laprevia.restobar.domain.service.CashRegisterCalculator
 import com.laprevia.restobar.presentation.screens.printer.PrinterSettingsDialog
 import com.laprevia.restobar.presentation.screens.printer.ReceiptPreviewDialog
 import com.laprevia.restobar.presentation.viewmodel.PrinterViewModel
@@ -224,7 +227,7 @@ fun AdminMainScreen(
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.secondary)
                         ) {
-                            Icon(Icons.Default.Logout, contentDescription = "Cerrar sesion", tint = MaterialTheme.colorScheme.onSecondary)
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesion", tint = MaterialTheme.colorScheme.onSecondary)
                         }
                     }
 
@@ -380,6 +383,20 @@ fun AdminMainScreen(
                     Text("Cancelar")
                 }
             }
+        )
+    }
+
+    if (uiState.showCashClosureDialog) {
+        CashClosureDialog(
+            report = uiState.report,
+            openingAmount = uiState.openingAmountText,
+            expenseAmount = uiState.expenseAmountText,
+            actualCash = uiState.actualCashText,
+            onOpeningAmountChange = { viewModel.updateOpeningAmount(it) },
+            onExpenseAmountChange = { viewModel.updateExpenseAmount(it) },
+            onActualCashChange = { viewModel.updateActualCash(it) },
+            onConfirm = { viewModel.confirmCloseCashRegister() },
+            onDismiss = { viewModel.hideCashClosureDialog() }
         )
     }
 
@@ -641,7 +658,7 @@ fun SalesReportSection(
         }
         item {
             DashboardStatGrid(isTablet) {
-                DashboardMetricCard("Pedidos", report.totalOrders.toString(), Icons.Default.ReceiptLong, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
+                DashboardMetricCard("Pedidos", report.totalOrders.toString(), Icons.AutoMirrored.Filled.ReceiptLong, listOf(SuccessGreen, MaterialTheme.colorScheme.tertiary), Modifier.weight(1f))
                 DashboardMetricCard("Productos", report.productsSold.toString(), Icons.Default.Inventory, listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.primary), Modifier.weight(1f))
             }
         }
@@ -848,6 +865,12 @@ fun CashClosuresCard(closures: List<CashClosureEntity>, isTablet: Boolean) {
 
 @Composable
 fun CashClosureRow(closure: CashClosureEntity) {
+    val differenceColor = when {
+        closure.cashDifference < 0.0 -> WarningOrange
+        closure.cashDifference > 0.0 -> SuccessGreen
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -880,7 +903,104 @@ fun CashClosureRow(closure: CashClosureEntity) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
             style = MaterialTheme.typography.bodySmall
         )
+        Text(
+            "Inicial S/ ${formatMoney(closure.openingAmount)}  |  Ingresos S/ ${formatMoney(closure.incomeAmount)}  |  Egresos S/ ${formatMoney(closure.expenseAmount)}",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            style = MaterialTheme.typography.bodySmall
+        )
+        Text(
+            "Esperado S/ ${formatMoney(closure.expectedCash)}  |  Real S/ ${formatMoney(closure.actualCash)}  |  Diferencia S/ ${formatMoney(closure.cashDifference)}",
+            color = differenceColor,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold
+        )
     }
+}
+
+@Composable
+fun CashClosureDialog(
+    report: SalesReport,
+    openingAmount: String,
+    expenseAmount: String,
+    actualCash: String,
+    onOpeningAmountChange: (String) -> Unit,
+    onExpenseAmountChange: (String) -> Unit,
+    onActualCashChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val income = CashRegisterCalculator.incomeAmount(report.cashSales)
+    val expected = CashRegisterCalculator.expectedCash(
+        openingAmount = parseMoneyInput(openingAmount),
+        incomeAmount = income,
+        expenseAmount = parseMoneyInput(expenseAmount)
+    )
+    val difference = CashRegisterCalculator.cashDifference(
+        actualCash = parseMoneyInput(actualCash),
+        expectedCash = expected
+    )
+    val differenceColor = when {
+        difference < 0.0 -> WarningOrange
+        difference > 0.0 -> SuccessGreen
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Arqueo de caja") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Periodo: ${formatDateShort(report.periodStart)} - ${formatDateShort(report.periodEnd)}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Ingresos en efectivo: S/ ${formatMoney(income)}",
+                    fontWeight = FontWeight.SemiBold
+                )
+                OutlinedTextField(
+                    value = openingAmount,
+                    onValueChange = onOpeningAmountChange,
+                    label = { Text("Monto inicial") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = expenseAmount,
+                    onValueChange = onExpenseAmountChange,
+                    label = { Text("Egresos") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = actualCash,
+                    onValueChange = onActualCashChange,
+                    label = { Text("Efectivo real contado") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text("Efectivo esperado: S/ ${formatMoney(expected)}", fontWeight = FontWeight.Bold)
+                Text(
+                    "Diferencia de caja: S/ ${formatMoney(difference)}",
+                    color = differenceColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Guardar cierre")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable
@@ -1396,6 +1516,9 @@ fun sendWhatsAppSummary(context: android.content.Context, number: String, text: 
 }
 
 fun formatMoney(value: Double): String = String.format(Locale.US, "%.2f", value)
+
+fun parseMoneyInput(value: String): Double =
+    value.trim().replace(",", ".").toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
 
 fun formatDateShort(timestamp: Long): String {
     return SimpleDateFormat("dd/MM/yyyy", Locale("es", "PE")).format(timestamp)
