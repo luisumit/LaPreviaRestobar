@@ -20,8 +20,11 @@ sonar {
         property("sonar.projectKey", "luisumit_LaPreviaRestobar")
         property("sonar.organization", "luisumit")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.androidLint.reportPaths", "app/build/reports/lint-results-debug.xml")
-        property("sonar.coverage.jacoco.xmlReportPaths", "app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        property("sonar.androidLint.reportPaths", rootProject.file("app/build/reports/lint-results-debug.xml").absolutePath)
+        property(
+            "sonar.coverage.jacoco.xmlReportPaths",
+            rootProject.file("app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml").absolutePath
+        )
         property(
             "sonar.coverage.exclusions",
             listOf(
@@ -36,6 +39,29 @@ sonar {
                 "**/data/local/sync/**"
             ).joinToString(",")
         )
+    }
+}
+
+project(":shared") {
+    sonar {
+        properties {
+            property(
+                "sonar.sources",
+                listOf(
+                    "src/commonMain/kotlin",
+                    "src/androidMain/kotlin",
+                    "src/desktopMain/kotlin"
+                ).joinToString(",")
+            )
+        }
+    }
+}
+
+project(":desktopApp") {
+    sonar {
+        properties {
+            property("sonar.sources", "src/main/kotlin")
+        }
     }
 }
 
