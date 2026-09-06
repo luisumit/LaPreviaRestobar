@@ -69,7 +69,12 @@ jobs:
       - name: Analizar codigo con SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew sonar -Dsonar.token=$SONAR_TOKEN
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "SONAR_TOKEN no esta configurado en GitHub Secrets"
+            exit 1
+          fi
+          ./gradlew sonar -Dsonar.token=$SONAR_TOKEN -Dsonar.scanner.skipJreProvisioning=true
 
       # BUILD DEBUG
       - name: Compilar APK de depuración
