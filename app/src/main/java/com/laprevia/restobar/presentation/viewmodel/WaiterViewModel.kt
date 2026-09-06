@@ -986,8 +986,10 @@ class WaiterViewModel constructor(
         return fileName
     }
 
+    @Suppress("kotlin:S5324")
     private fun writeReceiptFile(fileName: String, document: PdfDocument) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Ticket generado por accion del usuario con Scoped Storage; Android antiguo usa almacenamiento interno.
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
                 put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
@@ -1002,7 +1004,7 @@ class WaiterViewModel constructor(
             values.put(MediaStore.Downloads.IS_PENDING, 0)
             context.contentResolver.update(uri, values, null, null)
         } else {
-            val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "LaPreviaReportes").apply { mkdirs() }
+            val dir = File(context.filesDir, "LaPreviaReportes").apply { mkdirs() }
             FileOutputStream(File(dir, fileName)).use { document.writeTo(it) }
         }
     }

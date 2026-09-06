@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import com.laprevia.restobar.BuildConfig
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,10 +35,10 @@ class RealTimeWebSocketClient constructor(
 
     private val fallbackUrls = listOf(
         webSocketUrl,
-        "ws://10.0.2.2:8080/ws",
-        "ws://192.168.0.104:8080/ws",
-        "ws://localhost:8080/ws"
-    )
+        BuildConfig.WS_URL,
+        BuildConfig.PHYSICAL_WS_URL,
+        LOCALHOST_WS_URL
+    ).distinct()
 
     private var currentUrlIndex = 0
     private var retryCount = 0
@@ -199,5 +200,9 @@ class RealTimeWebSocketClient constructor(
             is WebSocketEvent.Error -> "ERROR"
             else -> "DESCONOCIDO"
         }
+    }
+
+    companion object {
+        private const val LOCALHOST_WS_URL = "ws://localhost:8080/ws"
     }
 }
