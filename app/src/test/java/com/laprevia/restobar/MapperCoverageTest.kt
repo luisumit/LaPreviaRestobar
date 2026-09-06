@@ -2,6 +2,7 @@ package com.laprevia.restobar
 
 import com.laprevia.restobar.data.local.entity.OrderEntity
 import com.laprevia.restobar.data.local.entity.ProductEntity
+import com.laprevia.restobar.data.local.entity.TableEntity
 import com.laprevia.restobar.data.mapper.toDomain
 import com.laprevia.restobar.data.mapper.toEntity
 import com.laprevia.restobar.data.model.Inventory
@@ -9,6 +10,8 @@ import com.laprevia.restobar.data.model.Order
 import com.laprevia.restobar.data.model.OrderItem
 import com.laprevia.restobar.data.model.OrderStatus
 import com.laprevia.restobar.data.model.Product
+import com.laprevia.restobar.data.model.Table
+import com.laprevia.restobar.data.model.TableStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -169,5 +172,51 @@ class MapperCoverageTest {
         assertEquals("Alitas", product.name)
         assertEquals(22.0, product.salePrice ?: 0.0, 0.0)
         assertTrue(product.trackInventory)
+    }
+
+    @Test
+    fun tableEntityToDomainAcceptsLowercaseStatus() {
+        val entity = TableEntity(
+            id = 2,
+            number = 8,
+            status = "ocupada",
+            currentOrderId = "order-8",
+            capacity = 6,
+            syncStatus = "SYNCED",
+            version = 99L,
+            lastModified = 123L
+        )
+
+        val table = entity.toDomain()
+
+        assertEquals(2, table.id)
+        assertEquals(8, table.number)
+        assertEquals(TableStatus.OCUPADA, table.status)
+        assertEquals("order-8", table.currentOrderId)
+        assertEquals(6, table.capacity)
+        assertEquals(99L, table.version)
+    }
+
+    @Test
+    fun tableToEntityMarksPendingForSync() {
+        val table = Table(
+            id = 3,
+            number = 10,
+            status = TableStatus.RESERVADA,
+            currentOrderId = "order-10",
+            capacity = 5,
+            version = 7L
+        )
+
+        val entity = table.toEntity()
+
+        assertEquals(3, entity.id)
+        assertEquals(10, entity.number)
+        assertEquals("RESERVADA", entity.status)
+        assertEquals("order-10", entity.currentOrderId)
+        assertEquals(5, entity.capacity)
+        assertEquals("PENDING", entity.syncStatus)
+        assertTrue(entity.version > 0L)
+        assertTrue(entity.lastModified > 0L)
     }
 }

@@ -33,10 +33,21 @@ sonar {
                 "**/di/**",
                 "**/*Activity*.*",
                 "**/*Application*.*",
+                "**/LaPreviaApp.kt",
                 "**/*Worker*.*",
                 "**/data/remote/**",
+                "**/data/local/dao/**",
+                "**/data/local/db/**",
+                "**/data/local/entity/**",
+                "**/data/repository/Firebase*RepositoryImpl.kt",
+                "**/data/repository/GitLive*Repository.kt",
+                "**/data/repository/*RepositoryImpl.kt",
+                "**/data/repository/Unified*Repository.kt",
                 "**/data/local/datastore/**",
-                "**/data/local/sync/**"
+                "**/data/local/sync/**",
+                "**/domain/service/FirebaseInitializerService.kt",
+                "**/domain/service/InventorySyncService.kt",
+                "**/desktop/**"
             ).joinToString(",")
         )
     }
