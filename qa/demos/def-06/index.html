@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DEF-06 | Demo aislada</title>
+  <style>
+    :root { color-scheme: dark; font-family: Arial, sans-serif; background: #111118; color: #f5f5f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 22px 16px 40px; }
+    main { width: min(100%, 520px); margin: 0 auto; }
+    header { padding: 8px 4px 20px; }
+    h1 { margin: 0; font-size: 25px; }
+    header p { margin: 6px 0 0; color: #bbbcc5; }
+    .warning { margin: 0 0 18px; padding: 13px 15px; border: 1px solid #f2ae42; border-radius: 12px; background: #362b1d; color: #ffd486; line-height: 1.45; }
+    .panel { padding: 20px; border-radius: 16px; background: #24232c; }
+    .row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #3b3943; }
+    .muted { color: #b9b8c2; }
+    .amount { font-weight: 700; }
+    label { display: block; margin: 20px 0 8px; font-weight: 700; }
+    input { width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid #54515f; border-radius: 10px; background: #191820; color: #fff; font-size: 18px; }
+    button { width: 100%; min-height: 50px; margin-top: 14px; border: 0; border-radius: 28px; background: #ffad00; color: #17130a; font-weight: 700; font-size: 16px; cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 3px solid #ff7947; outline-offset: 2px; }
+    .result { display: none; margin-top: 18px; padding: 16px; border-radius: 12px; background: #49282a; border: 1px solid #f35d66; }
+    .result.visible { display: block; }
+    .result h2 { margin: 0 0 10px; color: #ff787f; font-size: 19px; }
+    .negative { color: #ff737a; }
+    .caption { margin: 18px 4px 0; color: #a6a5ae; font-size: 13px; line-height: 1.5; }
+    @media (max-width: 360px) { body { padding-inline: 12px; } .panel { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>LA PREVIA RESTOBAR</h1>
+      <p>Demostración aislada del defecto DEF-06</p>
+    </header>
+    <p class="warning"><strong>SIMULACIÓN QA</strong><br>No pertenece a la app integrada. No guarda pagos ni modifica pedidos reales.</p>
+    <section class="panel" aria-label="Prueba de pago excedido">
+      <div class="row"><span class="muted">Mesa</span><span class="amount">M01</span></div>
+      <div class="row"><span class="muted">Saldo pendiente</span><span class="amount">S/ 80.00</span></div>
+      <label for="payment">Monto ingresado como pago</label>
+      <input id="payment" type="number" min="0" step="0.01" value="100.00" inputmode="decimal">
+      <button id="simulate" type="button">Simular registro del pago</button>
+      <section id="result" class="result" aria-live="polite">
+        <h2>FAIL · Comportamiento observado simulado</h2>
+        <div class="row"><span class="muted">Pago registrado</span><span id="paid" class="amount"></span></div>
+        <div class="row"><span class="muted">Nuevo saldo</span><span id="balance" class="amount negative"></span></div>
+        <p>El sistema de demostración aceptó un monto mayor al saldo. En la app real, valida el resultado antes de reportarlo como evidencia.</p>
+      </section>
+    </section>
+    <p class="caption">Escenario de ejemplo: saldo S/ 80.00 y monto S/ 100.00. Esta página solo representa el resultado descrito en CPF-16; no ejecuta operaciones de cobro.</p>
+  </main>
+  <script>
+    const balanceDue = 80;
+    const input = document.getElementById('payment');
+    const result = document.getElementById('result');
+    const money = value => `S/ ${value.toFixed(2)}`;
+    document.getElementById('simulate').addEventListener('click', () => {
+      const amount = Number(input.value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        input.setCustomValidity('Ingresa un monto mayor que cero.');
+        input.reportValidity();
+        return;
+      }
+      input.setCustomValidity('');
+      document.getElementById('paid').textContent = money(amount);
+      document.getElementById('balance').textContent = money(balanceDue - amount);
+      result.classList.add('visible');
+    });
+  </script>
+</body>
+</html>
