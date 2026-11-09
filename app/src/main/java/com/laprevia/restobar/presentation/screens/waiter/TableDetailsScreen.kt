@@ -33,6 +33,7 @@ fun TableDetailsScreen(
     viewModel: WaiterViewModel = koinViewModel()
 ) {
     val tables by viewModel.tables.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val products by viewModel.products.collectAsState()
     val currentOrderItems by viewModel.currentOrderItems.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
@@ -59,11 +60,10 @@ fun TableDetailsScreen(
         }
     }
 
-    LaunchedEffect(tableId) {
-        // ✅ VALIDACIÓN AÑADIDA
-        if (isValidTableId) {
+    LaunchedEffect(tableId, isLoading) {
+        if (isValidTableId && !isLoading) {
             viewModel.setCurrentTable(tableIdInt ?: return@LaunchedEffect)
-        } else {
+        } else if (!isValidTableId) {
             timber.log.Timber.d("❌ TableDetailsScreen: ID de mesa inválido: $tableId")
             viewModel.clearCurrentOrder()
         }
@@ -80,7 +80,7 @@ fun TableDetailsScreen(
 
     // ✅ Si el ID es valido pero las mesas AUN NO CARGARON (Room/Firebase en camino),
     // mostrar "cargando" en vez del error — evita el flash del triangulo rojo.
-    if (table == null && isValidTableId && tables.isEmpty()) {
+    if (table == null && isValidTableId && isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

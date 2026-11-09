@@ -10,9 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.laprevia.restobar.data.model.Product
+import com.laprevia.restobar.domain.ProductValidation
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,6 +38,14 @@ fun ProductFormDialog(
     var category by remember { mutableStateOf(product?.category ?: "") }
 
     val isEditMode = product != null
+    val salePriceValue = ProductValidation.parseDecimal(salePrice)
+    val costPriceValue = ProductValidation.parseDecimal(costPrice)
+    val stockValue = ProductValidation.parseDecimal(stock)
+    val minStockValue = if (minStock.isBlank()) 0.0 else ProductValidation.parseDecimal(minStock)
+    val salePriceError = if (salePriceValue == null) "Ingresa un precio numérico no negativo." else null
+    val costPriceError = if (costPriceValue == null) "Ingresa un costo numérico no negativo." else null
+    val stockError = if (trackInventory && stockValue == null) "Ingresa un stock numérico no negativo." else null
+    val minStockError = if (trackInventory && minStockValue == null) "Ingresa un mínimo numérico no negativo." else null
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -95,22 +106,30 @@ fun ProductFormDialog(
                 ) {
                     OutlinedTextField(
                         value = salePrice,
-                        onValueChange = { salePrice = it },
+                        onValueChange = { value ->
+                            if ('-' !in value) salePrice = ProductValidation.filterNumericInput(value)
+                        },
                         label = { Text("Precio Venta *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         placeholder = { Text("0.00") },
-                        isError = salePrice.toDoubleOrNull() == null
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = salePriceError != null,
+                        supportingText = salePriceError?.let { error -> { Text(error) } }
                     )
 
                     OutlinedTextField(
                         value = costPrice,
-                        onValueChange = { costPrice = it },
+                        onValueChange = { value ->
+                            if ('-' !in value) costPrice = ProductValidation.filterNumericInput(value)
+                        },
                         label = { Text("Precio Costo *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         placeholder = { Text("0.00") },
-                        isError = costPrice.toDoubleOrNull() == null
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = costPriceError != null,
+                        supportingText = costPriceError?.let { error -> { Text(error) } }
                     )
                 }
 
@@ -144,20 +163,29 @@ fun ProductFormDialog(
                     ) {
                         OutlinedTextField(
                             value = stock,
-                            onValueChange = { stock = it },
+                            onValueChange = { value ->
+                                if ('-' !in value) stock = ProductValidation.filterNumericInput(value)
+                            },
                             label = { Text("Stock Actual *") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            isError = trackInventory && (stock.isBlank() || stock.toDoubleOrNull() == null)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            isError = stockError != null,
+                            supportingText = stockError?.let { error -> { Text(error) } }
                         )
 
                         OutlinedTextField(
                             value = minStock,
-                            onValueChange = { minStock = it },
+                            onValueChange = { value ->
+                                if ('-' !in value) minStock = ProductValidation.filterNumericInput(value)
+                            },
                             label = { Text("Stock Mínimo") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            placeholder = { Text("0.0") }
+                            placeholder = { Text("0.0") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            isError = minStockError != null,
+                            supportingText = minStockError?.let { error -> { Text(error) } }
                         )
                     }
                 }
@@ -220,11 +248,11 @@ fun ProductFormDialog(
                                 name = name,
                                 description = description,
                                 category = category,
-                                salePrice = salePrice.toDoubleOrNull(),
-                                costPrice = costPrice.toDoubleOrNull(),
+                                salePrice = salePriceValue,
+                                costPrice = costPriceValue,
                                 trackInventory = trackInventory,
-                                stock = if (trackInventory) stock.toDoubleOrNull() ?: 0.0 else 0.0,
-                                minStock = if (trackInventory) minStock.toDoubleOrNull() ?: 0.0 else 0.0,
+                                stock = if (trackInventory) stockValue ?: 0.0 else 0.0,
+                                minStock = if (trackInventory) minStockValue ?: 0.0 else 0.0,
                                 imageUrl = imageUrl.ifBlank { null },
                                 isActive = isActive,
                                 createdAt = product?.createdAt ?: System.currentTimeMillis(),
@@ -234,9 +262,10 @@ fun ProductFormDialog(
                         },
                         enabled = name.isNotBlank() &&
                                 category.isNotBlank() &&
-                                salePrice.toDoubleOrNull() != null &&
-                                costPrice.toDoubleOrNull() != null &&
-                                (!trackInventory || stock.toDoubleOrNull() != null)
+                                salePriceError == null &&
+                                costPriceError == null &&
+                                stockError == null &&
+                                minStockError == null
                     ) {
                         Text(if (isEditMode) "Actualizar" else "Crear")
                     }

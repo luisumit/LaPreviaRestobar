@@ -48,3 +48,12 @@ yarn-error.log*
 *.aar
 *.jks
 *.keystore
+
+# Local performance-test tooling and generated reports
+qa/performance/tools/
+qa/performance/cpnf03/*.jtl
+qa/performance/cpnf03/*.log
+qa/performance/cpnf03/informe-*/
+qa/performance/cpnf03/android-*.png
+qa/performance/cpnf03/android-ui.xml
+qa/performance/cpnf03/captura-*.png

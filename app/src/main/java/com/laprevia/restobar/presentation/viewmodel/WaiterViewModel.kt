@@ -29,6 +29,7 @@ import com.laprevia.restobar.domain.repository.FirebaseOrderRepository
 import com.laprevia.restobar.domain.repository.FirebaseProductRepository
 import com.laprevia.restobar.domain.repository.FirebaseTableRepository
 import com.laprevia.restobar.domain.repository.FirebaseInventoryRepository
+import com.laprevia.restobar.domain.OrderStockValidation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -549,6 +550,27 @@ class WaiterViewModel constructor(
                 val items = _currentOrderItems.value
                 if (items.isEmpty()) {
                     _errorMessage.value = "El pedido no puede estar vacío"
+                    return@launch
+                }
+
+                val trackedProductIds = items
+                    .filter { it.trackInventory }
+                    .map { it.productId }
+                    .distinct()
+                val availableStock = mutableMapOf<String, Double>()
+                trackedProductIds.forEach { productId ->
+                    availableStock[productId] = if (_isInternetAvailable.value) {
+                        firebaseInventoryRepository.getCurrentStock(productId)
+                    } else {
+                        _products.value.firstOrNull { it.id == productId }?.stock ?: 0.0
+                    }
+                }
+                val shortages = OrderStockValidation.shortages(items, availableStock)
+                if (shortages.isNotEmpty()) {
+                    val details = shortages.joinToString("; ") { shortage ->
+                        "${shortage.productName}: ${shortage.requested} solicitadas, ${shortage.available.toInt()} disponibles"
+                    }
+                    _errorMessage.value = "Stock insuficiente: $details. El pedido no se envió."
                     return@launch
                 }
 
