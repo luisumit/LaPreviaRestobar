@@ -65,10 +65,10 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(connection: SQLiteConnection) {
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN cashSales REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN yapePlinSales REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN cardSales REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN bestSellingProduct TEXT NOT NULL DEFAULT 'Sin ventas'")
+                addColumnIfMissing(connection, "cash_closures", "cashSales", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "yapePlinSales", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "cardSales", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "bestSellingProduct", "TEXT NOT NULL DEFAULT 'Sin ventas'")
             }
         }
 
@@ -88,12 +88,37 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(connection: SQLiteConnection) {
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN openingAmount REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN incomeAmount REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN expenseAmount REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN expectedCash REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN actualCash REAL NOT NULL DEFAULT 0")
-                connection.execSQL("ALTER TABLE cash_closures ADD COLUMN cashDifference REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "openingAmount", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "incomeAmount", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "expenseAmount", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "expectedCash", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "actualCash", "REAL NOT NULL DEFAULT 0")
+                addColumnIfMissing(connection, "cash_closures", "cashDifference", "REAL NOT NULL DEFAULT 0")
+            }
+        }
+
+        private fun addColumnIfMissing(
+            connection: SQLiteConnection,
+            tableName: String,
+            columnName: String,
+            columnDefinition: String
+        ) {
+            val statement = connection.prepare("PRAGMA table_info(`$tableName`)")
+            val columnExists = try {
+                var found = false
+                while (statement.step()) {
+                    if (statement.getText(1) == columnName) {
+                        found = true
+                        break
+                    }
+                }
+                found
+            } finally {
+                statement.close()
+            }
+
+            if (!columnExists) {
+                connection.execSQL("ALTER TABLE `$tableName` ADD COLUMN `$columnName` $columnDefinition")
             }
         }
 
